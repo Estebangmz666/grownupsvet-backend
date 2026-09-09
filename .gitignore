@@ -31,3 +31,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Cryptographic key material ###
+*.p12
+*.pfx
+*.pem
+*.key
+*.jks
+*.keystore
+*.pk8
+
+### Local environment secrets ###
+.env
+.env.*
+!.env.example

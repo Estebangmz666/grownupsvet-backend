@@ -2,6 +2,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.exception;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.ApiErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.FieldValidationErrorResponseDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.exception.InvalidUserCredentialsException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.EmailAlreadyRegisteredException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -66,6 +67,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         headers.set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         return problemResponse(apiErrorResponseFactory.create(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED",
                 "Inicia sesión para acceder a este recurso."), headers);
+    }
+
+    @ExceptionHandler(InvalidUserCredentialsException.class)
+    public ResponseEntity<Object> handleInvalidCredentials(InvalidUserCredentialsException exception) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        headers.setCacheControl("no-store");
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
+                "El correo o la contraseña no son correctos."), headers);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

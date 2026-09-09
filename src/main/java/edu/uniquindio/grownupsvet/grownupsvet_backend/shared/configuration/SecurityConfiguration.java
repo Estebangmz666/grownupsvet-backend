@@ -1,11 +1,10 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.security.ApiSecurityErrorHandler;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.controller.UserSessionController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.controller.UserSignupController;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -13,6 +12,8 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Map;
@@ -29,14 +30,6 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager() {
-        // Prevent Boot's generated development account. Login/JWT is a later increment.
-        return authentication -> {
-            throw new AuthenticationServiceException("Authentication is not implemented in this increment.");
-        };
-    }
-
-    @Bean
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
                                                       ApiSecurityErrorHandler apiSecurityErrorHandler) throws Exception {
         return http
@@ -49,11 +42,25 @@ public class SecurityConfiguration {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(apiSecurityErrorHandler)
                         .accessDeniedHandler(apiSecurityErrorHandler))
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .authenticationEntryPoint(apiSecurityErrorHandler)
+                        .accessDeniedHandler(apiSecurityErrorHandler)
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
-                        .requestMatchers(UserSignupController.REGISTRATION_PATH).permitAll()
+                        .requestMatchers(UserSignupController.REGISTRATION_PATH,
+                                UserSessionController.SESSIONS_PATH).permitAll()
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
                                 "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .anyRequest().denyAll())
+                        .anyRequest().authenticated())
                 .build();
+    }
+
+    private JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        authoritiesConverter.setAuthoritiesClaimName("permissions");
+        authoritiesConverter.setAuthorityPrefix("");
+        JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
+        authenticationConverter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+        return authenticationConverter;
     }
 }

@@ -15,8 +15,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Locale;
-
 @Service
 public class UserSignupService {
     private final UserRepository userRepository;
@@ -33,7 +31,7 @@ public class UserSignupService {
     /** Saves the account and owner profile atomically, without granting a session. */
     @Transactional
     public UserSignupResponseDTO signup(UserSignupRequestDTO request) {
-        String normalizedEmail = request.email().strip().toLowerCase(Locale.ROOT);
+        String normalizedEmail = User.normalizeEmail(request.email());
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new EmailAlreadyRegisteredException();
         }

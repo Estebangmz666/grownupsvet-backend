@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: grownupsvet-backend
+
+  profiles:
+    default: dev
+
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# SQL exception messages can contain values from the failed row. The application
+# logs only a correlation id, exception type and stack locations for unexpected errors.
+logging:
+  level:
+    org.hibernate.orm.jdbc.error: "OFF"
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"

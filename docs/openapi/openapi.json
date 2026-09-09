@@ -1,0 +1,242 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "GrownupsVet API",
+    "description" : "Contrato incremental generado desde código. Este incremento implementa registro de propietarios y respuestas de error. Login, JWT, perfil, fotos y mascotas todavía no están disponibles.",
+    "version" : "0.1.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080",
+    "description" : "Generated server url"
+  } ],
+  "paths" : {
+    "/api/v1/auth/registrations" : {
+      "post" : {
+        "tags" : [ "Registro de propietarios" ],
+        "summary" : "Crear una cuenta de propietario",
+        "description" : "Crea una cuenta OWNER activa y su perfil en una transacción. El cliente no asigna rol ni estado. Devuelve un recibo sin token; la interfaz conduce al login. Las mascotas y la foto se incorporan en operaciones posteriores.",
+        "operationId" : "signupOwner",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UserSignupRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Cuenta creada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserSignupResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, propiedades o campos inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "El correo ya está registrado",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                },
+                "example" : {
+                  "type" : "about:blank",
+                  "title" : "Conflicto con el estado actual",
+                  "status" : 409,
+                  "detail" : "Este correo ya está registrado. Puedes iniciar sesión o recuperar tu contraseña.",
+                  "instance" : "urn:uuid:7d667530-867b-4c78-a458-0904fb82d574",
+                  "errorCode" : "EMAIL_ALREADY_REGISTERED",
+                  "fieldErrors" : [ ]
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "El formato solicitado en Accept no está disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "La petición debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin detalles sensibles",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "UserSignupRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Datos para crear una cuenta de propietario. No admite propiedades adicionales.",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo de acceso. Se guarda en minúsculas; debe tener formato de correo válido.",
+            "example" : "persona@example.com",
+            "maxLength" : 254,
+            "minLength" : 3
+          },
+          "fullName" : {
+            "type" : "string",
+            "description" : "Nombre y apellido, al menos dos componentes. Admite letras internacionales, apóstrofos, guiones y puntos; máximo 150 caracteres incluyendo espacios. Se retiran espacios exteriores al guardar.",
+            "example" : "María del Carmen Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          },
+          "dateOfBirth" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Fecha no futura en formato YYYY-MM-DD. Edad de 0 a 130 años cumplidos, calculada con la fecha de America/Bogota.",
+            "example" : "1955-05-20"
+          },
+          "phoneNumber" : {
+            "type" : "string",
+            "description" : "Número internacional E.164 sin espacios ni extensiones. Se valida con metadatos internacionales; no acredita titularidad ni disponibilidad de WhatsApp.",
+            "example" : "+573001234567",
+            "maxLength" : 16,
+            "minLength" : 3,
+            "pattern" : "^\\+[1-9][0-9]{1,14}$"
+          },
+          "password" : {
+            "type" : "string",
+            "format" : "password",
+            "description" : "15–128 puntos de código Unicode. Admite espacios, sin composición obligatoria. No se transforma ni se devuelve. Se rechazan contraseñas comunes.",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "dateOfBirth", "email", "fullName", "password", "phoneNumber" ]
+      },
+      "UserSignupResponseDTO" : {
+        "type" : "object",
+        "description" : "Cuenta de propietario creada. La interfaz conduce al login; esta respuesta no contiene sesión ni contraseña.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "example" : "7d667530-867b-4c78-a458-0904fb82d574"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo normalizado de la cuenta creada.",
+            "example" : "persona@example.com",
+            "maxLength" : 254
+          }
+        },
+        "required" : [ "email", "id" ]
+      },
+      "ApiErrorResponseDTO" : {
+        "type" : "object",
+        "description" : "Respuesta de error RFC 9457, con código funcional y errores por campo.",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "format" : "uri",
+            "description" : "Referencia URI al tipo de problema.",
+            "example" : "about:blank"
+          },
+          "title" : {
+            "type" : "string",
+            "description" : "Resumen del problema.",
+            "example" : "Solicitud incorrecta"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Estado HTTP de la respuesta.",
+            "example" : 400,
+            "maximum" : 599,
+            "minimum" : 400
+          },
+          "detail" : {
+            "type" : "string",
+            "description" : "Explicación de lo ocurrido en esta solicitud.",
+            "example" : "Revisa los campos indicados."
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri-reference",
+            "description" : "Referencia URI opcional que identifica esta ocurrencia del problema.",
+            "example" : "urn:uuid:7d667530-867b-4c78-a458-0904fb82d574"
+          },
+          "errorCode" : {
+            "type" : "string",
+            "description" : "Código funcional estable; el frontend no debe comparar los mensajes.",
+            "example" : "INVALID_REQUEST"
+          },
+          "fieldErrors" : {
+            "type" : "array",
+            "description" : "Errores por campo. Es una lista vacía cuando el error no corresponde a campos específicos.",
+            "items" : {
+              "$ref" : "#/components/schemas/FieldValidationErrorResponseDTO"
+            }
+          }
+        },
+        "required" : [ "detail", "errorCode", "fieldErrors", "status", "title", "type" ]
+      },
+      "FieldValidationErrorResponseDTO" : {
+        "type" : "object",
+        "description" : "Error asociado a un campo de la solicitud. Nunca contiene el valor recibido.",
+        "properties" : {
+          "field" : {
+            "type" : "string",
+            "description" : "Nombre del campo en el contrato JSON.",
+            "example" : "email"
+          },
+          "code" : {
+            "type" : "string",
+            "description" : "Código estable que identifica el error del campo.",
+            "example" : "TYPE_MISMATCH"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "Explicación legible para la persona usuaria.",
+            "example" : "Debe enviarse como texto."
+          }
+        },
+        "required" : [ "code", "field", "message" ]
+      }
+    }
+  }
+}

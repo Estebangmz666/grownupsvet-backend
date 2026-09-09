@@ -2,14 +2,103 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato incremental generado desde código. Este incremento implementa registro de propietarios y respuestas de error. Login, JWT, perfil, fotos y mascotas todavía no están disponibles.",
-    "version" : "0.1.0"
+    "description" : "Contrato incremental generado desde código. Implementa registro de propietarios, login con JWT RS256 y respuestas de error. Perfil, cierre de sesión, fotos y mascotas todavía no están disponibles.",
+    "version" : "0.2.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/auth/sessions" : {
+      "post" : {
+        "tags" : [ "Sesiones" ],
+        "summary" : "Iniciar sesión",
+        "description" : "Verifica correo y contraseña y emite un JWT RS256 por 24 horas. No emite refresh token.",
+        "operationId" : "createUserSession",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UserLoginRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Sesión creada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserLoginResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, propiedades o campos inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Correo, contraseña o estado de cuenta no válidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                },
+                "example" : {
+                  "type" : "about:blank",
+                  "title" : "Autenticación requerida",
+                  "status" : 401,
+                  "detail" : "El correo o la contraseña no son correctos.",
+                  "instance" : "urn:uuid:7d667530-867b-4c78-a458-0904fb82d574",
+                  "errorCode" : "INVALID_CREDENTIALS",
+                  "fieldErrors" : [ ]
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "El formato solicitado en Accept no está disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "La petición debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin detalles sensibles",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/registrations" : {
       "post" : {
         "tags" : [ "Registro de propietarios" ],
@@ -102,69 +191,79 @@
   },
   "components" : {
     "schemas" : {
-      "UserSignupRequestDTO" : {
+      "UserLoginRequestDTO" : {
         "type" : "object",
-        "additionalProperties" : false,
-        "description" : "Datos para crear una cuenta de propietario. No admite propiedades adicionales.",
+        "description" : "Credentials used to sign in to GrownupsVet.",
         "properties" : {
           "email" : {
             "type" : "string",
             "format" : "email",
-            "description" : "Correo de acceso. Se guarda en minúsculas; debe tener formato de correo válido.",
+            "description" : "Email address associated with the account.",
             "example" : "persona@example.com",
             "maxLength" : 254,
-            "minLength" : 3
-          },
-          "fullName" : {
-            "type" : "string",
-            "description" : "Nombre y apellido, al menos dos componentes. Admite letras internacionales, apóstrofos, guiones y puntos; máximo 150 caracteres incluyendo espacios. Se retiran espacios exteriores al guardar.",
-            "example" : "María del Carmen Gómez",
-            "maxLength" : 150,
-            "minLength" : 3
-          },
-          "dateOfBirth" : {
-            "type" : "string",
-            "format" : "date",
-            "description" : "Fecha no futura en formato YYYY-MM-DD. Edad de 0 a 130 años cumplidos, calculada con la fecha de America/Bogota.",
-            "example" : "1955-05-20"
-          },
-          "phoneNumber" : {
-            "type" : "string",
-            "description" : "Número internacional E.164 sin espacios ni extensiones. Se valida con metadatos internacionales; no acredita titularidad ni disponibilidad de WhatsApp.",
-            "example" : "+573001234567",
-            "maxLength" : 16,
-            "minLength" : 3,
-            "pattern" : "^\\+[1-9][0-9]{1,14}$"
+            "minLength" : 0
           },
           "password" : {
             "type" : "string",
             "format" : "password",
-            "description" : "15–128 puntos de código Unicode. Admite espacios, sin composición obligatoria. No se transforma ni se devuelve. Se rechazan contraseñas comunes.",
+            "description" : "Account password. Accepted only in requests; never returned in responses.",
             "maxLength" : 128,
-            "minLength" : 15,
+            "minLength" : 1,
             "writeOnly" : true
           }
         },
-        "required" : [ "dateOfBirth", "email", "fullName", "password", "phoneNumber" ]
+        "required" : [ "email", "password" ]
       },
-      "UserSignupResponseDTO" : {
+      "AuthenticatedUserResponseDTO" : {
         "type" : "object",
-        "description" : "Cuenta de propietario creada. La interfaz conduce al login; esta respuesta no contiene sesión ni contraseña.",
+        "description" : "Public account identity returned after successful authentication.",
         "properties" : {
           "id" : {
             "type" : "string",
-            "format" : "uuid",
-            "example" : "7d667530-867b-4c78-a458-0904fb82d574"
+            "format" : "uuid"
           },
           "email" : {
             "type" : "string",
-            "format" : "email",
-            "description" : "Correo normalizado de la cuenta creada.",
-            "example" : "persona@example.com",
-            "maxLength" : 254
+            "format" : "email"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR" ]
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "email", "id" ]
+        "required" : [ "email", "id", "permissions", "role" ]
+      },
+      "UserLoginResponseDTO" : {
+        "type" : "object",
+        "description" : "Bearer session created after valid credentials. No refresh token is issued.",
+        "properties" : {
+          "accessToken" : {
+            "type" : "string",
+            "description" : "RS256-signed JWT access token.",
+            "readOnly" : true
+          },
+          "tokenType" : {
+            "type" : "string",
+            "enum" : [ "Bearer" ],
+            "example" : "Bearer"
+          },
+          "expiresIn" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Token lifetime in seconds.",
+            "example" : 86400
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/AuthenticatedUserResponseDTO"
+          }
+        },
+        "required" : [ "accessToken", "expiresIn", "tokenType", "user" ]
       },
       "ApiErrorResponseDTO" : {
         "type" : "object",
@@ -236,6 +335,78 @@
           }
         },
         "required" : [ "code", "field", "message" ]
+      },
+      "UserSignupRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Datos para crear una cuenta de propietario. No admite propiedades adicionales.",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo de acceso. Se guarda en minúsculas; debe tener formato de correo válido.",
+            "example" : "persona@example.com",
+            "maxLength" : 254,
+            "minLength" : 3
+          },
+          "fullName" : {
+            "type" : "string",
+            "description" : "Nombre y apellido, al menos dos componentes. Admite letras internacionales, apóstrofos, guiones y puntos; máximo 150 caracteres incluyendo espacios. Se retiran espacios exteriores al guardar.",
+            "example" : "María del Carmen Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          },
+          "dateOfBirth" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Fecha no futura en formato YYYY-MM-DD. Edad de 0 a 130 años cumplidos, calculada con la fecha de America/Bogota.",
+            "example" : "1955-05-20"
+          },
+          "phoneNumber" : {
+            "type" : "string",
+            "description" : "Número internacional E.164 sin espacios ni extensiones. Se valida con metadatos internacionales; no acredita titularidad ni disponibilidad de WhatsApp.",
+            "example" : "+573001234567",
+            "maxLength" : 16,
+            "minLength" : 3,
+            "pattern" : "^\\+[1-9][0-9]{1,14}$"
+          },
+          "password" : {
+            "type" : "string",
+            "format" : "password",
+            "description" : "15–128 puntos de código Unicode. Admite espacios, sin composición obligatoria. No se transforma ni se devuelve. Se rechazan contraseñas comunes.",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "dateOfBirth", "email", "fullName", "password", "phoneNumber" ]
+      },
+      "UserSignupResponseDTO" : {
+        "type" : "object",
+        "description" : "Cuenta de propietario creada. La interfaz conduce al login; esta respuesta no contiene sesión ni contraseña.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "example" : "7d667530-867b-4c78-a458-0904fb82d574"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo normalizado de la cuenta creada.",
+            "example" : "persona@example.com",
+            "maxLength" : 254
+          }
+        },
+        "required" : [ "email", "id" ]
+      }
+    },
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "type" : "http",
+        "description" : "JWT RS256 supplied in the Authorization header. Tokens expire 24 hours after login.",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT"
       }
     }
   }

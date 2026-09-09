@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Exercises request conversion and validation, independently of the future login/security flow. */
+/** Exercises request conversion and validation independently of credential verification. */
 @WebMvcTest(UserLoginRequestDTOHttpTests.LoginRequestValidationController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JsonTypeConfiguration.class, ApiErrorResponseFactory.class,
@@ -82,6 +82,27 @@ class UserLoginRequestDTOHttpTests {
     }
 
     @Test
+    void rejectsPasswordLongerThanTheHashingContract() throws Exception {
+        String requestBody = jsonMapper.writeValueAsString(new LoginJson("persona@example.com", "a".repeat(129)));
+
+        mockMvc.perform(post("/test/login-request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void accepts128UnicodeCodePointsEvenWhenTheyUseMoreUtf16Units() throws Exception {
+        String requestBody = jsonMapper.writeValueAsString(new LoginJson(
+                "persona@example.com", "🐶".repeat(128)));
+
+        mockMvc.perform(post("/test/login-request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void preservesPasswordInputWithoutLeakingItInJsonOrDiagnosticText() {
         String password = "  Keep my spaces!  ";
         UserLoginRequestDTO request = jsonMapper.readValue("""
@@ -103,8 +124,11 @@ class UserLoginRequestDTOHttpTests {
         assertThat(schema.getProperties().get("email").getType()).isEqualTo("string");
         assertThat(schema.getProperties().get("email").getFormat()).isEqualTo("email");
         assertThat(schema.getProperties().get("password").getType()).isEqualTo("string");
+        assertThat(schema.getProperties().get("password").getMaxLength()).isEqualTo(128);
         assertThat(schema.getProperties().get("password").getWriteOnly()).isTrue();
     }
+
+    private record LoginJson(String email, String password) { }
 
     /** Test-only endpoint: it validates a request without implementing authentication. */
     @RestController

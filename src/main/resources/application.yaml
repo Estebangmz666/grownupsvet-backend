@@ -19,3 +19,15 @@ logging:
   level:
     org.hibernate.orm.jdbc.error: "OFF"
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"
+
+grownupsvet:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:grownupsvet-backend}
+      audience: ${JWT_AUDIENCE:grownupsvet-clients}
+      access-token-ttl: PT24H
+      clock-skew: PT30S
+      key-store-path: ${JWT_KEYSTORE_PATH:}
+      key-store-password: ${JWT_KEYSTORE_PASSWORD:}
+      key-alias: ${JWT_KEY_ALIAS:grownupsvet-jwt-signing-2026-09}
+      key-password: ${JWT_KEY_PASSWORD:${JWT_KEYSTORE_PASSWORD:}}

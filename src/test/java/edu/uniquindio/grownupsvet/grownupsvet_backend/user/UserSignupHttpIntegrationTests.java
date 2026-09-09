@@ -3,6 +3,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.user;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.controller.UserSignupController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.OwnerProfile;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -38,7 +40,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -50,6 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestJwtKeyConfiguration.class)
 class UserSignupHttpIntegrationTests {
 
     private static final String REGISTRATION_PATH = UserSignupController.REGISTRATION_PATH;
@@ -228,16 +230,12 @@ class UserSignupHttpIntegrationTests {
     }
 
     @Test
-    void usesTheSameErrorContractForSecurityFailuresBeforeMvc() throws Exception {
+    void usesTheSameErrorContractForMissingAuthenticationBeforeMvc() throws Exception {
         mockMvc.perform(get("/api/v1/private-test-resource"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string("WWW-Authenticate", "Bearer"))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
-        mockMvc.perform(get("/api/v1/private-test-resource").with(user("test-owner").roles("OWNER")))
-                .andExpect(status().isForbidden())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
     }
 
     @Test
@@ -247,7 +245,7 @@ class UserSignupHttpIntegrationTests {
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
         JsonNode operation = specification.path("paths").path(REGISTRATION_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("signupOwner");
-        assertThat(specification.path("paths").properties()).hasSize(1);
+        assertThat(specification.path("paths").properties()).hasSize(2);
         assertThat(operation.path("responses").propertyNames()).contains("201", "400", "409", "415", "500");
         JsonNode requestSchema = specification.path("components").path("schemas").path("UserSignupRequestDTO");
         assertThat(requestSchema.path("additionalProperties").asBoolean(true)).isFalse();

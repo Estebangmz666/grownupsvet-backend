@@ -20,6 +20,8 @@ def main() -> None:
         "signup-success.json": "UserSignupResponseDTO",
         "signup-conflict.json": "ApiErrorResponseDTO",
         "signup-invalid.json": "ApiErrorResponseDTO",
+        "login-success.json": "UserLoginResponseDTO",
+        "login-invalid-credentials.json": "ApiErrorResponseDTO",
     }
     for filename, schema_name in examples.items():
         schema = {

@@ -2,6 +2,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfiguration;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestJwtKeyConfiguration.class)
 class GrownupsvetBackendApplicationTests {
 
 	@Autowired

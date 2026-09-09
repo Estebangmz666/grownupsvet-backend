@@ -88,10 +88,15 @@ public class    User {
 
     /** Login identifiers are stored without surrounding whitespace and in lowercase. */
     public void changeEmail(String email) {
-        Assert.hasText(email, "email must not be blank");
-        String normalizedEmail = email.strip().toLowerCase(Locale.ROOT);
+        String normalizedEmail = normalizeEmail(email);
         Assert.isTrue(normalizedEmail.length() <= 254, "email must not exceed 254 characters");
         this.email = normalizedEmail;
+    }
+
+    /** Applies the same canonical form for registration, login and persistence lookups. */
+    public static String normalizeEmail(String email) {
+        Assert.hasText(email, "email must not be blank");
+        return email.strip().toLowerCase(Locale.ROOT);
     }
 
     public void changePasswordHash(String passwordHash) {

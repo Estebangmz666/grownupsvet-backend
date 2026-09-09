@@ -6,7 +6,7 @@ Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
 
-El alcance inicial permite al propietario editar únicamente el teléfono y la foto de perfil. La funcionalidad de foto está confirmada y su uso es opcional; se propone almacenarla en PostgreSQL en una tabla separada, conforme a la preferencia de Esteban. Correo, nombre completo y fecha de nacimiento no tendrán edición por el propietario. Las correcciones administrativas, el cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación y recuperación, separados de la edición del perfil. Estas reglas están documentadas; todavía no hay operaciones de perfil implementadas.
+El alcance inicial permite al propietario editar únicamente el teléfono y la foto de perfil. La funcionalidad de foto está confirmada y su uso es opcional; se propone almacenarla en PostgreSQL en una tabla separada, conforme a la preferencia de Esteban. Correo, nombre completo y fecha de nacimiento no tendrán edición por el propietario. Las correcciones administrativas, el cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación y recuperación, separados de la edición del perfil. Registro e inicio de sesión ya están implementados; todavía no hay operaciones de perfil.
 
 | Campo | Persistencia | Regla |
 |---|---|---|
@@ -18,9 +18,9 @@ El alcance inicial permite al propietario editar únicamente el teléfono y la f
 
 La migración `V1__create_users.sql` crea `users` y sus restricciones. La nueva `V2__create_owner_profiles.sql` crea `owner_profiles`, con `user_id` como clave primaria y referencia a la cuenta, `full_name` de hasta 150 caracteres, `date_of_birth` de tipo `DATE` y `phone_number` de hasta 16 caracteres. Se conserva V1; los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
 
-Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador, y propone permisos fijos por acción y recurso. El enum y la restricción SQL ya existen; la autorización funcional todavía no está implementada.
+Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador. El login emite un catálogo inicial de autoridades; la autorización funcional de cada recurso todavía debe implementarse junto con sus operaciones.
 
-La entidad no implementa autenticación ni sustituye un DTO de respuesta. El hash se excluye de JSON y del texto de diagnóstico. Cuando se implemente el login, la búsqueda debe aplicar la misma normalización del correo y comprobar que la cuenta esté activa. La comprobación de credenciales y de permisos corresponde a servicios y a Spring Security.
+La entidad no implementa autenticación ni sustituye un DTO de respuesta. El hash se excluye de JSON y del texto de diagnóstico. El servicio de login aplica la misma normalización del correo, exige una cuenta activa y verifica el hash Argon2id sin transformar la contraseña recibida. La comprobación de credenciales y la seguridad HTTP corresponden a servicios y a Spring Security.
 
 ## Registro de propietarios implementado
 
@@ -47,7 +47,7 @@ La respuesta es `201 Created`, con `UserSignupResponseDTO`:
 }
 ```
 
-El identificador público es una cadena UUID y el correo se devuelve normalizado en minúsculas. El alta no emite token ni realiza una redirección HTTP. El recorrido acordado es que el frontend muestre el éxito y conduzca a `/login`; login, JWT y el paso de primera mascota siguen pendientes de implementación. Las mascotas y la foto no forman parte de esta petición.
+El identificador público es una cadena UUID y el correo se devuelve normalizado en minúsculas. El alta no emite token ni realiza una redirección HTTP. El frontend muestra el éxito y conduce a `/login`; después del primer acceso puede conducir al paso de primera mascota, que sigue pendiente. Las mascotas y la foto no forman parte de esta petición.
 
 | Campo obligatorio | Validación implementada |
 |---|---|
@@ -61,15 +61,45 @@ La contraseña se codifica con Argon2id mediante `PasswordEncoder`, sin recortar
 
 La detección de correo duplicado combina una comprobación previa y la restricción única `uk_users_email` de PostgreSQL. Si dos peticiones intentan registrar el mismo correo simultáneamente, el servicio traduce específicamente esa restricción a `EmailAlreadyRegisteredException`. Otras fallas de integridad conservan su naturaleza de error interno y la transacción evita cuentas o perfiles parciales.
 
-Springdoc genera el contrato de este incremento desde controlador, DTOs y anotaciones en `/v3/api-docs` y `/v3/api-docs.yaml`; Swagger UI está disponible en `/swagger-ui/index.html`. La seguridad permite el registro y esa documentación, y deniega el resto de rutas mientras se incorpora autenticación. Este contrato parcial aporta a SCRUM-67 y la operación funcional a SCRUM-23.
+Springdoc genera el contrato desde controladores, DTOs y anotaciones en `/v3/api-docs` y `/v3/api-docs.yaml`; Swagger UI está disponible en `/swagger-ui/index.html`. Registro, login y documentación son públicos; las demás rutas exigen un JWT Bearer válido. Este contrato incremental aporta a SCRUM-67 y las operaciones funcionales a SCRUM-23.
 
-## Petición de login
+## Login y JWT implementados
 
-`authentication.dto.UserLoginRequestDTO` recibe `email` y `password`, ambos cadenas obligatorias. El correo debe tener formato válido. La contraseña se conserva exactamente como fue recibida, se marca como escritura únicamente y no aparece en la serialización JSON ni en `toString()`.
+`POST /api/v1/auth/sessions` recibe `application/json` con `email` y `password`, ambos obligatorios. El correo debe tener formato válido y la contraseña admite como máximo 128 puntos de código Unicode. La contraseña se conserva exactamente como fue recibida, se marca como escritura únicamente y no aparece en la serialización JSON ni en `toString()`.
 
-`shared.configuration.JsonTypeConfiguration` evita que Jackson convierta automáticamente números y booleanos a cadenas. La validación de la petición se activa al utilizar `@Valid @RequestBody` en el futuro controlador. Las pruebas HTTP incluyen un controlador exclusivo de pruebas para verificar esa integración; no añade una ruta a la aplicación.
+Ejemplo de petición:
 
-La política de creación de contraseñas ya se aplica al registro descrito arriba. Este DTO no vuelve a aplicar la política de creación en cada intento de login; la operación de login todavía no está implementada.
+```json
+{
+  "email": "persona@example.com",
+  "password": "mis mascotas caminan por el jardín"
+}
+```
+
+Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
+
+```json
+{
+  "accessToken": "eyJ...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400,
+  "user": {
+    "id": "7d667530-867b-4c78-a458-0904fb82d574",
+    "email": "persona@example.com",
+    "role": "OWNER",
+    "permissions": [
+      "PROFILE_READ_SELF",
+      "PROFILE_UPDATE_SELF",
+      "PROFILE_PHOTO_READ_SELF",
+      "PROFILE_PHOTO_UPDATE_SELF"
+    ]
+  }
+}
+```
+
+El token se firma con `RS256`, dura 24 horas y contiene `sub`, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss` y `aud`. El backend valida firma, vencimiento con 30 segundos de tolerancia, emisor `grownupsvet-backend` y audiencia `grownupsvet-clients`. Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. No hay refresh token. Un correo inexistente, contraseña incorrecta o cuenta inactiva produce el mismo `401 INVALID_CREDENTIALS` para no revelar la causa.
+
+La política de creación de contraseñas se aplica al registro, no se vuelve a exigir en cada login. El cierre de sesión con revocación, la reacción inmediata a cambios de rol/estado durante las 24 horas y el almacenamiento del token en cada frontend continúan pendientes.
 
 ## Respuesta de error
 
@@ -85,10 +115,11 @@ La política de creación de contraseñas ya se aplica al registro descrito arri
 | Campos que incumplen validaciones | `400` | `VALIDATION_FAILED`, con errores por campo. |
 | JSON ilegible, tipo incorrecto o propiedad desconocida | `400` | `MALFORMED_JSON`, `TYPE_MISMATCH` o `UNKNOWN_PROPERTY`, según la causa. |
 | Correo ya registrado | `409` | `EMAIL_ALREADY_REGISTERED`. |
+| Credenciales incorrectas o cuenta inactiva | `401` | `INVALID_CREDENTIALS`. |
 | Método o tipo de contenido no admitido | `405` / `415` | `METHOD_NOT_ALLOWED` / `UNSUPPORTED_MEDIA_TYPE`. |
 | Fallo inesperado | `500` | `INTERNAL_ERROR`, con un mensaje genérico. |
 
-`shared.security.ApiSecurityErrorHandler` adapta también los rechazos producidos antes del controlador en los filtros de Spring Security: `401 AUTHENTICATION_REQUIRED` y `403 ACCESS_DENIED`, sin página HTML de login. Ambos manejadores usan `ApiErrorResponseFactory` para conservar el mismo contrato. Preparar estos errores no implementa todavía la emisión ni la validación de JWT.
+`shared.security.ApiSecurityErrorHandler` adapta también los rechazos producidos antes del controlador en los filtros de Spring Security: `401 AUTHENTICATION_REQUIRED` para un Bearer ausente o inválido y `403 ACCESS_DENIED`, sin página HTML de login. Ambos manejadores usan `ApiErrorResponseFactory` para conservar el mismo contrato.
 
 La fábrica añade un `instance` aleatorio con formato `urn:uuid:...` para identificar la incidencia sin reflejar la URL ni sus parámetros. El handler no devuelve valores rechazados, SQL, contraseñas, hashes ni mensajes internos de excepciones. Ante un `500`, su diagnóstico registra ese identificador, el tipo de excepción y ubicaciones de código, sin copiar el mensaje de la excepción ni los datos enviados. Los frontends pueden usar `errorCode` y `fieldErrors[].code` para decidir su presentación accesible.
 
@@ -116,6 +147,23 @@ La configuración separa las credenciales compartidas del destino de cada perfil
 | `src/test/resources/application-test.yaml` | Conexión a `jdbc:postgresql://localhost:5432/grownupsvet_test`. Solo está disponible al ejecutar las pruebas y no se empaqueta en la aplicación. |
 
 Configurar `DB_USERNAME` y `DB_PASSWORD` como variables de entorno de Windows con las credenciales del PostgreSQL local. Si se crean o cambian mientras IntelliJ o una terminal están abiertos, cerrarlos y abrirlos nuevamente para que reciban los valores actualizados. No guardar contraseñas en los YAML ni en el repositorio.
+
+El proceso también necesita el almacén PKCS#12 que contiene la clave privada de firma JWT. Debe permanecer fuera del repositorio. Para la clave local creada para este proyecto, configurar en la misma terminal o en la configuración de ejecución de IntelliJ:
+
+```powershell
+$env:JWT_KEYSTORE_PATH = "C:\Users\ASUS\.grownupsvet\keys\jwt-signing.p12"
+$jwtSecurePassword = Read-Host "Contraseña del almacén JWT" -AsSecureString
+$jwtPasswordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($jwtSecurePassword)
+try {
+    $env:JWT_KEYSTORE_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($jwtPasswordPointer)
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($jwtPasswordPointer)
+    Remove-Variable jwtSecurePassword, jwtPasswordPointer
+}
+$env:JWT_KEY_ALIAS = "grownupsvet-jwt-signing-2026-09"
+```
+
+`JWT_KEY_PASSWORD` solo se configura si la entrada privada usa una contraseña distinta; de lo contrario hereda `JWT_KEYSTORE_PASSWORD`. El emisor, audiencia, duración y tolerancia tienen valores predeterminados seguros para este contrato y pueden sobrescribirse con `JWT_ISSUER`, `JWT_AUDIENCE` y propiedades Spring cuando exista una necesidad de despliegue. Si falta la ruta, contraseña, alias o una clave RSA válida de al menos 2048 bits, la aplicación falla al arrancar en vez de operar sin firma.
 
 Desde esta carpeta, iniciar el backend con:
 
@@ -147,13 +195,13 @@ Para ejecutar toda la suite, comprobar que PostgreSQL esté funcionando, que `gr
 
 El test de aplicación comprueba el arranque, la persistencia real de una cuenta y el rechazo de correos duplicados después de normalizarlos. Los datos de cada prueba de persistencia se revierten al finalizar su transacción. Las tablas y el historial de migraciones permanecen en la base de pruebas; encontrar `users` sin filas después de ejecutar la suite es compatible con una prueba correcta.
 
-`UserSignupHttpIntegrationTests` también usa el perfil `test`, con filtros de seguridad reales y sin una transacción envolvente de prueba. Comprueba registro, hash Argon2id de hasta 128 caracteres Unicode, conservación de espacios de la contraseña, datos inválidos, propiedades de privilegios rechazadas, errores MVC y de seguridad, correo duplicado simultáneo y rollback completo cuando falla el perfil. Cada caso usa un correo ficticio único y elimina únicamente su cuenta y perfil al terminar.
+`UserSignupHttpIntegrationTests` usa el perfil `test`, con filtros de seguridad reales y sin una transacción envolvente de prueba. Comprueba registro, hash Argon2id de hasta 128 caracteres Unicode, conservación de espacios de la contraseña, datos inválidos, propiedades de privilegios rechazadas, errores MVC y de seguridad, correo duplicado simultáneo y rollback completo cuando falla el perfil. `UserLoginHttpIntegrationTests` comprueba credenciales, estado activo, respuesta, claims, acceso Bearer y rechazo de una firma alterada. Las pruebas generan un par RSA efímero; nunca leen la clave privada local.
 
-Verificación del 7 de septiembre de 2026: `mvnw.cmd verify` terminó correctamente con **156 pruebas, sin fallos ni omisiones**, y generó el JAR. Flyway aplicó V2 sobre `grownupsvet_test`, que ya tenía V1; no se alteró la migración V1. Esta ejecución no comprueba el arranque contra `grownupsvet_dev` ni implementa el login pendiente.
+Verificación del 9 de septiembre de 2026: `mvnw.cmd clean verify` terminó con **166 pruebas, sin fallos ni omisiones**, y generó el JAR. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con el PKCS#12 local configurado.
 
-Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y de tres respuestas HTTP contra sus esquemas. Código y anotaciones son la fuente editable.
+Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y cinco respuestas HTTP contra sus esquemas. Código y anotaciones son la fuente editable.
 
-No guardar credenciales de la base en el repositorio. El codificador de contraseñas ya existe para el registro; las cuentas ficticias y el recorrido de prueba del login se documentarán cuando se añada el servicio de autenticación.
+No guardar credenciales de la base, contraseñas del almacén ni archivos de clave en el repositorio. Las cuentas ficticias persistentes para desarrollo siguen pendientes; las pruebas crean y eliminan sus propios usuarios.
 
 ## Construcción del ejecutable
 
@@ -169,10 +217,10 @@ Este comando ejecuta las pruebas, incluidas las que usan `grownupsvet_test`, y g
 java -jar .\target\grownupsvet-backend-0.0.1-SNAPSHOT.jar
 ```
 
-La configuración externa de credenciales también debe estar disponible para este proceso. Comprobar en el registro la URL de `grownupsvet_dev`, el resultado de Flyway y la línea `Started GrownupsvetBackendApplication` para verificar el arranque.
+La configuración externa de base de datos y firma JWT también debe estar disponible para este proceso. Comprobar en el registro la URL de `grownupsvet_dev`, el resultado de Flyway y la línea `Started GrownupsvetBackendApplication` para verificar el arranque.
 
 ## Organización y convenciones
 
-El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` ya incorpora esas capas para registrar propietarios; `authentication` conserva el DTO de login y `shared` contiene configuración, seguridad y manejo uniforme de errores.
+El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` registra propietarios; `authentication` verifica credenciales y emite/valida JWT; `shared` contiene configuración y manejo uniforme de errores.
 
-El apartado «Respuesta de error» describe el manejo ya implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) distinguen lo entregado en registro de lo pendiente en login, sesión, perfil y foto. La autorización se definirá por acción y por recurso: un rol no concede acceso automático a los datos de todos los propietarios. La matriz concreta de permisos y su aplicación funcional se incorporarán con esas operaciones.
+El apartado «Respuesta de error» describe el manejo ya implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) distinguen lo entregado en registro/login de lo pendiente en cierre de sesión, perfil y foto. La autorización se aplica por acción y recurso: un claim o rol no concede automáticamente acceso a datos ajenos. Las comprobaciones funcionales de propiedad se incorporarán con esas operaciones.

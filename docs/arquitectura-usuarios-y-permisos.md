@@ -1,12 +1,13 @@
 # GrownupsVet: usuarios, roles y foto de perfil
 
-Fecha inicial: 6 de septiembre de 2026. Actualizado el 7 de septiembre con la propuesta de tratamiento de fotos y la referencia al diseño de sesión. Base de diseño para registro, acceso y perfil. Se contrastaron el código local y las historias de Jira citadas aquí. Este documento no acredita endpoints, permisos ni almacenamiento de fotos implementados.
+Fecha inicial: 6 de septiembre de 2026. Actualizado el 9 de septiembre con el login y la firma JWT. Base de diseño para registro, acceso y perfil. Se contrastaron el código local y las historias de Jira citadas aquí. El documento distingue la autenticación implementada de las operaciones de perfil y foto aún pendientes.
 
 ## Decisiones confirmadas y estado actual
 
 - Esteban confirmó **un solo rol por cuenta** para la primera versión.
 - El modelo existente `User` centraliza UUID, correo, hash de contraseña, rol y estado activo. `UserRole` y la migración `V1__create_users.sql` contienen `OWNER`, `VETERINARIAN` y `ADMINISTRATOR`.
 - Las historias de Jira distribuyen las funciones entre propietario, veterinario y administrador. El registro público crea propietarios; no permite autoconcederse roles profesionales.
+- El acceso común está implementado con credenciales de `User`, JWT RS256 de 24 horas y cuatro autoridades iniciales de perfil propio.
 - La foto de perfil sí forma parte de la primera versión. Aportarla es opcional. Esteban prefiere almacenar las imágenes directamente en PostgreSQL por el carácter académico del sistema.
 - El propietario puede modificar teléfono y foto. Los demás datos personales del registro no tienen edición por el propietario en esta versión. Cambio y recuperación de contraseña pertenecen a autenticación.
 
@@ -20,7 +21,7 @@ Fecha inicial: 6 de septiembre de 2026. Actualizado el 7 de septiembre con la pr
 
 Evidencia actual: [registro y perfil, SCRUM-6](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-6), [personal, SCRUM-10](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-10), [disponibilidad, SCRUM-11](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-11), [solicitud y confirmación, SCRUM-12](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-12), [atención clínica, SCRUM-14](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-14) y [fórmula, SCRUM-16](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-16). El alcance de consulta del propietario también se recoge en P10 del backlog general del proyecto.
 
-Propuesta para esta base: mantener estos tres roles y un catálogo de permisos fijo en código. Las tareas administrativas previstas ya incluyen disponibilidad y confirmación; el alcance revisado no exige añadir recepcionista, auxiliar ni superadministrador. Tampoco se introduce una pantalla para diseñar roles o permisos nuevos.
+Se mantienen estos tres roles y un catálogo de permisos fijo en código. El incremento de login incluye `PROFILE_READ_SELF`, `PROFILE_UPDATE_SELF`, `PROFILE_PHOTO_READ_SELF` y `PROFILE_PHOTO_UPDATE_SELF`; expresan intención y no sustituyen la futura comprobación de propiedad del recurso. Las tareas administrativas previstas ya incluyen disponibilidad y confirmación; el alcance revisado no exige añadir recepcionista, auxiliar ni superadministrador.
 
 Los roles son responsabilidades independientes. No se propone una jerarquía que haga al administrador heredar las funciones clínicas del veterinario. La cuenta de mantenimiento que usa PostgreSQL es independiente del rol `ADMINISTRATOR` de la aplicación.
 
@@ -28,7 +29,7 @@ Los roles son responsabilidades independientes. No se propone una jerarquía que
 
 Mantener una cuenta `User` compartida y un mecanismo común de autenticación para ambos portales. El rol se almacena como el enum actual. Tener tres roles no exige tres tablas de credenciales, tres mecanismos de login ni herencia Java entre tipos de usuario.
 
-Esteban solicita JWT de 24 horas sin renovación, con identificación, correo, rol y permisos. Las [bases del contrato](contrato-api-bases-propuestas.md#login-y-sesión-de-24-horas) distinguen esa decisión de las propuestas de respuesta, claims, revocación en PostgreSQL y consulta del rol/estado actual para aplicar permisos. Estas capacidades no están implementadas.
+El backend implementa el [contrato de login y sesión](contrato-api-bases-propuestas.md#login-y-sesión-de-24-horas): JWT RS256 de 24 horas sin renovación, con identificación, correo, rol y permisos. Spring Security valida firma, emisor, audiencia y tiempo, y convierte `permissions` en autoridades. La revocación en PostgreSQL y la consulta del rol/estado vigente en cada petición todavía no están implementadas; por ello, un token ya emitido conserva su fotografía de permisos hasta expirar.
 
 ```mermaid
 flowchart LR
@@ -87,8 +88,9 @@ Propuesta de resultados a fijar en OpenAPI: `413` si excede el tamaño de carga,
 
 ## Siguiente incremento
 
-1. Completar el contrato de registro, login y perfil: DTOs de petición/respuesta, validaciones y sesión; incluir las operaciones de foto opcional y autorización sobre el perfil propio. Corresponde a [SCRUM-67](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-67).
-2. Implementar la persistencia necesaria con nuevas migraciones Flyway, conservando la `V1` ya aplicada, y construir el recorrido de registro, acceso y perfil conforme a ese contrato.
-3. Verificar el recorrido en PostgreSQL de pruebas, incluidos el perfil sin foto, la imagen válida, los rechazos pertinentes y la denegación de acceso a recursos de otra cuenta.
+1. Revisar y publicar el contrato incremental de registro y login como evidencia de [SCRUM-67](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-67).
+2. Definir las rutas y respuestas de consulta/edición del perfil y foto opcional, incluida la comprobación de propiedad; después implementar su persistencia con una nueva migración Flyway, sin modificar `V1` ni `V2`.
+3. Verificar el recorrido en PostgreSQL de pruebas, incluidos perfil sin foto, imagen válida, rechazos pertinentes y denegación de acceso a recursos de otra cuenta.
+4. Diseñar aparte la revocación/cierre de sesión y el comportamiento inmediato ante desactivación o cambio de rol. No se atribuye esa capacidad al JWT actual.
 
 Antes de implementar autorización clínica se concretarán la relación que habilita al veterinario a consultar una historia y los datos clínicos que puede leer el administrador. Estas decisiones pertenecen a los contratos de personal y atención y no obligan a resolver ahora todos los módulos del sistema.

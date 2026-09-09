@@ -1,6 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.validation.ValidLoginPassword;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -24,10 +25,11 @@ public record UserLoginRequestDTO(
         String email,
 
         @NotBlank(message = "Escribe tu contraseña.")
+        @ValidLoginPassword
         @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
         @Schema(description = "Account password. Accepted only in requests; never returned in responses.",
                 type = "string", format = "password", accessMode = Schema.AccessMode.WRITE_ONLY,
-                requiredMode = Schema.RequiredMode.REQUIRED)
+                maxLength = 128, requiredMode = Schema.RequiredMode.REQUIRED)
         String password
 ) {
     @Override

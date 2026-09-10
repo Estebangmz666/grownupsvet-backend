@@ -1,5 +1,7 @@
 # GrownupsVet: contrato API de acceso y perfil
 
+Este documento conserva el alcance de SCRUM-67/0.3.0. El [incremento 0.4.0 de mascotas y recuperación](mascotas-y-recuperacion.md) amplía el contrato y documenta el canal de prueba pendiente, las cuotas y la invalidación global de sesiones.
+
 Fecha inicial: 6 de septiembre de 2026. Actualizado el 10 de septiembre con el incremento completo de acceso, perfil y sesión. Este documento recoge decisiones y estado de implementación; la especificación OpenAPI se genera desde el código y se valida con respuestas HTTP reales.
 
 El objetivo inmediato es que el backend y los dos frontends compartan un acuerdo preciso sobre los datos que intercambian. El orden del backlog puede adaptarse al desarrollo. Para probar el login, Esteban acepta cargar dos o tres cuentas de desarrollo mediante un script o consultas a PostgreSQL.
@@ -48,7 +50,7 @@ La adaptación automática de accesibilidad según la edad sigue siendo una idea
 
 Esteban confirmó que la foto de perfil se incluye en la primera versión y es opcional para crear o usar la cuenta. Se almacena procesada en PostgreSQL, en una tabla separada con contenido `bytea` y metadatos, consultada solamente cuando se solicita la imagen. Todos los roles gestionan exclusivamente su propia foto. El contrato y los límites implementados se detallan más adelante y en la [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md). La foto de la cuenta es independiente de las imágenes de mascotas.
 
-WhatsApp y llamadas describen los canales de contacto previstos por Esteban. Esta decisión no especifica ni implementa envíos automáticos, proveedores externos o verificación del teléfono. El mecanismo de recuperación de acceso continúa pendiente.
+WhatsApp y llamadas describen los canales de contacto previstos por Esteban. Esta decisión no especifica ni implementa envíos automáticos, proveedores externos o verificación del teléfono. La recuperación por código de correo se incorpora en el incremento 0.4.0; queda pendiente conectar y comprobar el Sandbox de Mailtrap.
 
 ### Edición del perfil: alcance inicial confirmado
 
@@ -66,7 +68,7 @@ Esta restricción debe respetarse en la API, además de en el formulario: las pe
 
 «No editable» describe lo que el propietario puede hacer en la aplicación; no exige impedir toda corrección administrativa futura en la base de datos. El cambio de correo, las correcciones de nombre o fecha de nacimiento y un posible flujo de soporte o PQR quedan fuera del desarrollo inicial. Esta decisión no incorpora una operación administrativa ni un procedimiento de actualización directa en la base de datos.
 
-La contraseña se trata como una credencial, separada de la edición general del perfil. El cambio o la recuperación de contraseña corresponde al alcance de autenticación y no se resuelve mediante una actualización del perfil; su flujo todavía está pendiente. Esteban aceptó 15–128 caracteres, espacios permitidos, sin mezcla obligatoria de tipos de caracteres y con rechazo de contraseñas comunes. Esa política ya se valida en registro y deberá aplicarse a los futuros flujos que establezcan una nueva contraseña; el DTO de login conserva la contraseña recibida sin transformarla.
+La contraseña se trata como una credencial, separada de la edición general del perfil. El cambio o la recuperación de contraseña corresponde al alcance de autenticación y no se resuelve mediante una actualización del perfil; el flujo de recuperación se documenta en el incremento 0.4.0. Esteban aceptó 15–128 caracteres, espacios permitidos, sin mezcla obligatoria de tipos de caracteres y con rechazo de contraseñas comunes. Esa política se comparte entre registro y restablecimiento de contraseña; el DTO de login conserva la contraseña recibida sin transformarla.
 
 Las validaciones del teléfono editado serán las mismas del registro. Las funcionalidades aplazadas de soporte, corrección de datos y adaptación por edad no bloquean la construcción de esta base.
 
@@ -90,7 +92,7 @@ Este apartado registra la respuesta de Esteban y las decisiones aplicadas a SCRU
 | Nombre completo | Esteban confirmó máximo 150 caracteres y al menos un nombre y un apellido en un único campo. Se validan dos o más componentes con alguna letra cada uno; admite letras y marcas Unicode, espacios, apóstrofos, guiones y puntos de iniciales, sin dígitos ni controles. El límite cuenta puntos Unicode sobre el texto recibido, incluidos los espacios; los espacios exteriores se retiran al guardar. | Implementado en registro. La composición mínima no verifica identidad ni permite reconocer jurídicamente un apellido. |
 | Teléfono | Números internacionales E.164, sin limitar a Colombia ni deducir el país por residencia; validación de formato y metadatos mundiales. | Implementado en registro con Google libphonenumber. |
 | Nacimiento | Fecha válida y no futura; edad en años cumplidos de 0 a 130 inclusive, calculada por el servidor con fecha de referencia en `America/Bogota` y `Clock` inyectable. | Implementado en registro. |
-| Contraseña | 15–128 puntos de código Unicode, espacios preservados, sin composición obligatoria y rechazo local de contraseñas comunes. No se admite contenido compuesto solo por espacios. | Implementado en registro. Limitar intentos sigue pendiente. |
+| Contraseña | 15–128 puntos de código Unicode, espacios preservados, sin composición obligatoria y rechazo local de contraseñas comunes. No se admite contenido compuesto solo por espacios. | Implementado en registro y restablecimiento. La recuperación tiene cuotas propias; las generales de login siguen pendientes. |
 
 El límite de correo se refiere a la dirección completa. OWASP recoge 254 como máximo total para una validación inicial razonable. Esto no demuestra que el buzón exista o pertenezca a quien se registra. [OWASP: validación de correo](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html#email-address-validation).
 
@@ -112,13 +114,13 @@ Fuentes: [ITU-T E.164, edición de febrero de 2026](https://www.itu.int/rec/T-RE
 
 ### Correo duplicado y resultado del registro
 
-Esteban quiere una respuesta que permita mostrar que el correo ya está registrado y ofrecer recuperación de acceso. El registro implementa `409 Conflict` con `errorCode: EMAIL_ALREADY_REGISTERED`, usando `ApiErrorResponseDTO`; `400` corresponde a cuerpos o campos inválidos. El mensaje es «Este correo ya está registrado. Puedes iniciar sesión o recuperar tu contraseña». No incluye datos del titular. Login ya está disponible; recuperación continúa pendiente. [RFC 9110: 409](https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict).
+Esteban quiere una respuesta que permita mostrar que el correo ya está registrado y ofrecer recuperación de acceso. El registro implementa `409 Conflict` con `errorCode: EMAIL_ALREADY_REGISTERED`, usando `ApiErrorResponseDTO`; `400` corresponde a cuerpos o campos inválidos. El mensaje es «Este correo ya está registrado. Puedes iniciar sesión o recuperar tu contraseña». No incluye datos del titular. Login está disponible; recuperación requiere habilitar el canal SMTP del incremento 0.4.0. [RFC 9110: 409](https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict).
 
 Esta respuesta revela que la dirección está registrada. Es la experiencia solicitada por Esteban; el riesgo se documenta y el control de abuso queda pendiente, sin afirmar que ya esté mitigado. Para login y recuperación se prevén respuestas genéricas sobre la existencia de la cuenta. [OWASP: mensajes de autenticación](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#authentication-and-error-messages).
 
 El control de duplicados combina una comprobación previa del correo normalizado y la restricción única `uk_users_email` de PostgreSQL. El servicio traduce esa violación concreta a `EmailAlreadyRegisteredException`, cubriendo también una colisión posterior a la comprobación inicial. Otras fallas de integridad se propagan para devolver un error interno genérico; cuenta y perfil participan de la misma transacción.
 
-El objetivo confirmado es conducir a registrar la primera mascota. Se adopta **registro → login → primera mascota**. `POST /api/v1/auth/registrations` devuelve `201 Created` con `id` y `email`, sin token ni redirección HTTP; el frontend muestra el éxito y conduce a `/login`. `POST /api/v1/auth/sessions` autentica y emite el JWT. La creación de una mascota será una operación posterior de P04; el éxito del alta no depende de ella.
+El objetivo confirmado es conducir a registrar la primera mascota. Se adopta **registro → login → primera mascota**. `POST /api/v1/auth/registrations` devuelve `201 Created` con `id` y `email`, sin token ni redirección HTTP; el frontend muestra el éxito y conduce a `/login`. `POST /api/v1/auth/sessions` autentica y emite el JWT. La creación de una mascota es una operación separada de P04 implementada en el incremento 0.4.0; el éxito del alta no depende de ella.
 
 Después del primer login del propietario, el frontend conduce al registro de la primera mascota. No se fija una propiedad como `hasPets` en el JWT ni una redirección permanente por ausencia de mascotas. Debe concretarse cómo representar el paso pendiente de forma persistente y si puede posponerse, para que una cuenta recién creada no pierda ese estado al volver a entrar o desde otro navegador. Esta señal dinámica deberá provenir de la API correspondiente, no de un claim que queda fijo durante 24 horas. Los nombres de rutas de pantalla, salvo `/login` planteada por Esteban, los definirán los frontends.
 
@@ -128,7 +130,7 @@ Implementado: `POST /api/v1/auth/sessions` devuelve `200 OK`, JWT con identifica
 
 `UserLoginResponseDTO` contiene `accessToken`, `tokenType` con valor `Bearer`, `expiresIn` con valor `86400` y `user` con `id`, `email`, `role` y `permissions`. Esta forma está publicada en OpenAPI. La respuesta incluye `Cache-Control: no-store`.
 
-El JWT RS256 contiene `sub` con el UUID de la cuenta, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss=grownupsvet-backend` y `aud=grownupsvet-clients`. `iat`/`exp` son instantes Unix y `jti` identifica el token. No duplica `id` ni incluye contraseña, hash, teléfono, nacimiento o foto. [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html).
+El JWT RS256 contiene `sub` con el UUID de la cuenta, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss=grownupsvet-backend`, `aud=grownupsvet-clients` y `authenticationVersion`. `iat`/`exp` son instantes Unix y `jti` identifica el token. No duplica `id` ni incluye contraseña, hash, teléfono, nacimiento o foto. [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html).
 
 El catálogo del propietario contiene `PROFILE_READ_SELF`, `PROFILE_UPDATE_SELF`, `PROFILE_DEACTIVATE_SELF`, `PROFILE_PHOTO_READ_SELF` y `PROFILE_PHOTO_UPDATE_SELF`; los otros dos roles reciben solamente los permisos de foto propia en este incremento. Spring Security convierte el claim `permissions` en autoridades sin prefijo. Un permiso no concede acceso a otra cuenta ni sustituye las reglas del rol. Cada petición protegida consulta que la cuenta exista y continúe activa, y contrasta correo, rol, permisos y revocación con PostgreSQL; un token con una fotografía obsoleta deja de aceptarse. [OWASP: autorización en cada petición](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request).
 
@@ -170,7 +172,7 @@ Se aceptan JPEG y PNG de máximo 2 MiB, 8.000 píxeles por lado y 20 millones de
 
 El incremento implementa DTOs, comportamiento, persistencia y anotaciones de las nueve operaciones acordadas. Las pruebas ejercitan los recorridos HTTP y regeneran su OpenAPI con springdoc; no existe un YAML manual independiente.
 
-El nombre quedó definido e implementado con el límite de 150 y dos o más componentes. El login ya tiene un catálogo inicial de permisos de perfil propio. Quedaron definidos el almacenamiento del token para la versión académica, los límites de foto y la revocación en PostgreSQL. Permanecen por definir el seguimiento del paso de primera mascota, los permisos de módulos posteriores, la administración de personal y el eventual superadministrador. La limitación de intentos se aplaza y no forma parte del siguiente incremento.
+El nombre quedó definido e implementado con el límite de 150 y dos o más componentes. El login ya tiene un catálogo inicial de permisos de perfil propio. Quedaron definidos el almacenamiento del token para la versión académica, los límites de foto y la revocación en PostgreSQL. Permanecen por definir el seguimiento del paso de primera mascota, los permisos de módulos posteriores, la administración de personal y el eventual superadministrador. La limitación general de login se aplaza; la recuperación de 0.4.0 sí incorpora cuotas y límites de intentos propios.
 
 Registro, login, JWT, perfil, foto, desactivación y revocación aportan implementación a SCRUM-23 y contrato generado a SCRUM-67. El vínculo SCRUM-67 → SCRUM-6 conserva la trazabilidad histórica; el contrato técnico de acceso/perfil queda completo en el incremento 0.3.0. La implementación conserva V1 y V2 sin modificarlas y añade V3/V4.
 
@@ -225,7 +227,7 @@ Cargar las cuentas ficticias mediante un script repetible cuando exista el esque
 
 ## Alcance del OpenAPI incremental
 
-La especificación 0.3.0 publica las nueve operaciones implementadas de registro, login, perfil propio, foto, desactivación y revocación, incluido el esquema Bearer JWT para rutas protegidas. El paso de primera mascota, recuperación, administración de personal, superadministrador, limitación de intentos y permisos de módulos posteriores están fuera de SCRUM-67 y continúan pendientes en sus incrementos correspondientes.
+La especificación 0.3.0 publica las nueve operaciones implementadas de registro, login, perfil propio, foto, desactivación y revocación, incluido el esquema Bearer JWT para rutas protegidas. Mascotas y recuperación están fuera de SCRUM-67 y se incorporan en el incremento 0.4.0. El seguimiento de primera mascota, administración de personal, superadministrador y limitación general de login continúan pendientes.
 
 El proyecto usa Maven, Spring Boot 4.1.1 y Java 25. Los perfiles `dev` y `test` seleccionan sus respectivas bases PostgreSQL; las credenciales se configuran mediante variables de entorno. El README explica la ejecución y la verificación con la base de pruebas. Las reglas de módulos posteriores se resuelven cuando se incorpore su contrato.
 

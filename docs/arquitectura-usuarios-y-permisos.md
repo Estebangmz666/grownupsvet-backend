@@ -107,8 +107,8 @@ El frontend borra su copia de `localStorage` al recibir el cierre correcto o det
 
 ## Continuidad después de SCRUM-67
 
-1. Mantener el OpenAPI generado y sus pruebas alineados con las nueve operaciones implementadas; no editar manualmente el snapshot.
+1. Mantener el OpenAPI generado y sus pruebas alineados con las operaciones implementadas de acceso, perfil, mascotas y recuperación; no editar manualmente el snapshot.
 2. Revisar con ambos frontends los esquemas y ejemplos y registrar cambios incompatibles antes de integrarlos.
-3. Extender permisos por recurso únicamente cuando se implementen mascotas, personal y módulos clínicos posteriores.
+3. Los permisos PET_CREATE_SELF, PET_READ_SELF y PET_UPDATE_SELF pertenecen exclusivamente a OWNER y exigen propiedad por recurso. Extender permisos de personal y módulos clínicos cuando se implementen esos alcances.
 
 Antes de implementar autorización clínica se concretarán la relación que habilita al veterinario a consultar una historia y los datos clínicos que puede leer el administrador. Estas decisiones pertenecen a los contratos de personal y atención y no obligan a resolver ahora todos los módulos del sistema.

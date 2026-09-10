@@ -1,3 +1,9 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/grownupsvet_test
+grownupsvet:
+  security:
+    password-recovery:
+      enabled: false
+      hmac-secret: ""
+      sender-address: ""

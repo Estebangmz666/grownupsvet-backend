@@ -3,6 +3,9 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.exception;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.ApiErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.FieldValidationErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.exception.InvalidUserCredentialsException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.exception.PasswordRecoveryException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.exception.InvalidPetRequestException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.exception.PetNotFoundException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.EmailAlreadyRegisteredException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.InvalidProfilePhotoException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.OwnerProfileNotFoundException;
@@ -11,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -58,6 +62,52 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     public GlobalExceptionHandler(ApiErrorResponseFactory apiErrorResponseFactory) {
         this.apiErrorResponseFactory = apiErrorResponseFactory;
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Object> handleConcurrentUpdate(OptimisticLockingFailureException exception) {
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.CONFLICT, "CONCURRENT_UPDATE",
+                "Los datos cambiaron mientras realizabas esta acción. Actualiza la información y vuelve a intentarlo."),
+                privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(PetNotFoundException.class)
+    public ResponseEntity<Object> handlePetNotFound(PetNotFoundException exception) {
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.NOT_FOUND, "PET_NOT_FOUND",
+                "No se encontró la mascota solicitada."), privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(InvalidPetRequestException.class)
+    public ResponseEntity<Object> handleInvalidPetRequest(InvalidPetRequestException exception) {
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                INVALID_REQUEST_DETAIL, exception.getFieldErrors()), privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(PasswordRecoveryException.class)
+    public ResponseEntity<Object> handlePasswordRecovery(PasswordRecoveryException exception) {
+        HttpHeaders headers = privateNoStoreHeaders();
+        return switch (exception.getReason()) {
+            case UNAVAILABLE -> problemResponse(apiErrorResponseFactory.create(HttpStatus.SERVICE_UNAVAILABLE,
+                    "PASSWORD_RECOVERY_UNAVAILABLE",
+                    "La recuperación no está disponible en este momento. Inténtalo más tarde."), headers);
+            case RATE_LIMITED -> {
+                headers.set(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()));
+                yield problemResponse(apiErrorResponseFactory.create(HttpStatus.TOO_MANY_REQUESTS,
+                        "PASSWORD_RECOVERY_RATE_LIMITED",
+                        "Espera un momento antes de volver a intentarlo."), headers);
+            }
+            case INVALID_CODE -> problemResponse(apiErrorResponseFactory.create(HttpStatus.BAD_REQUEST,
+                    "INVALID_PASSWORD_RECOVERY_CODE",
+                    "El código no es válido o ha vencido. Revísalo o solicita uno nuevo."), headers);
+            case INVALID_RESET_TOKEN -> problemResponse(apiErrorResponseFactory.create(HttpStatus.BAD_REQUEST,
+                    "INVALID_PASSWORD_RESET_TOKEN",
+                    "El permiso para cambiar la contraseña no es válido o ha vencido. Inicia de nuevo la recuperación."),
+                    headers);
+            case PASSWORD_CONFIRMATION_MISMATCH -> problemResponse(apiErrorResponseFactory.create(HttpStatus.BAD_REQUEST,
+                    "PASSWORD_CONFIRMATION_MISMATCH", "Las contraseñas deben coincidir.",
+                    List.of(new FieldValidationErrorResponseDTO("confirmNewPassword", "PASSWORD_MISMATCH",
+                            "Las contraseñas deben coincidir."))), headers);
+        };
     }
 
     @ExceptionHandler(EmailAlreadyRegisteredException.class)

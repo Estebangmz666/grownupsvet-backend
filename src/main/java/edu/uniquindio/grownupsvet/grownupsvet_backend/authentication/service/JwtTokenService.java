@@ -43,6 +43,7 @@ public class JwtTokenService {
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
                 .claim("permissions", List.copyOf(permissions))
+                .claim("authenticationVersion", user.getAuthenticationVersion())
                 .build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)
                 .keyId(properties.keyAlias())

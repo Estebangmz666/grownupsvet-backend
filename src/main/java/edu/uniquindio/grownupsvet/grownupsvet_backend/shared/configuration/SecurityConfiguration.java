@@ -2,9 +2,11 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.security.ApiSecurityErrorHandler;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.controller.UserSessionController;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.controller.UserPasswordRecoveryController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.controller.UserSignupController;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -49,6 +51,10 @@ public class SecurityConfiguration {
                         .accessDeniedHandler(apiSecurityErrorHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
+                        .requestMatchers(HttpMethod.POST,
+                                UserPasswordRecoveryController.PASSWORD_RECOVERIES_PATH,
+                                UserPasswordRecoveryController.PASSWORD_RECOVERY_VERIFICATIONS_PATH,
+                                UserPasswordRecoveryController.PASSWORD_RESETS_PATH).permitAll()
                         .requestMatchers(UserSignupController.REGISTRATION_PATH,
                                 UserSessionController.SESSIONS_PATH).permitAll()
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",

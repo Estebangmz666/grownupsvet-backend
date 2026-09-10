@@ -2,8 +2,8 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato generado desde código para registro, login JWT RS256, perfil propio, foto, desactivación y cierre de sesión. Mascotas, recuperación y administración de personal pertenecen a incrementos posteriores.",
-    "version" : "0.3.0"
+    "description" : "Contrato generado desde código para acceso, perfil, sesiones, mascotas propias y recuperación de contraseña. El envío de recuperación requiere habilitar y configurar el canal SMTP; en desarrollo se utiliza Mailtrap Email Sandbox.",
+    "version" : "0.4.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
@@ -143,6 +143,221 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/pets" : {
+      "get" : {
+        "tags" : [ "Mascotas propias" ],
+        "summary" : "Listar mascotas propias",
+        "description" : "Incluye activas y archivadas si se omite active; true filtra activas y false archivadas. Orden fijo por createdAt descendente e id ascendente. Las páginas empiezan en cero y page × size no puede superar 2147483647.",
+        "operationId" : "listOwnPets",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "active",
+          "in" : "query",
+          "description" : "Omitir incluye todos los estados.",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido de la petición no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, tipos, campos o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de mascotas del propietario autenticado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PetPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Mascotas propias" ],
+        "summary" : "Registrar una mascota propia",
+        "description" : "Crea una mascota activa vinculada exclusivamente al OWNER identificado por el JWT. Un propietario puede registrar varias mascotas y cada mascota tiene un único dueño.",
+        "operationId" : "createOwnPet",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreatePetRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido de la petición no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, tipos, campos o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Mascota creada; Location indica la ruta de consulta",
+            "headers" : {
+              "Location" : {
+                "description" : "Ruta relativa de la mascota creada.",
+                "style" : "simple",
+                "schema" : {
+                  "type" : "string",
+                  "format" : "uri-reference",
+                  "example" : "/api/v1/pets/7d667530-867b-4c78-a458-0904fb82d574"
+                }
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PetResponseDTO"
                 }
               }
             }
@@ -331,6 +546,302 @@
         }
       }
     },
+    "/api/v1/auth/password-resets" : {
+      "post" : {
+        "tags" : [ "Recuperación de acceso" ],
+        "summary" : "Restablecer contraseña",
+        "description" : "Consume el permiso y aplica la misma política de contraseña del registro. Exige confirmación idéntica. Invalida todas las sesiones anteriores y requiere un nuevo login. Nunca reactiva una cuenta ni crea automáticamente una sesión.",
+        "operationId" : "resetUserPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UserPasswordResetRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "JSON o campos inválidos; código o permiso inválido, vencido o consumido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "El cuerpo debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Límite de recuperación alcanzado; Retry-After indica segundos de espera",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Segundos hasta poder reintentar",
+                "style" : "simple",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64",
+                  "minimum" : 1
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Recuperación deshabilitada o envío no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "204" : {
+            "description" : "Contraseña restablecida y sesiones previas invalidadas"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-recoveries" : {
+      "post" : {
+        "tags" : [ "Recuperación de acceso" ],
+        "summary" : "Solicitar recuperación por correo",
+        "description" : "Responde igual para correos desconocidos y cuentas inactivas. Un código de seis dígitos vence a los diez minutos. Solicitar otro invalida el código y permiso anteriores. 202 significa solicitud aceptada y envío asíncrono; no confirma recepción del correo.",
+        "operationId" : "requestUserPasswordRecovery",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UserPasswordRecoveryRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "JSON o campos inválidos; código o permiso inválido, vencido o consumido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "El cuerpo debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Límite de recuperación alcanzado; Retry-After indica segundos de espera",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Segundos hasta poder reintentar",
+                "style" : "simple",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64",
+                  "minimum" : 1
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Recuperación deshabilitada o envío no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Solicitud aceptada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserPasswordRecoveryResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password-recoveries/verifications" : {
+      "post" : {
+        "tags" : [ "Recuperación de acceso" ],
+        "summary" : "Verificar código de recuperación",
+        "description" : "Consume el código válido y emite un permiso opaco de un uso durante cinco minutos. Permite hasta cinco fallos por código y diez verificaciones por correo en una hora. El permiso únicamente autoriza el restablecimiento de contraseña.",
+        "operationId" : "verifyUserPasswordRecoveryCode",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UserPasswordRecoveryVerificationRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "JSON o campos inválidos; código o permiso inválido, vencido o consumido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "El cuerpo debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Límite de recuperación alcanzado; Retry-After indica segundos de espera",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Segundos hasta poder reintentar",
+                "style" : "simple",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64",
+                  "minimum" : 1
+                }
+              }
+            },
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Recuperación deshabilitada o envío no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Código verificado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserPasswordRecoveryVerificationResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me" : {
       "get" : {
         "tags" : [ "Perfil propio" ],
@@ -433,6 +944,217 @@
           },
           "400" : {
             "description" : "Teléfono o JSON inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/pets/{petId}" : {
+      "get" : {
+        "tags" : [ "Mascotas propias" ],
+        "summary" : "Consultar una mascota propia",
+        "operationId" : "getOwnPet",
+        "parameters" : [ {
+          "name" : "petId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Mascota activa o archivada del propietario autenticado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PetResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Mascota inexistente o no perteneciente al propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido de la petición no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, tipos, campos o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "patch" : {
+        "tags" : [ "Mascotas propias" ],
+        "summary" : "Actualizar, archivar o reactivar una mascota propia",
+        "description" : "Cambio parcial: omitir conserva; null solo elimina raza, sexo o nacimiento. active=false archiva conservando identidad e historial, active=true reactiva. No transfiere propiedad ni elimina físicamente. Al quitar una fecha estimada también se debe enviar dateOfBirthEstimated=false.",
+        "operationId" : "updateOwnPet",
+        "parameters" : [ {
+          "name" : "petId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePetRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Mascota actualizada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PetResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Mascota inexistente o no perteneciente al propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido de la petición no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "JSON, tipos, campos o parámetros inválidos",
             "content" : {
               "application/problem+json" : {
                 "schema" : {
@@ -577,6 +1299,98 @@
         },
         "required" : [ "code", "field", "message" ]
       },
+      "CreatePetRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Mascota del propietario autenticado. El servidor asigna dueño y active=true; no admite propiedades adicionales.",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "Nombre de hasta 100 puntos de código Unicode, sin caracteres de control. Se retiran espacios exteriores; no puede quedar vacío.",
+            "example" : "Luna",
+            "maxLength" : 100,
+            "minLength" : 1
+          },
+          "species" : {
+            "type" : "string",
+            "description" : "DOG: perro; CAT: gato.",
+            "enum" : [ "DOG", "CAT" ]
+          },
+          "breed" : {
+            "type" : [ "string", "null" ],
+            "description" : "Raza opcional de hasta 100 puntos de código Unicode, sin caracteres de control. null u omisión indican que no se ha informado; el texto no puede quedar vacío.",
+            "example" : "Mestiza",
+            "maxLength" : 100
+          },
+          "sex" : {
+            "type" : [ "string", "null" ],
+            "description" : "Sexo opcional. null indica que no se ha informado; UNKNOWN permite registrar que se desconoce.",
+            "enum" : [ "MALE", "FEMALE", "UNKNOWN", null ]
+          },
+          "dateOfBirth" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "Fecha exacta o estimada YYYY-MM-DD, no futura según America/Bogota. null indica desconocida; no se inventa una fecha.",
+            "example" : "2020-05-15"
+          },
+          "dateOfBirthEstimated" : {
+            "type" : "boolean",
+            "default" : false,
+            "description" : "true solo si existe dateOfBirth y la fecha es aproximada. Si se omite vale false; no admite null."
+          }
+        },
+        "required" : [ "name", "species" ]
+      },
+      "PetResponseDTO" : {
+        "type" : "object",
+        "description" : "Mascota del propietario autenticado. No expone datos de la cuenta ni relaciones internas.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string",
+            "example" : "Luna",
+            "maxLength" : 100,
+            "minLength" : 1
+          },
+          "species" : {
+            "type" : "string",
+            "enum" : [ "DOG", "CAT" ]
+          },
+          "breed" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 100
+          },
+          "sex" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "MALE", "FEMALE", "UNKNOWN", null ]
+          },
+          "dateOfBirth" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "null si la fecha es desconocida; no se calcula ni inventa una fecha de nacimiento."
+          },
+          "dateOfBirthEstimated" : {
+            "type" : "boolean",
+            "description" : "true indica que dateOfBirth es aproximada. Sin fecha siempre es false."
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "false significa archivada y permite reactivación; conserva identidad y relaciones existentes."
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "active", "breed", "createdAt", "dateOfBirth", "dateOfBirthEstimated", "id", "name", "sex", "species", "updatedAt" ]
+      },
       "UserLoginRequestDTO" : {
         "type" : "object",
         "description" : "Credentials used to sign in to GrownupsVet.",
@@ -715,6 +1529,100 @@
         },
         "required" : [ "email", "id" ]
       },
+      "UserPasswordResetRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "resetToken" : {
+            "type" : "string",
+            "maxLength" : 43,
+            "minLength" : 43,
+            "pattern" : "[A-Za-z0-9_-]{43}",
+            "writeOnly" : true
+          },
+          "newPassword" : {
+            "type" : "string",
+            "format" : "password",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          },
+          "confirmNewPassword" : {
+            "type" : "string",
+            "format" : "password",
+            "description" : "Debe coincidir exactamente con newPassword, incluidos espacios y mayúsculas.",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "confirmNewPassword", "newPassword", "resetToken" ]
+      },
+      "UserPasswordRecoveryRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "example" : "persona@example.com",
+            "maxLength" : 254,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "email" ]
+      },
+      "UserPasswordRecoveryResponseDTO" : {
+        "type" : "object",
+        "properties" : {
+          "message" : {
+            "type" : "string",
+            "description" : "Mensaje idéntico para correos existentes, desconocidos y cuentas inactivas."
+          }
+        },
+        "required" : [ "message" ]
+      },
+      "UserPasswordRecoveryVerificationRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "code" : {
+            "type" : "string",
+            "description" : "Código de seis dígitos; conserva los ceros iniciales.",
+            "maxLength" : 6,
+            "minLength" : 6,
+            "pattern" : "[0-9]{6}",
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "code", "email" ]
+      },
+      "UserPasswordRecoveryVerificationResponseDTO" : {
+        "type" : "object",
+        "properties" : {
+          "resetToken" : {
+            "type" : "string",
+            "description" : "Permiso opaco de un uso exclusivo para restablecer contraseña. No es un JWT de sesión.",
+            "maxLength" : 43,
+            "minLength" : 43,
+            "pattern" : "^[A-Za-z0-9_-]{43}$"
+          },
+          "expiresIn" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Vigencia restante en segundos.",
+            "example" : 300,
+            "minimum" : 1
+          }
+        },
+        "required" : [ "expiresIn", "resetToken" ]
+      },
       "UpdateOwnerProfileRequestDTO" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -769,6 +1677,84 @@
           }
         },
         "required" : [ "active", "dateOfBirth", "email", "fullName", "id", "phoneNumber", "role" ]
+      },
+      "UpdatePetRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Cambio parcial: omitir conserva el valor; null solo elimina breed, sex o dateOfBirth. No admite ownerId ni propiedades adicionales. {} conserva el estado.",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "description" : "Nombre de hasta 100 puntos de código Unicode, sin caracteres de control y no vacío después de retirar espacios exteriores; no admite null.",
+            "example" : "Luna",
+            "maxLength" : 100,
+            "minLength" : 1
+          },
+          "species" : {
+            "type" : "string",
+            "description" : "DOG: perro; CAT: gato. No admite null.",
+            "enum" : [ "DOG", "CAT" ]
+          },
+          "breed" : {
+            "type" : [ "string", "null" ],
+            "description" : "Texto no vacío de hasta 100 puntos de código Unicode, sin caracteres de control, o null para quitar la raza.",
+            "example" : "Mestiza",
+            "maxLength" : 100
+          },
+          "sex" : {
+            "type" : [ "string", "null" ],
+            "description" : "Sexo de la mascota; null quita el dato. UNKNOWN indica que se desconoce.",
+            "enum" : [ "MALE", "FEMALE", "UNKNOWN", null ]
+          },
+          "dateOfBirth" : {
+            "type" : [ "string", "null" ],
+            "format" : "date",
+            "description" : "Fecha YYYY-MM-DD no futura según America/Bogota, o null para quitarla. Si la fecha anterior era estimada, también debe enviarse dateOfBirthEstimated=false al quitarla.",
+            "example" : "2020-05-15"
+          },
+          "dateOfBirthEstimated" : {
+            "type" : "boolean",
+            "description" : "No admite null. true requiere una fecha en el estado resultante. Omitir conserva el valor anterior."
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "No admite null. false archiva sin borrar la mascota ni su historial; true la reactiva. Una mascota archivada no debe admitir nuevas reservas."
+          }
+        }
+      },
+      "PetPageResponseDTO" : {
+        "type" : "object",
+        "description" : "Página estable de mascotas propias, ordenada por createdAt descendente e id ascendente. Los totales aplican al filtro active, cuando se envía.",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PetResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
       }
     },
     "securitySchemes" : {

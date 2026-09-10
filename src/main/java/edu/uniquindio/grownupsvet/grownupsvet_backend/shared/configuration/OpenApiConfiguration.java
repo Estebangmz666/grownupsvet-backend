@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfiguration {
     @Bean
     public OpenAPI applicationOpenApi() {
-        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.3.0")
-                .description("Contrato generado desde código para registro, login JWT RS256, perfil propio, foto, desactivación y cierre de sesión. Mascotas, recuperación y administración de personal pertenecen a incrementos posteriores."));
+        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.4.0")
+                .description("Contrato generado desde código para acceso, perfil, sesiones, mascotas propias y recuperación de contraseña. El envío de recuperación requiere habilitar y configurar el canal SMTP; en desarrollo se utiliza Mailtrap Email Sandbox."));
     }
 }

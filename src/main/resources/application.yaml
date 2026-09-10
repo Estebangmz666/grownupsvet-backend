@@ -27,6 +27,10 @@ logging:
 
 grownupsvet:
   security:
+    password-recovery:
+      enabled: ${PASSWORD_RECOVERY_ENABLED:false}
+      hmac-secret: ${PASSWORD_RECOVERY_HMAC_SECRET:}
+      sender-address: ${MAIL_FROM:}
     jwt:
       issuer: ${JWT_ISSUER:grownupsvet-backend}
       audience: ${JWT_AUDIENCE:grownupsvet-clients}

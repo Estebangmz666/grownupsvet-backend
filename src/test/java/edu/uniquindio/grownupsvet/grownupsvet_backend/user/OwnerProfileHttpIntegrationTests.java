@@ -119,6 +119,7 @@ class OwnerProfileHttpIntegrationTests {
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
+        owner = userRepository.findById(owner.getId()).orElseThrow();
         owner.activate();
         userRepository.saveAndFlush(owner);
     }
@@ -134,7 +135,7 @@ class OwnerProfileHttpIntegrationTests {
                     .andExpect(status().isForbidden());
 
             owner.changeRole(UserRole.ADMINISTRATOR);
-            userRepository.saveAndFlush(owner);
+            owner = userRepository.saveAndFlush(owner);
             mockMvc.perform(get(OwnerProfileController.CURRENT_USER_PATH)
                             .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                     .andExpect(status().isUnauthorized());

@@ -245,7 +245,11 @@ class UserSignupHttpIntegrationTests {
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
         JsonNode operation = specification.path("paths").path(REGISTRATION_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("signupOwner");
-        assertThat(specification.path("paths").properties()).hasSize(5);
+        assertThat(specification.path("paths").propertyNames()).containsExactlyInAnyOrder(
+                REGISTRATION_PATH, "/api/v1/auth/sessions", "/api/v1/auth/sessions/current",
+                "/api/v1/users/me", "/api/v1/users/me/profile/photo", "/api/v1/pets", "/api/v1/pets/{petId}",
+                "/api/v1/auth/password-recoveries", "/api/v1/auth/password-recoveries/verifications",
+                "/api/v1/auth/password-resets");
         assertThat(operation.path("responses").propertyNames()).contains("201", "400", "409", "415", "500");
         JsonNode requestSchema = specification.path("components").path("schemas").path("UserSignupRequestDTO");
         assertThat(requestSchema.path("additionalProperties").asBoolean(true)).isFalse();

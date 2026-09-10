@@ -45,6 +45,7 @@ public class CurrentAccountJwtValidator implements OAuth2TokenValidator<Jwt> {
 
         User user = userRepository.findById(userId).orElse(null);
         if (user == null || !user.isActive()
+                || !hasCurrentAuthenticationVersion(jwt, user)
                 || !user.getEmail().equals(jwt.getClaimAsString("email"))
                 || !user.getRole().name().equals(jwt.getClaimAsString("role"))) {
             return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
@@ -58,6 +59,13 @@ public class CurrentAccountJwtValidator implements OAuth2TokenValidator<Jwt> {
             return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
         }
         return OAuth2TokenValidatorResult.success();
+    }
+
+    private boolean hasCurrentAuthenticationVersion(Jwt jwt, User user) {
+        Object value = jwt.getClaims().get("authenticationVersion");
+        return value instanceof Number number
+                && number.longValue() == user.getAuthenticationVersion()
+                && number.doubleValue() == number.longValue();
     }
 
     private UUID parseUserId(String subject) {

@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,6 +54,15 @@ public class User {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @JsonIgnore
+    @Column(name = "authentication_version", nullable = false)
+    private long authenticationVersion;
+
+    @JsonIgnore
+    @Version
+    @Column(name = "optimistic_lock_version", nullable = false)
+    private long optimisticLockVersion;
 
     protected User() {
         // Required by JPA.
@@ -103,6 +113,17 @@ public class User {
         Assert.hasText(passwordHash, "passwordHash must not be blank");
         Assert.isTrue(passwordHash.length() <= 255, "passwordHash must not exceed 255 characters");
         this.passwordHash = passwordHash;
+    }
+
+    @JsonIgnore
+    public long getAuthenticationVersion() {
+        return authenticationVersion;
+    }
+
+    /** Replace the encoded credential and invalidate every previously issued session. */
+    public void resetPasswordHash(String passwordHash) {
+        changePasswordHash(passwordHash);
+        authenticationVersion = Math.incrementExact(authenticationVersion);
     }
 
     public void changeRole(UserRole role) {

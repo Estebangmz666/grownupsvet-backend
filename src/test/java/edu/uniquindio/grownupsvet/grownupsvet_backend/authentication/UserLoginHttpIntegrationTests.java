@@ -5,6 +5,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfigur
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -90,7 +91,8 @@ class UserLoginHttpIntegrationTests {
         assertThat(response.path("user").path("role").asText()).isEqualTo("OWNER");
         assertThat(response.path("user").path("permissions").valueStream().map(JsonNode::asText).toList())
                 .containsExactly("PROFILE_READ_SELF", "PROFILE_UPDATE_SELF",
-                        "PROFILE_DEACTIVATE_SELF", "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF");
+                        "PROFILE_DEACTIVATE_SELF", "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF",
+                        "PET_CREATE_SELF", "PET_READ_SELF", "PET_UPDATE_SELF");
 
         Jwt jwt = jwtDecoder.decode(response.path("accessToken").asText());
         assertThat(jwt.getHeaders()).containsEntry("alg", "RS256")
@@ -99,6 +101,7 @@ class UserLoginHttpIntegrationTests {
         assertThat(jwt.getSubject()).isEqualTo(user.getId().toString());
         assertThat(jwt.getClaimAsString("email")).isEqualTo(email);
         assertThat(jwt.getClaimAsString("role")).isEqualTo("OWNER");
+        assertThat(((Number) jwt.getClaim("authenticationVersion")).longValue()).isZero();
         assertThat(jwt.getAudience()).containsExactly("grownupsvet-clients");
         assertThat(jwt.getClaimAsString("iss")).isEqualTo("grownupsvet-backend");
         assertThat(jwt.getId()).isNotBlank();
@@ -155,6 +158,7 @@ class UserLoginHttpIntegrationTests {
     void generatesTheLoginContractAndBearerScheme() throws Exception {
         MvcResult result = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(specification.path("paths").has(AUTHENTICATED_TEST_PATH)).isFalse();
         JsonNode operation = specification.path("paths").path(SESSIONS_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("createUserSession");
         assertThat(operation.path("responses").propertyNames()).contains("200", "400", "401", "415", "500");
@@ -198,6 +202,7 @@ class UserLoginHttpIntegrationTests {
         Files.writeString(directory.resolve(filename), result.getResponse().getContentAsString());
     }
 
+    @Hidden
     @RestController
     static class AuthenticatedTestController {
         @GetMapping(AUTHENTICATED_TEST_PATH)

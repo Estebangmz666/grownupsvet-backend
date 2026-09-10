@@ -12,7 +12,10 @@ public class UserPermissionResolver {
             UserPermission.PROFILE_UPDATE_SELF.name(),
             UserPermission.PROFILE_DEACTIVATE_SELF.name(),
             UserPermission.PROFILE_PHOTO_READ_SELF.name(),
-            UserPermission.PROFILE_PHOTO_UPDATE_SELF.name());
+            UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(),
+            UserPermission.PET_CREATE_SELF.name(),
+            UserPermission.PET_READ_SELF.name(),
+            UserPermission.PET_UPDATE_SELF.name());
 
     private static final List<String> STAFF_PERMISSIONS = List.of(
             UserPermission.PROFILE_PHOTO_READ_SELF.name(),

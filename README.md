@@ -2,6 +2,8 @@
 
 Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
 
+El incremento 0.4.0 incorpora [mascotas propias y recuperación de contraseña](docs/mascotas-y-recuperacion.md). La recuperación requiere configurar el canal SMTP; la prueba real con Mailtrap está pendiente de crear el Sandbox. Los JWT anteriores sin `authenticationVersion` requieren un nuevo login.
+
 ## Modelo inicial
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
@@ -16,7 +18,7 @@ El alcance inicial permite al propietario consultar su perfil, editar únicament
 | `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN` o `ADMINISTRATOR`. |
 | `active` | Booleano | La cuenta se crea activa y permite activación/desactivación. |
 
-La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; y V4 crea `user_profile_photos`. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
+La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; y V6 añade recuperación y versiones de autenticación. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
 
 Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
 
@@ -47,7 +49,7 @@ La respuesta es `201 Created`, con `UserSignupResponseDTO`:
 }
 ```
 
-El identificador público es una cadena UUID y el correo se devuelve normalizado en minúsculas. El alta no emite token ni realiza una redirección HTTP. El frontend muestra el éxito y conduce a `/login`; después del primer acceso puede conducir al paso de primera mascota, que sigue pendiente. Las mascotas y la foto no forman parte de esta petición.
+El identificador público es una cadena UUID y el correo se devuelve normalizado en minúsculas. El alta no emite token ni realiza una redirección HTTP. El frontend muestra el éxito y conduce a `/login`; después del primer acceso puede conducir al paso de primera mascota mediante la API de mascotas; las pantallas y el seguimiento del onboarding siguen pendientes. Las mascotas y la foto no forman parte de esta petición.
 
 | Campo obligatorio | Validación implementada |
 |---|---|
@@ -92,13 +94,16 @@ Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
       "PROFILE_UPDATE_SELF",
       "PROFILE_DEACTIVATE_SELF",
       "PROFILE_PHOTO_READ_SELF",
-      "PROFILE_PHOTO_UPDATE_SELF"
+      "PROFILE_PHOTO_UPDATE_SELF",
+      "PET_CREATE_SELF",
+      "PET_READ_SELF",
+      "PET_UPDATE_SELF"
     ]
   }
 }
 ```
 
-El token se firma con `RS256`, dura 24 horas y contiene `sub`, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss` y `aud`. El backend valida firma, vencimiento con 30 segundos de tolerancia, emisor `grownupsvet-backend` y audiencia `grownupsvet-clients`. Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. No hay refresh token. Un correo inexistente, contraseña incorrecta o cuenta inactiva produce el mismo `401 INVALID_CREDENTIALS` para no revelar la causa.
+El token se firma con `RS256`, dura 24 horas y contiene `sub`, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss`, `aud` y `authenticationVersion`. El backend valida firma, vencimiento con 30 segundos de tolerancia, emisor `grownupsvet-backend` y audiencia `grownupsvet-clients`. Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. No hay refresh token. Un correo inexistente, contraseña incorrecta o cuenta inactiva produce el mismo `401 INVALID_CREDENTIALS` para no revelar la causa.
 
 La política de creación de contraseñas se aplica al registro, no se vuelve a exigir en cada login. Cada petición protegida comprueba que la cuenta continúa activa y que su rol y permisos siguen vigentes. `DELETE /api/v1/auth/sessions/current` revoca en PostgreSQL el token presentado; un token revocado deja de aceptarse inmediatamente.
 
@@ -116,7 +121,7 @@ La política de creación de contraseñas se aplica al registro, no se vuelve a 
 
 La carga de foto usa el campo multipart `file`. El servidor valida el contenido real, admite JPEG/PNG de hasta 2 MiB, limita dimensiones, corrige orientación EXIF, reduce hasta 512 × 512 y vuelve a codificar sin metadatos. La lectura devuelve `Cache-Control: private, no-store`; `profilePhotoUrl` contiene la ruta relativa protegida o `null`.
 
-En la versión académica, los frontends pueden conservar el JWT en `localStorage`. Deben eliminarlo al cerrar sesión o detectar su vencimiento y enviarlo únicamente mediante `Authorization: Bearer`; nunca en la URL. Esta decisión simplifica los clientes, pero no sustituye la protección frente a XSS. No se implementa limitación de intentos en este incremento.
+En la versión académica, los frontends pueden conservar el JWT en `localStorage`. Deben eliminarlo al cerrar sesión o detectar su vencimiento y enviarlo únicamente mediante `Authorization: Bearer`; nunca en la URL. Esta decisión simplifica los clientes, pero no sustituye la protección frente a XSS. La limitación general de login sigue pendiente. La recuperación sí incluye límites propios por correo e IP y por desafío.
 
 ## Respuesta de error
 
@@ -194,7 +199,7 @@ Desde esta carpeta, iniciar el backend con:
 
 También se puede ejecutar `GrownupsvetBackendApplication` desde IntelliJ. En ambos casos, si no se activa otro perfil explícitamente, Spring utiliza `dev` y se conecta a `grownupsvet_dev`.
 
-Flyway aplica las migraciones pendientes al cargar el contexto de Spring. V1 crea `users`, V2 `owner_profiles`, V3 `revoked_access_tokens` y V4 `user_profile_photos`; cada versión aplicada se registra en `flyway_schema_history`. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
+Flyway aplica las migraciones pendientes al cargar el contexto de Spring. V1 crea `users`, V2 `owner_profiles`, V3 `revoked_access_tokens`, V4 `user_profile_photos`, V5 `pets` y V6 las tablas de recuperación y versiones de autenticación; cada versión aplicada se registra en `flyway_schema_history`. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
 
 La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
 
@@ -220,7 +225,7 @@ El test de aplicación comprueba el arranque, la persistencia real de una cuenta
 
 Verificación del 10 de septiembre de 2026: `mvnw.cmd clean verify` terminó con **183 pruebas, sin fallos ni omisiones**, validó las cuatro migraciones y generó el JAR. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con el PKCS#12 local configurado.
 
-Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y siete respuestas HTTP contra sus esquemas. Código y anotaciones son la fuente editable.
+Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y respuestas HTTP de los distintos módulos contra sus esquemas. Código y anotaciones son la fuente editable.
 
 No guardar credenciales de la base, contraseñas del almacén ni archivos de clave en el repositorio. Las cuentas ficticias persistentes para desarrollo siguen pendientes; las pruebas crean y eliminan sus propios usuarios.
 

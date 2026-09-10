@@ -48,9 +48,14 @@ public class OwnerProfile {
     }
 
     public UUID getUserId() { return userId; }
+    public User getUser() { return user; }
     public String getFullName() { return fullName; }
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public String getPhoneNumber() { return phoneNumber; }
+
+    public void changePhoneNumber(String phoneNumber) {
+        this.phoneNumber = Objects.requireNonNull(phoneNumber, "phoneNumber must not be null");
+    }
 
     @Override
     public String toString() { return "OwnerProfile[userId=" + userId + "]"; }

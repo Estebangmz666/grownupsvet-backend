@@ -13,6 +13,11 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+
 # SQL exception messages can contain values from the failed row. The application
 # logs only a correlation id, exception type and stack locations for unexpected errors.
 logging:

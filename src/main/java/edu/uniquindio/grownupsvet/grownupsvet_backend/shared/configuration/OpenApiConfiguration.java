@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfiguration {
     @Bean
     public OpenAPI applicationOpenApi() {
-        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.2.0")
-                .description("Contrato incremental generado desde código. Implementa registro de propietarios, login con JWT RS256 y respuestas de error. Perfil, cierre de sesión, fotos y mascotas todavía no están disponibles."));
+        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.3.0")
+                .description("Contrato generado desde código para registro, login JWT RS256, perfil propio, foto, desactivación y cierre de sesión. Mascotas, recuperación y administración de personal pertenecen a incrementos posteriores."));
     }
 }

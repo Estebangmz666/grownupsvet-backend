@@ -4,6 +4,9 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.ApiErrorR
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.FieldValidationErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.exception.InvalidUserCredentialsException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.EmailAlreadyRegisteredException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.InvalidProfilePhotoException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.OwnerProfileNotFoundException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.ProfilePhotoNotFoundException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +29,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.MismatchedInputException;
@@ -48,6 +52,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger APPLICATION_LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String INVALID_REQUEST_DETAIL = "Revisa los campos indicados y vuelve a intentarlo.";
     private static final String INTERNAL_ERROR_DETAIL = "No pudimos completar la solicitud. Inténtalo de nuevo más tarde.";
+    private static final String PROFILE_PHOTO_REQUEST_PATH = "/api/v1/users/me/profile/photo";
 
     private final ApiErrorResponseFactory apiErrorResponseFactory;
 
@@ -59,6 +64,33 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleEmailAlreadyRegistered(EmailAlreadyRegisteredException exception) {
         return problemResponse(apiErrorResponseFactory.create(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED",
                 "Este correo ya está registrado. Puedes iniciar sesión o recuperar tu contraseña."), new HttpHeaders());
+    }
+
+    @ExceptionHandler(OwnerProfileNotFoundException.class)
+    public ResponseEntity<Object> handleOwnerProfileNotFound(OwnerProfileNotFoundException exception) {
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.NOT_FOUND, "OWNER_PROFILE_NOT_FOUND",
+                "No se encontró el perfil de propietario de esta cuenta."), new HttpHeaders());
+    }
+
+    @ExceptionHandler(ProfilePhotoNotFoundException.class)
+    public ResponseEntity<Object> handleProfilePhotoNotFound(ProfilePhotoNotFoundException exception) {
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.NOT_FOUND, "PROFILE_PHOTO_NOT_FOUND",
+                "Esta cuenta no tiene una foto de perfil."), privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(InvalidProfilePhotoException.class)
+    public ResponseEntity<Object> handleInvalidProfilePhoto(InvalidProfilePhotoException exception) {
+        return switch (exception.getReason()) {
+            case TOO_LARGE -> problemResponse(apiErrorResponseFactory.create(HttpStatus.PAYLOAD_TOO_LARGE,
+                    "PROFILE_PHOTO_TOO_LARGE", "La foto no puede superar 2 MiB."), new HttpHeaders());
+            case UNSUPPORTED_TYPE -> problemResponse(apiErrorResponseFactory.create(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "UNSUPPORTED_PROFILE_PHOTO_TYPE", "La foto debe contener una imagen JPEG o PNG."),
+                    new HttpHeaders());
+            case EMPTY, INVALID_CONTENT, INVALID_DIMENSIONS -> problemResponse(apiErrorResponseFactory.create(
+                    HttpStatus.BAD_REQUEST, "INVALID_PROFILE_PHOTO",
+                    "Selecciona una imagen JPEG o PNG válida dentro de las dimensiones permitidas."),
+                    new HttpHeaders());
+        };
     }
 
     @ExceptionHandler(AuthenticationException.class)
@@ -258,6 +290,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         responseHeaders.putAll(originalHeaders);
         responseHeaders.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
         return new ResponseEntity<>(problem, responseHeaders, HttpStatusCode.valueOf(problem.getStatus()));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException exception, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        boolean isProfilePhotoRequest = request instanceof ServletWebRequest servletWebRequest
+                && PROFILE_PHOTO_REQUEST_PATH.equals(servletWebRequest.getRequest().getRequestURI());
+        String errorCode = isProfilePhotoRequest ? "PROFILE_PHOTO_TOO_LARGE" : "PAYLOAD_TOO_LARGE";
+        String detail = isProfilePhotoRequest
+                ? "La foto no puede superar 2 MiB."
+                : "El contenido enviado supera el tamaño permitido.";
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.PAYLOAD_TOO_LARGE,
+                errorCode, detail), headers);
+    }
+
+    private HttpHeaders privateNoStoreHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setCacheControl("private, no-store");
+        return headers;
     }
 
     private void logUnexpectedFailure(Exception exception, ApiErrorResponseDTO problem) {

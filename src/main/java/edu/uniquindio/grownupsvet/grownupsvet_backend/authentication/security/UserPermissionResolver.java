@@ -7,16 +7,22 @@ import java.util.List;
 
 @Component
 public class UserPermissionResolver {
-    private static final List<String> SELF_PROFILE_PERMISSIONS = List.of(
+    private static final List<String> OWNER_PERMISSIONS = List.of(
             UserPermission.PROFILE_READ_SELF.name(),
             UserPermission.PROFILE_UPDATE_SELF.name(),
+            UserPermission.PROFILE_DEACTIVATE_SELF.name(),
             UserPermission.PROFILE_PHOTO_READ_SELF.name(),
             UserPermission.PROFILE_PHOTO_UPDATE_SELF.name());
 
-    /** All current account types may manage their own profile; domain permissions are added with real operations. */
+    private static final List<String> STAFF_PERMISSIONS = List.of(
+            UserPermission.PROFILE_PHOTO_READ_SELF.name(),
+            UserPermission.PROFILE_PHOTO_UPDATE_SELF.name());
+
+    /** Owner data and a staff member's professional data are intentionally separate resources. */
     public List<String> resolve(UserRole role) {
         return switch (role) {
-            case OWNER, VETERINARIAN, ADMINISTRATOR -> SELF_PROFILE_PERMISSIONS;
+            case OWNER -> OWNER_PERMISSIONS;
+            case VETERINARIAN, ADMINISTRATOR -> STAFF_PERMISSIONS;
         };
     }
 }

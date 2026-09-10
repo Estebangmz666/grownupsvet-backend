@@ -1,15 +1,15 @@
-# GrownupsVet: bases propuestas del contrato API
+# GrownupsVet: contrato API de acceso y perfil
 
-Fecha inicial: 6 de septiembre de 2026. Actualizado el 9 de septiembre con el incremento de login y JWT. Este documento recoge decisiones y estado de implementación; la especificación OpenAPI se genera desde el código. Los apartados de cierre de sesión, edición de perfil y foto siguen distinguiendo sus propuestas y pendientes.
+Fecha inicial: 6 de septiembre de 2026. Actualizado el 10 de septiembre con el incremento completo de acceso, perfil y sesión. Este documento recoge decisiones y estado de implementación; la especificación OpenAPI se genera desde el código y se valida con respuestas HTTP reales.
 
 El objetivo inmediato es que el backend y los dos frontends compartan un acuerdo preciso sobre los datos que intercambian. El orden del backlog puede adaptarse al desarrollo. Para probar el login, Esteban acepta cargar dos o tres cuentas de desarrollo mediante un script o consultas a PostgreSQL.
 
 ## Base disponible
 
-- Arquitectura: Spring Boot, PostgreSQL, monolito MVC, JWT, roles y permisos. Emisión y validación JWT ya están implementadas; las reglas funcionales por recurso se añadirán con cada operación protegida.
+- Arquitectura: Spring Boot, PostgreSQL, monolito MVC, JWT, roles y permisos. Emisión y validación JWT están implementadas; las operaciones protegidas de este incremento aplican permisos por método y las de módulos futuros deberán añadir sus propias reglas de recurso.
 - Propuesta documentada de organización por dominios, con controladores, DTOs, servicios y repositorios. Los DTOs describen la API; las entidades describen la persistencia.
-- Ya existe el proyecto en `grownupsvet-backend`, con Spring Boot 4.1.1, Java 25 y springdoc 3.1.0. La primera operación de negocio implementada es `POST /api/v1/auth/registrations`: crea la cuenta `User` y su `OwnerProfile`, devuelve `201` con `id` y `email`, y documenta sus respuestas mediante anotaciones. Incluye validaciones y errores uniformes, descritos en [el README del backend](../README.md). Todavía no hay un contrato completo de acceso/perfil. Los documentos citan `grownupsvet-backend-model.md`, pero ese archivo no está disponible aquí.
-- Esteban confirmó los campos del registro de propietario, el alcance de edición del perfil, correo de hasta 254 caracteres, contraseña de 15–128 sin composición obligatoria, el límite de edad y el acceso con JWT de 24 horas sin renovación. Para el recorrido posterior al registro priorizó simplicidad de implementación; se adopta registro → login → primera mascota. Los detalles técnicos pendientes se distinguen de las decisiones confirmadas en el apartado «Concreciones del 7 de septiembre».
+- El proyecto `grownupsvet-backend` usa Spring Boot 4.1.1, Java 25 y springdoc 3.1.0. Implementa las nueve operaciones de registro, login, perfil propio, foto, desactivación y cierre de sesión, con validaciones y errores uniformes descritos en [el README del backend](../README.md). Los documentos citan `grownupsvet-backend-model.md`, pero ese archivo no está disponible aquí.
+- Esteban confirmó los campos del registro de propietario, el alcance de edición del perfil, correo de hasta 254 caracteres, contraseña de 15–128 sin composición obligatoria, el límite de edad y el acceso con JWT de 24 horas sin renovación. Para el recorrido posterior al registro priorizó simplicidad de implementación; se adopta registro → login → primera mascota. Los límites fuera de este incremento se distinguen de las decisiones implementadas en el apartado «Concreciones del 7, 9 y 10 de septiembre».
 - La primera versión tendrá un solo rol por cuenta, confirmado por Esteban. La [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md) recoge los tres roles ya presentes en el código y el backlog, sus responsabilidades y los límites todavía pendientes de concretar.
 
 ## Acceso confirmado y accesibilidad propuesta
@@ -46,7 +46,7 @@ El recorrido confirmado es crear la cuenta primero y registrar las mascotas desp
 
 La adaptación automática de accesibilidad según la edad sigue siendo una idea en discusión. No hay reglas aprobadas de cambio de interfaz ni un mínimo de 60 años para registrarse. Esteban fijó un máximo de 130 años; su concreción se describe más adelante. El requisito de fecha de nacimiento y la decisión de implementar una adaptación de interfaz se documentan por separado.
 
-Esteban confirmó que la foto de perfil sí se incluirá en la primera versión y será opcional para crear o usar la cuenta. Su preferencia es almacenarla directamente en PostgreSQL para el proyecto académico. La propuesta técnica es usar una tabla separada con contenido `bytea` y metadatos, consultada cuando se solicite la imagen; el detalle está en la [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md). Los límites de carga y el contrato de la operación siguen como propuestas, todavía sin implementar. La foto del propietario es independiente de las imágenes de mascotas.
+Esteban confirmó que la foto de perfil se incluye en la primera versión y es opcional para crear o usar la cuenta. Se almacena procesada en PostgreSQL, en una tabla separada con contenido `bytea` y metadatos, consultada solamente cuando se solicita la imagen. Todos los roles gestionan exclusivamente su propia foto. El contrato y los límites implementados se detallan más adelante y en la [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md). La foto de la cuenta es independiente de las imágenes de mascotas.
 
 WhatsApp y llamadas describen los canales de contacto previstos por Esteban. Esta decisión no especifica ni implementa envíos automáticos, proveedores externos o verificación del teléfono. El mecanismo de recuperación de acceso continúa pendiente.
 
@@ -68,7 +68,7 @@ Esta restricción debe respetarse en la API, además de en el formulario: las pe
 
 La contraseña se trata como una credencial, separada de la edición general del perfil. El cambio o la recuperación de contraseña corresponde al alcance de autenticación y no se resuelve mediante una actualización del perfil; su flujo todavía está pendiente. Esteban aceptó 15–128 caracteres, espacios permitidos, sin mezcla obligatoria de tipos de caracteres y con rechazo de contraseñas comunes. Esa política ya se valida en registro y deberá aplicarse a los futuros flujos que establezcan una nueva contraseña; el DTO de login conserva la contraseña recibida sin transformarla.
 
-Antes de cerrar el contrato, concretar las validaciones de registro y de teléfono. Las funcionalidades aplazadas de soporte, corrección de datos y adaptación por edad no bloquean la construcción de esta base.
+Las validaciones del teléfono editado serán las mismas del registro. Las funcionalidades aplazadas de soporte, corrección de datos y adaptación por edad no bloquean la construcción de esta base.
 
 ### Estado de implementación
 
@@ -78,9 +78,9 @@ La entidad `User` y la migración `V1__create_users.sql` representan la cuenta c
 
 `GlobalExceptionHandler` y `ApiSecurityErrorHandler` comparten `ApiErrorResponseFactory` para emitir `application/problem+json`. Springdoc genera el alcance disponible desde código y anotaciones. Esta descripción distingue código incorporado de resultados de verificación: los resultados concretos y la copia generada del contrato se registran con su evidencia correspondiente.
 
-## Concreciones del 7 de septiembre
+## Concreciones del 7, 9 y 10 de septiembre
 
-Este apartado registra la respuesta de Esteban y las recomendaciones para avanzar SCRUM-67. «Confirmado» describe una decisión del usuario; «propuesto» todavía no implica aceptación del equipo ni implementación. C4 queda a cargo de los otros dos compañeros según el reparto comunicado por Esteban; esta actualización se limita al contrato de acceso/perfil.
+Este apartado registra la respuesta de Esteban y las decisiones aplicadas a SCRUM-67. «Implementado» exige código y prueba; «confirmado» o «aprobado» describe una decisión aceptada; «propuesto» continúa sujeto a decisión. C4 queda a cargo de los otros dos compañeros según el reparto comunicado por Esteban; esta actualización se limita al contrato de acceso y perfil.
 
 ### Validaciones del registro
 
@@ -102,7 +102,7 @@ La lista local de SecLists tiene 10.000 entradas y se compara con la contraseña
 
 Propuesta de interfaz: selector de país/prefijo y campo de teléfono que permita pegar un número internacional completo. Un número ya escrito con `+` no debe recibir otra vez el prefijo seleccionado.
 
-Contrato implementado en el registro: `phoneNumber` es una cadena en formato internacional canónico E.164, con `+` seguido del código de país y los dígitos correspondientes, hasta 15 dígitos (16 caracteres con `+`). La interfaz puede mostrar espacios; normaliza el valor antes de enviarlo. La futura consulta del perfil conservará ese formato, pero todavía no existe esa operación.
+`phoneNumber` es una cadena en formato internacional canónico E.164, con `+` seguido del código de país y los dígitos correspondientes, hasta 15 dígitos (16 caracteres con `+`). La interfaz puede mostrar espacios, pero normaliza el valor antes de enviarlo. Registro, consulta y actualización del perfil conservan ese formato.
 
 El backend comprueba tanto la forma canónica como la validez con metadatos de Google libphonenumber. No basta contar dígitos o aplicar un regex colombiano. Evitar el uso de `parse` como validador único: puede extraer números de texto y transformar letras; rechazar entradas ajenas al contrato antes de interpretarlas. No exigir que el número pertenezca al país de residencia ni limitarlo a móviles sin un requisito adicional.
 
@@ -130,27 +130,49 @@ Implementado: `POST /api/v1/auth/sessions` devuelve `200 OK`, JWT con identifica
 
 El JWT RS256 contiene `sub` con el UUID de la cuenta, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss=grownupsvet-backend` y `aud=grownupsvet-clients`. `iat`/`exp` son instantes Unix y `jti` identifica el token. No duplica `id` ni incluye contraseña, hash, teléfono, nacimiento o foto. [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html).
 
-El catálogo inicial contiene `PROFILE_READ_SELF`, `PROFILE_UPDATE_SELF`, `PROFILE_PHOTO_READ_SELF` y `PROFILE_PHOTO_UPDATE_SELF`. Spring Security convierte el claim `permissions` en autoridades sin prefijo. Un permiso para editar perfil no concede acceso al perfil de otra persona: esa propiedad se comprobará en el servicio al implementar la operación. La consulta de `active` y rol vigente en cada petición queda pendiente; hoy los claims son una fotografía válida hasta el vencimiento. [OWASP: autorización en cada petición](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request).
+El catálogo del propietario contiene `PROFILE_READ_SELF`, `PROFILE_UPDATE_SELF`, `PROFILE_DEACTIVATE_SELF`, `PROFILE_PHOTO_READ_SELF` y `PROFILE_PHOTO_UPDATE_SELF`; los otros dos roles reciben solamente los permisos de foto propia en este incremento. Spring Security convierte el claim `permissions` en autoridades sin prefijo. Un permiso no concede acceso a otra cuenta ni sustituye las reglas del rol. Cada petición protegida consulta que la cuenta exista y continúe activa, y contrasta correo, rol, permisos y revocación con PostgreSQL; un token con una fotografía obsoleta deja de aceptarse. [OWASP: autorización en cada petición](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request).
 
-Propuesta de cierre de sesión: registrar en PostgreSQL la revocación de `(issuer, jwtId)` junto con su vencimiento, validar firma y claims antes de registrar/consultar esa identidad y comprobar la revocación en cada petición protegida. Limpiar registros cuando el token ya no pueda aceptarse. Después del cierre confirmado, el cliente elimina su copia. Esto conserva el JWT sin refresh y permite invalidar copias del token; borrar solo la copia del navegador no lo consigue. La tabla aún no existe. [OWASP: revocación JWT](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html#jwt-denylist).
+`DELETE /api/v1/auth/sessions/current` recibe el JWT mediante `Authorization: Bearer`, registra su revocación en PostgreSQL y devuelve `204 No Content`. La tabla `revoked_access_tokens` usa la identidad compuesta `(issuer, jwt_id)`, además de `user_id`, `revoked_at` y `expires_at`. El backend valida primero firma y claims, y consulta la revocación en cada petición protegida. Un token revocado recibe `401 AUTHENTICATION_REQUIRED`, incluso si se vuelve a presentar para cerrar sesión. Los registros expirados se depuran al cerrar sesiones, después de la tolerancia de reloj. [OWASP: revocación JWT](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html#jwt-denylist).
 
 Spring Security acepta únicamente RS256 y comprueba firma, `exp`, emisor y audiencia, con 30 segundos de tolerancia de reloj. Las pruebas cubren token vencido, emisor incorrecto, audiencia incorrecta y firma alterada. [Spring Security: validación JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html#oauth2resourceserver-jwt-validation).
 
-Credenciales incorrectas, correo inexistente o cuenta inactiva producen la misma respuesta `401 INVALID_CREDENTIALS`. Un token ausente, inválido o vencido produce `401 AUTHENTICATION_REQUIRED`; una autoridad insuficiente produce `403 ACCESS_DENIED`. La API devuelve Problem Details JSON, no HTML ni una redirección. La revocación aún no existe. [OWASP: estados HTTP para API](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#http-return-code).
+Credenciales incorrectas, correo inexistente o cuenta inactiva producen la misma respuesta `401 INVALID_CREDENTIALS`. Un token ausente, inválido, vencido, revocado, perteneciente a una cuenta inactiva o con correo/rol/permisos obsoletos produce `401 AUTHENTICATION_REQUIRED`; una autoridad insuficiente produce `403 ACCESS_DENIED`. La API devuelve Problem Details JSON, no HTML ni una redirección. [OWASP: estados HTTP para API](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html#http-return-code).
 
-Antes de implementar el almacenamiento/transporte del token en los dos clientes, concretar sus tecnologías y si se servirán bajo el mismo origen o distintos. No asumir `localStorage` ni fijar cookies sin revisar ese contexto. La carga de fotos protegidas debe usar el mismo acuerdo de autenticación; un elemento `img` no añade por sí solo un encabezado Bearer.
+Para esta versión académica se acepta que los dos clientes almacenen el token en `localStorage`. Deben eliminarlo cuando el usuario cierre sesión o cuando detecten su vencimiento y enviarlo únicamente en el encabezado `Authorization: Bearer`; no debe aparecer en URLs, registros ni mensajes de error. Esta decisión simplifica la integración, pero deja el token accesible al JavaScript del mismo origen y, por tanto, no elimina el riesgo de XSS. El backend sigue siendo responsable de vencimiento, revocación y autorización. Para mostrar una foto protegida, el cliente solicita los bytes con el mismo encabezado y crea un objeto Blob local; un elemento `img` no añade por sí solo el Bearer.
+
+### Perfil propio y desactivación de la cuenta
+
+Estas operaciones están implementadas y publicadas en el OpenAPI generado:
+
+| Operación | Acceso | Petición y respuesta |
+|---|---|---|
+| `GET /api/v1/users/me` | Solo `OWNER` | `200 OK` con `id`, `email`, `role`, `active`, `fullName`, `dateOfBirth`, `phoneNumber` y `profilePhotoUrl`. `profilePhotoUrl` es `null` cuando no existe foto. Nunca expone `passwordHash`. |
+| `PATCH /api/v1/users/me` | Solo `OWNER` | JSON estricto con `phoneNumber` como único campo; aplica las mismas reglas E.164 del registro y devuelve `200 OK` con la representación completa actualizada. |
+| `DELETE /api/v1/users/me` | Solo `OWNER` | Cambia `users.active` a `false` y devuelve `204 No Content`; es una desactivación lógica y no borra físicamente la cuenta ni su información relacionada. |
+
+La ruta `/me` obtiene la identidad exclusivamente del JWT validado; no recibe un UUID elegido por el cliente. La respuesta de perfil representa todos los campos utilizables de `users` y `owner_profiles`, además de la URL de la foto, pero omite deliberadamente el hash de contraseña. Correo, nombre, fecha de nacimiento, rol y estado no son editables mediante el `PATCH`.
+
+La desactivación propia no está disponible para `VETERINARIAN` ni `ADMINISTRATOR`. Sus cuentas y el perfil profesional del veterinario serán gestionados por operaciones administrativas posteriores. Tras desactivar un propietario, todos sus tokens dejan de ser aceptables por la comprobación de `active`; no es necesario insertar cada token de esa cuenta en la lista de revocación. El diseño de un superadministrador queda fuera de este incremento.
 
 ### Foto del perfil
 
-Esteban mantiene la preferencia de almacenar directamente en PostgreSQL y solicita ayuda para el diseño. La propuesta detallada de tabla, carga separada, validación, normalización y lectura protegida está en [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md#foto-opcional-almacenada-en-postgresql). Los formatos y límites siguen siendo propuestas de aplicación, no decisiones ya aceptadas por el equipo.
+Todos los roles (`OWNER`, `VETERINARIAN` y `ADMINISTRATOR`) pueden administrar únicamente su propia foto. El perfil profesional del veterinario continúa bajo administración y no se vuelve editable por permitirle cambiar su foto.
+
+| Operación | Resultado aprobado |
+|---|---|
+| `GET /api/v1/users/me/profile/photo` | `200 OK` con los bytes procesados y el `Content-Type` real (`image/jpeg` o `image/png`); si no existe, `404` con `errorCode: PROFILE_PHOTO_NOT_FOUND`. |
+| `PUT /api/v1/users/me/profile/photo` | Recibe el campo `file` en una carga separada `multipart/form-data`, crea o reemplaza la foto y devuelve `204 No Content`. |
+| `DELETE /api/v1/users/me/profile/photo` | Elimina la foto si existe y devuelve siempre `204 No Content`, por lo que el borrado es idempotente. |
+
+Se aceptan JPEG y PNG de máximo 2 MiB, 8.000 píxeles por lado y 20 millones de píxeles en total. El servidor valida el contenido real, corrige orientación cuando aplica, reduce proporcionalmente a un máximo de 512 × 512 sin ampliar imágenes pequeñas y vuelve a codificar sin metadatos. La imagen procesada se almacena en PostgreSQL en `user_profile_photos`, separada de `users`; no se envía Base64 dentro de los DTOs. La lectura usa `Cache-Control: private, no-store`. Se devuelve `413 PROFILE_PHOTO_TOO_LARGE`, `415 UNSUPPORTED_PROFILE_PHOTO_TYPE`, `400 INVALID_PROFILE_PHOTO` o `404 PROFILE_PHOTO_NOT_FOUND`, según corresponda. El detalle técnico está en [arquitectura de usuarios y permisos](arquitectura-usuarios-y-permisos.md#foto-opcional-almacenada-en-postgresql).
 
 ### Trabajo siguiente y evidencia
 
-Avanzar por operaciones: concretar su petición, respuesta y reglas pendientes; implementar DTOs, comportamiento y anotaciones; probar la operación y generar su OpenAPI con springdoc. El contrato cubrirá progresivamente registro, login, sesión, perfil y foto. No se exige escribir previamente un YAML manual ni implementar todas las operaciones para publicar un primer contrato parcial.
+El incremento implementa DTOs, comportamiento, persistencia y anotaciones de las nueve operaciones acordadas. Las pruebas ejercitan los recorridos HTTP y regeneran su OpenAPI con springdoc; no existe un YAML manual independiente.
 
-El nombre quedó definido e implementado con el límite de 150 y dos o más componentes. El login ya tiene un catálogo inicial de permisos de perfil propio. Permanecen por definir el seguimiento del paso de primera mascota, los permisos de módulos posteriores y el almacenamiento del token en los frontends; los límites de foto y detalles de revocación se mantienen como propuestas técnicas.
+El nombre quedó definido e implementado con el límite de 150 y dos o más componentes. El login ya tiene un catálogo inicial de permisos de perfil propio. Quedaron definidos el almacenamiento del token para la versión académica, los límites de foto y la revocación en PostgreSQL. Permanecen por definir el seguimiento del paso de primera mascota, los permisos de módulos posteriores, la administración de personal y el eventual superadministrador. La limitación de intentos se aplaza y no forma parte del siguiente incremento.
 
-Registro, login y JWT aportan implementación a SCRUM-23 y contrato generado a SCRUM-67; la evidencia debe especificar este alcance incremental. El vínculo SCRUM-67 → SCRUM-6 debe conservar la trazabilidad. La revisión compartida y las operaciones de perfil/foto siguen siendo requisitos antes de declarar completo el alcance mayor. La implementación conserva V1 y V2 sin modificarlas.
+Registro, login, JWT, perfil, foto, desactivación y revocación aportan implementación a SCRUM-23 y contrato generado a SCRUM-67. El vínculo SCRUM-67 → SCRUM-6 conserva la trazabilidad histórica; el contrato técnico de acceso/perfil queda completo en el incremento 0.3.0. La implementación conserva V1 y V2 sin modificarlas y añade V3/V4.
 
 ## Acuerdo sobre los datos
 
@@ -203,12 +225,12 @@ Cargar las cuentas ficticias mediante un script repetible cuando exista el esque
 
 ## Alcance del OpenAPI incremental
 
-La especificación generada publica `POST /api/v1/auth/registrations` y `POST /api/v1/auth/sessions`, incluido el esquema Bearer JWT para rutas protegidas. El paso de primera mascota, las comprobaciones funcionales de permisos, las operaciones de foto, la revocación y el almacenamiento del token se concretan antes de sus respectivos incrementos. Cada operación ampliará la misma especificación desde el código; no hace falta escribir un YAML manual completo para avanzar.
+La especificación 0.3.0 publica las nueve operaciones implementadas de registro, login, perfil propio, foto, desactivación y revocación, incluido el esquema Bearer JWT para rutas protegidas. El paso de primera mascota, recuperación, administración de personal, superadministrador, limitación de intentos y permisos de módulos posteriores están fuera de SCRUM-67 y continúan pendientes en sus incrementos correspondientes.
 
 El proyecto usa Maven, Spring Boot 4.1.1 y Java 25. Los perfiles `dev` y `test` seleccionan sus respectivas bases PostgreSQL; las credenciales se configuran mediante variables de entorno. El README explica la ejecución y la verificación con la base de pruebas. Las reglas de módulos posteriores se resuelven cuando se incorpore su contrato.
 
 ## Referencias técnicas
 
-- [OpenAPI 3.1.1, tipos de datos](https://spec.openapis.org/oas/v3.1.1.html#data-types): los tipos se restringen mediante `type`; declarar un `format` no garantiza que todas las herramientas lo validen. Esta referencia no fija todavía la versión que usará el proyecto.
+- [OpenAPI 3.1.1, tipos de datos](https://spec.openapis.org/oas/v3.1.1.html#data-types): los tipos se restringen mediante `type`; declarar un `format` no garantiza que todas las herramientas lo validen. El documento generado por el proyecto declara OpenAPI 3.1.0.
 - [Spring MVC, RequestBody](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/requestbody.html): conversión del cuerpo HTTP y validación de objetos de entrada.
 - [OpenAPI Generator, cliente TypeScript Fetch](https://openapi-generator.tech/docs/generators/typescript-fetch/): alternativa para generar el cliente si se confirma TypeScript en los frontends.

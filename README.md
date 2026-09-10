@@ -6,7 +6,7 @@ Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
 
-El alcance inicial permite al propietario editar únicamente el teléfono y la foto de perfil. La funcionalidad de foto está confirmada y su uso es opcional; se propone almacenarla en PostgreSQL en una tabla separada, conforme a la preferencia de Esteban. Correo, nombre completo y fecha de nacimiento no tendrán edición por el propietario. Las correcciones administrativas, el cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación y recuperación, separados de la edición del perfil. Registro e inicio de sesión ya están implementados; todavía no hay operaciones de perfil.
+El alcance inicial permite al propietario consultar su perfil, editar únicamente el teléfono y desactivar su propia cuenta. La foto es opcional y todos los roles pueden gestionar solamente la suya; se almacena procesada en PostgreSQL en una tabla separada. Correo, nombre completo y fecha de nacimiento no tienen edición por el propietario. El perfil profesional del veterinario será administrado mediante operaciones posteriores exclusivas del administrador. Las correcciones administrativas, el cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación y recuperación, separados de la edición del perfil. Registro, inicio y cierre de sesión, perfil, foto y desactivación están implementados.
 
 | Campo | Persistencia | Regla |
 |---|---|---|
@@ -16,9 +16,9 @@ El alcance inicial permite al propietario editar únicamente el teléfono y la f
 | `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN` o `ADMINISTRATOR`. |
 | `active` | Booleano | La cuenta se crea activa y permite activación/desactivación. |
 
-La migración `V1__create_users.sql` crea `users` y sus restricciones. La nueva `V2__create_owner_profiles.sql` crea `owner_profiles`, con `user_id` como clave primaria y referencia a la cuenta, `full_name` de hasta 150 caracteres, `date_of_birth` de tipo `DATE` y `phone_number` de hasta 16 caracteres. Se conserva V1; los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
+La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; y V4 crea `user_profile_photos`. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
 
-Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador. El login emite un catálogo inicial de autoridades; la autorización funcional de cada recurso todavía debe implementarse junto con sus operaciones.
+Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
 
 La entidad no implementa autenticación ni sustituye un DTO de respuesta. El hash se excluye de JSON y del texto de diagnóstico. El servicio de login aplica la misma normalización del correo, exige una cuenta activa y verifica el hash Argon2id sin transformar la contraseña recibida. La comprobación de credenciales y la seguridad HTTP corresponden a servicios y a Spring Security.
 
@@ -90,6 +90,7 @@ Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
     "permissions": [
       "PROFILE_READ_SELF",
       "PROFILE_UPDATE_SELF",
+      "PROFILE_DEACTIVATE_SELF",
       "PROFILE_PHOTO_READ_SELF",
       "PROFILE_PHOTO_UPDATE_SELF"
     ]
@@ -99,7 +100,23 @@ Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
 
 El token se firma con `RS256`, dura 24 horas y contiene `sub`, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss` y `aud`. El backend valida firma, vencimiento con 30 segundos de tolerancia, emisor `grownupsvet-backend` y audiencia `grownupsvet-clients`. Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. No hay refresh token. Un correo inexistente, contraseña incorrecta o cuenta inactiva produce el mismo `401 INVALID_CREDENTIALS` para no revelar la causa.
 
-La política de creación de contraseñas se aplica al registro, no se vuelve a exigir en cada login. El cierre de sesión con revocación, la reacción inmediata a cambios de rol/estado durante las 24 horas y el almacenamiento del token en cada frontend continúan pendientes.
+La política de creación de contraseñas se aplica al registro, no se vuelve a exigir en cada login. Cada petición protegida comprueba que la cuenta continúa activa y que su rol y permisos siguen vigentes. `DELETE /api/v1/auth/sessions/current` revoca en PostgreSQL el token presentado; un token revocado deja de aceptarse inmediatamente.
+
+## Perfil propio, foto y cierre de sesión implementados
+
+| Operación | Roles | Resultado acordado |
+|---|---|---|
+| `GET /api/v1/users/me` | `OWNER` | `200 OK` con los datos seguros de la cuenta y el perfil del propietario; nunca devuelve `passwordHash`. |
+| `PATCH /api/v1/users/me` | `OWNER` | Modifica únicamente `phoneNumber` y devuelve `200 OK` con el perfil actualizado. |
+| `DELETE /api/v1/users/me` | `OWNER` | Desactivación lógica (`active = false`) y `204 No Content`. No elimina físicamente la cuenta. |
+| `GET /api/v1/users/me/profile/photo` | Todos los roles | Devuelve los bytes JPEG/PNG de la foto propia o `404 PROFILE_PHOTO_NOT_FOUND`. |
+| `PUT /api/v1/users/me/profile/photo` | Todos los roles | Crea o reemplaza la foto propia y devuelve `204 No Content`. |
+| `DELETE /api/v1/users/me/profile/photo` | Todos los roles | Elimina la foto propia de forma idempotente y devuelve `204 No Content`. |
+| `DELETE /api/v1/auth/sessions/current` | Todos los roles autenticados | Revoca el JWT presentado en PostgreSQL y devuelve `204 No Content`. |
+
+La carga de foto usa el campo multipart `file`. El servidor valida el contenido real, admite JPEG/PNG de hasta 2 MiB, limita dimensiones, corrige orientación EXIF, reduce hasta 512 × 512 y vuelve a codificar sin metadatos. La lectura devuelve `Cache-Control: private, no-store`; `profilePhotoUrl` contiene la ruta relativa protegida o `null`.
+
+En la versión académica, los frontends pueden conservar el JWT en `localStorage`. Deben eliminarlo al cerrar sesión o detectar su vencimiento y enviarlo únicamente mediante `Authorization: Bearer`; nunca en la URL. Esta decisión simplifica los clientes, pero no sustituye la protección frente a XSS. No se implementa limitación de intentos en este incremento.
 
 ## Respuesta de error
 
@@ -116,6 +133,10 @@ La política de creación de contraseñas se aplica al registro, no se vuelve a 
 | JSON ilegible, tipo incorrecto o propiedad desconocida | `400` | `MALFORMED_JSON`, `TYPE_MISMATCH` o `UNKNOWN_PROPERTY`, según la causa. |
 | Correo ya registrado | `409` | `EMAIL_ALREADY_REGISTERED`. |
 | Credenciales incorrectas o cuenta inactiva | `401` | `INVALID_CREDENTIALS`. |
+| Token inválido, vencido, revocado o con datos de cuenta obsoletos | `401` | `AUTHENTICATION_REQUIRED`. |
+| Foto inexistente | `404` | `PROFILE_PHOTO_NOT_FOUND`. |
+| Foto demasiado grande | `413` | `PROFILE_PHOTO_TOO_LARGE`. |
+| Formato o contenido de foto inválido | `415` / `400` | `UNSUPPORTED_PROFILE_PHOTO_TYPE` / `INVALID_PROFILE_PHOTO`. |
 | Método o tipo de contenido no admitido | `405` / `415` | `METHOD_NOT_ALLOWED` / `UNSUPPORTED_MEDIA_TYPE`. |
 | Fallo inesperado | `500` | `INTERNAL_ERROR`, con un mensaje genérico. |
 
@@ -173,7 +194,7 @@ Desde esta carpeta, iniciar el backend con:
 
 También se puede ejecutar `GrownupsvetBackendApplication` desde IntelliJ. En ambos casos, si no se activa otro perfil explícitamente, Spring utiliza `dev` y se conecta a `grownupsvet_dev`.
 
-Flyway aplica las migraciones pendientes al cargar el contexto de Spring. V1 crea `users` y V2 crea `owner_profiles`; cada versión aplicada se registra en `flyway_schema_history`. Una base con V1 aplicada recibe únicamente V2. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
+Flyway aplica las migraciones pendientes al cargar el contexto de Spring. V1 crea `users`, V2 `owner_profiles`, V3 `revoked_access_tokens` y V4 `user_profile_photos`; cada versión aplicada se registra en `flyway_schema_history`. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
 
 La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
 
@@ -197,9 +218,9 @@ El test de aplicación comprueba el arranque, la persistencia real de una cuenta
 
 `UserSignupHttpIntegrationTests` usa el perfil `test`, con filtros de seguridad reales y sin una transacción envolvente de prueba. Comprueba registro, hash Argon2id de hasta 128 caracteres Unicode, conservación de espacios de la contraseña, datos inválidos, propiedades de privilegios rechazadas, errores MVC y de seguridad, correo duplicado simultáneo y rollback completo cuando falla el perfil. `UserLoginHttpIntegrationTests` comprueba credenciales, estado activo, respuesta, claims, acceso Bearer y rechazo de una firma alterada. Las pruebas generan un par RSA efímero; nunca leen la clave privada local.
 
-Verificación del 9 de septiembre de 2026: `mvnw.cmd clean verify` terminó con **166 pruebas, sin fallos ni omisiones**, y generó el JAR. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con el PKCS#12 local configurado.
+Verificación del 10 de septiembre de 2026: `mvnw.cmd clean verify` terminó con **183 pruebas, sin fallos ni omisiones**, validó las cuatro migraciones y generó el JAR. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con el PKCS#12 local configurado.
 
-Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y cinco respuestas HTTP contra sus esquemas. Código y anotaciones son la fuente editable.
+Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y siete respuestas HTTP contra sus esquemas. Código y anotaciones son la fuente editable.
 
 No guardar credenciales de la base, contraseñas del almacén ni archivos de clave en el repositorio. Las cuentas ficticias persistentes para desarrollo siguen pendientes; las pruebas crean y eliminan sus propios usuarios.
 
@@ -223,4 +244,4 @@ La configuración externa de base de datos y firma JWT también debe estar dispo
 
 El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` registra propietarios; `authentication` verifica credenciales y emite/valida JWT; `shared` contiene configuración y manejo uniforme de errores.
 
-El apartado «Respuesta de error» describe el manejo ya implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) distinguen lo entregado en registro/login de lo pendiente en cierre de sesión, perfil y foto. La autorización se aplica por acción y recurso: un claim o rol no concede automáticamente acceso a datos ajenos. Las comprobaciones funcionales de propiedad se incorporarán con esas operaciones.
+El apartado «Respuesta de error» describe el manejo implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) delimitan el incremento completo de acceso, perfil y sesión. La autorización se aplica por acción y recurso: un claim o rol no concede acceso a datos ajenos, y el backend contrasta el estado vigente de la cuenta en cada petición protegida.

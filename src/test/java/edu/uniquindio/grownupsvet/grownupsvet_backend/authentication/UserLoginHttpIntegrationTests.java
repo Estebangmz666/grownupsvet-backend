@@ -90,7 +90,7 @@ class UserLoginHttpIntegrationTests {
         assertThat(response.path("user").path("role").asText()).isEqualTo("OWNER");
         assertThat(response.path("user").path("permissions").valueStream().map(JsonNode::asText).toList())
                 .containsExactly("PROFILE_READ_SELF", "PROFILE_UPDATE_SELF",
-                        "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF");
+                        "PROFILE_DEACTIVATE_SELF", "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF");
 
         Jwt jwt = jwtDecoder.decode(response.path("accessToken").asText());
         assertThat(jwt.getHeaders()).containsEntry("alg", "RS256")

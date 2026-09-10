@@ -1,15 +1,16 @@
 # GrownupsVet: usuarios, roles y foto de perfil
 
-Fecha inicial: 6 de septiembre de 2026. Actualizado el 9 de septiembre con el login y la firma JWT. Base de diseño para registro, acceso y perfil. Se contrastaron el código local y las historias de Jira citadas aquí. El documento distingue la autenticación implementada de las operaciones de perfil y foto aún pendientes.
+Fecha inicial: 6 de septiembre de 2026. Actualizado el 10 de septiembre con la implementación de perfil, foto, desactivación, revocación y comprobación dinámica de cuenta. Base de diseño y evidencia para registro, acceso y perfil. Se contrastaron el código local y las historias de Jira citadas aquí.
 
 ## Decisiones confirmadas y estado actual
 
 - Esteban confirmó **un solo rol por cuenta** para la primera versión.
 - El modelo existente `User` centraliza UUID, correo, hash de contraseña, rol y estado activo. `UserRole` y la migración `V1__create_users.sql` contienen `OWNER`, `VETERINARIAN` y `ADMINISTRATOR`.
 - Las historias de Jira distribuyen las funciones entre propietario, veterinario y administrador. El registro público crea propietarios; no permite autoconcederse roles profesionales.
-- El acceso común está implementado con credenciales de `User`, JWT RS256 de 24 horas y cuatro autoridades iniciales de perfil propio.
-- La foto de perfil sí forma parte de la primera versión. Aportarla es opcional. Esteban prefiere almacenar las imágenes directamente en PostgreSQL por el carácter académico del sistema.
-- El propietario puede modificar teléfono y foto. Los demás datos personales del registro no tienen edición por el propietario en esta versión. Cambio y recuperación de contraseña pertenecen a autenticación.
+- El acceso común está implementado con credenciales de `User` y JWT RS256 de 24 horas. El propietario recibe cinco autoridades de perfil propio; veterinario y administrador reciben las dos autoridades de foto propia aplicables en este incremento.
+- La foto de perfil sí forma parte de la primera versión. Es opcional, se almacena procesada en PostgreSQL y cada uno de los tres roles puede gestionar solamente su propia foto.
+- Solo el propietario consulta su perfil personal, modifica su teléfono y desactiva su propia cuenta. Los demás datos personales del registro no tienen edición por el propietario en esta versión. Cambio y recuperación de contraseña pertenecen a autenticación.
+- El administrador gestionará el perfil profesional del veterinario mediante operaciones posteriores. Permitir que el veterinario cambie su foto no le permite editar sus datos profesionales. Administradores y veterinarios no pueden desactivar su propia cuenta en este alcance.
 
 ## Responsabilidades de los tres roles
 
@@ -29,7 +30,7 @@ Los roles son responsabilidades independientes. No se propone una jerarquía que
 
 Mantener una cuenta `User` compartida y un mecanismo común de autenticación para ambos portales. El rol se almacena como el enum actual. Tener tres roles no exige tres tablas de credenciales, tres mecanismos de login ni herencia Java entre tipos de usuario.
 
-El backend implementa el [contrato de login y sesión](contrato-api-bases-propuestas.md#login-y-sesión-de-24-horas): JWT RS256 de 24 horas sin renovación, con identificación, correo, rol y permisos. Spring Security valida firma, emisor, audiencia y tiempo, y convierte `permissions` en autoridades. La revocación en PostgreSQL y la consulta del rol/estado vigente en cada petición todavía no están implementadas; por ello, un token ya emitido conserva su fotografía de permisos hasta expirar.
+El backend implementa el [contrato de login y sesión](contrato-api-bases-propuestas.md#login-y-sesión-de-24-horas): JWT RS256 de 24 horas sin renovación, con identificación, correo, rol y permisos. Spring Security valida firma, emisor, audiencia y tiempo, convierte `permissions` en autoridades y consulta en PostgreSQL la cuenta, rol, permisos y revocación en cada petición protegida. Los tokens revocados, inactivos u obsoletos dejan de aceptarse inmediatamente.
 
 ```mermaid
 flowchart LR
@@ -51,46 +52,63 @@ Los perfiles de dominio pueden asociarse con `User` conforme se definan sus dato
 
 ## Foto opcional almacenada en PostgreSQL
 
-Para un volumen académico pequeño, se propone conservar las fotos en la misma base del proyecto. PostgreSQL ofrece `bytea` para almacenar bytes. Esto simplifica disponer de los datos y las fotos en la misma base; aumenta su tamaño y el de sus copias de seguridad. [Tipos binarios de PostgreSQL 18](https://www.postgresql.org/docs/18/datatype-binary.html).
+Para el volumen académico esperado se decidió conservar las fotos en la misma base del proyecto. PostgreSQL ofrece `bytea` para almacenar bytes. Esto simplifica disponer de los datos y las fotos en la misma base; aumenta su tamaño y el de sus copias de seguridad. [Tipos binarios de PostgreSQL 18](https://www.postgresql.org/docs/18/datatype-binary.html).
 
-Propuesta de persistencia: tabla `user_profile_photos`, con `user_id` como clave primaria y foránea a `users.id`, contenido `bytea`, tipo de imagen validado y fecha de actualización. Una cuenta puede tener cero o una fila: la ausencia de fila representa un perfil sin foto. Las consultas de cuenta y login no deben cargar el contenido de la imagen.
+Persistencia aprobada: tabla `user_profile_photos`, con `user_id` como clave primaria y foránea a `users.id`, `content` de tipo `bytea`, `content_type`, `size_bytes`, `width`, `height` y `updated_at`. Una cuenta puede tener cero o una fila: la ausencia representa un perfil sin foto. Las consultas de cuenta y login no cargan los bytes; `profilePhotoUrl` enlaza la operación separada de lectura.
 
-Propuesta de funcionamiento:
+Funcionamiento aprobado:
 
 - Crear la cuenta sin exigir foto y permitir añadirla, sustituirla o eliminarla desde el perfil autenticado. Un error al subir la foto no debe impedir usar una cuenta ya creada.
 - Enviar el archivo en una operación de carga separada y entregar los bytes de la imagen cuando se soliciten. Los DTOs habituales de usuario no incluyen la imagen codificada en Base64.
-- Como límites iniciales para discutir: JPEG o PNG, máximo 2 MiB (2 097 152 bytes) y un límite explícito de dimensiones/píxeles antes de procesarla. Estos límites son decisiones de la aplicación, no restricciones de PostgreSQL.
+- Admitir JPEG o PNG, máximo 2 MiB (2 097 152 bytes), 8.000 píxeles por lado y 20 millones de píxeles en total. Estos límites son decisiones de la aplicación, no restricciones de PostgreSQL.
 - Validar el contenido real de la imagen, además del tamaño; no confiar solo en la extensión o en el tipo declarado por el cliente. La carga, lectura, sustitución y eliminación deben aplicar autorización sobre la cuenta correspondiente. [OWASP: carga de archivos](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
 
-La política inicial propuesta es permitir al propietario consultar y gestionar su foto; la lectura por otros actores se definirá solo si un recorrido del producto la necesita. El formato de carga, los límites definitivos y las respuestas se concretarán en OpenAPI. Este diseño no añade fotos de mascotas ni documentos clínicos.
+Cada cuenta autenticada `OWNER`, `VETERINARIAN` o `ADMINISTRATOR` puede consultar y gestionar únicamente su propia foto. No se habilita en este incremento la lectura de fotos ajenas. Este diseño no añade fotos de mascotas ni documentos clínicos.
 
-### Propuesta concreta de tratamiento de fotos — 7 de septiembre
+### Tratamiento de fotos aprobado — 9 de septiembre
 
-La preferencia de PostgreSQL se mantiene. La tabla separada permite obtener la cuenta sin arrastrar los bytes de su imagen y sustituir la foto sin modificar las credenciales. El coste práctico es que las fotos aumentan también el tamaño de las copias de seguridad de la base; para este volumen académico se propone limitar y reducir cada imagen antes de guardarla.
+La tabla separada permite obtener la cuenta sin arrastrar los bytes de su imagen y sustituir la foto sin modificar las credenciales. El coste práctico es que las fotos aumentan también el tamaño de las copias de seguridad; para este volumen académico se limita y reduce cada imagen antes de guardarla.
 
-Propuesta de columnas: `user_id` (UUID, PK y FK), `content` (`bytea` con los bytes procesados), `content_type` (tipo real de salida), `size_bytes`, `width`, `height` y `updated_at`. Cero filas significa que la cuenta no tiene foto; una fila representa su foto actual. No se guarda una ruta local del computador del usuario ni el JWT ni el nombre original como identificador público.
+Columnas acordadas: `user_id` (UUID, PK y FK), `content` (`bytea` con los bytes procesados), `content_type` (tipo real de salida), `size_bytes`, `width`, `height` y `updated_at`. Cero filas significa que la cuenta no tiene foto; una fila representa su foto actual. No se guarda una ruta local del computador del usuario, el JWT ni el nombre original como identificador público.
 
-Recorrido propuesto:
+Recorrido acordado:
 
 1. Crear y usar la cuenta sin foto. Desde el perfil, seleccionar un archivo; la interfaz muestra una vista previa y una opción clara de guardar o cancelar.
 2. Enviar el archivo en una petición autenticada separada, con `multipart/form-data`. El teléfono viaja en la operación de edición de datos; la foto no se añade como Base64 al JSON de perfil o login.
-3. Admitir inicialmente JPEG/PNG y hasta 2 MiB. Verificar tamaño de petición/archivo, firma, formato decodificable y dimensiones antes de reservar grandes cantidades de memoria. Propuesta adicional: hasta 8.000 píxeles por lado y 20 millones de píxeles en total; el límite de bytes no sustituye el de píxeles.
+3. Admitir JPEG/PNG y hasta 2 MiB. Verificar tamaño de petición/archivo, firma, formato decodificable y dimensiones antes de reservar grandes cantidades de memoria. Aplicar hasta 8.000 píxeles por lado y 20 millones de píxeles en total; el límite de bytes no sustituye el de píxeles.
 4. Corregir la orientación cuando corresponda, reducir proporcionalmente hasta un máximo de 512 píxeles por lado y volver a codificar sin conservar metadatos del original. No ampliar imágenes pequeñas ni deformarlas. La salida puede conservar JPEG o PNG según el formato admitido. El servidor vuelve a comprobar límites aunque el cliente reduzca la imagen para facilitar la carga.
 5. Guardar o reemplazar la fila en una transacción. Un archivo inválido no elimina la foto anterior; un fallo al subir la foto no revierte una cuenta ya creada.
-6. Entregar la imagen mediante lectura autenticada y tipo de contenido correcto. Si se utiliza Bearer en un cliente web, este solicita los bytes con su cliente HTTP y muestra el resultado como un objeto Blob local al navegador; no coloca el token en la URL. El almacenamiento de ese token depende del acuerdo con ambos frontends.
+6. Entregar la imagen mediante lectura autenticada y tipo de contenido correcto. El cliente solicita los bytes con Bearer y muestra el resultado como un objeto Blob local; no coloca el token en la URL. Para esta versión académica los frontends pueden mantener el token en `localStorage` y deben eliminarlo al cerrar sesión o vencer.
 7. Permitir eliminar la foto propia. La interfaz vuelve a mostrar un avatar predeterminado; el borrado repetido debe tener un resultado consistente.
 
-Estos límites y la reducción son recomendaciones del proyecto para revisar antes del contrato final. El máximo de 2 MiB puede rechazar fotos originales de algunos teléfonos; se propone que el frontend prepare una copia más pequeña y comunique cualquier rechazo sin exigir conocimientos de formatos al usuario. HEIC, SVG y animaciones no se prometen en este alcance inicial.
+El máximo de 2 MiB puede rechazar fotos originales de algunos teléfonos; se recomienda que el frontend prepare una copia más pequeña y comunique cualquier rechazo sin exigir conocimientos de formatos al usuario. HEIC, SVG y animaciones quedan fuera del alcance inicial.
 
 La validación del contenido, los límites de carga y la reescritura de imágenes se apoyan en [OWASP: carga de archivos](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html). La reescritura es una medida adicional; no sustituye autorización ni límites de recursos. La protección de lectura requiere también una política de caché apropiada para una imagen privada.
 
-Propuesta de resultados a fijar en OpenAPI: `413` si excede el tamaño de carga, `415` si el formato no está admitido, `400` para contenido inválido o dimensiones fuera de política, `401` sin sesión válida y `403` sin autorización. En el perfil puede exponerse un indicador como `hasProfilePhoto`; su nombre final, el resultado de consultar una foto inexistente y las rutas/métodos todavía deben fijarse en la especificación.
+Rutas implementadas: `GET`, `PUT` y `DELETE /api/v1/users/me/profile/photo`. La consulta entrega `200` con bytes JPEG/PNG o `404 PROFILE_PHOTO_NOT_FOUND`; crear o reemplazar devuelve `204`; eliminar es idempotente y devuelve `204`, exista o no una foto. Los rechazos incluyen `413` si excede los bytes, `415` si el formato no está admitido, `400` para contenido inválido o dimensiones fuera de política, `401` sin sesión válida y `403` sin autorización. Los controladores, permisos y respuestas están publicados en el OpenAPI generado.
 
-## Siguiente incremento
+## Perfil propio y desactivación
 
-1. Revisar y publicar el contrato incremental de registro y login como evidencia de [SCRUM-67](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-67).
-2. Definir las rutas y respuestas de consulta/edición del perfil y foto opcional, incluida la comprobación de propiedad; después implementar su persistencia con una nueva migración Flyway, sin modificar `V1` ni `V2`.
-3. Verificar el recorrido en PostgreSQL de pruebas, incluidos perfil sin foto, imagen válida, rechazos pertinentes y denegación de acceso a recursos de otra cuenta.
-4. Diseñar aparte la revocación/cierre de sesión y el comportamiento inmediato ante desactivación o cambio de rol. No se atribuye esa capacidad al JWT actual.
+`GET /api/v1/users/me`, `PATCH /api/v1/users/me` y `DELETE /api/v1/users/me` son operaciones exclusivas de `OWNER`. La identidad proviene del JWT validado; no se recibe un identificador de otra cuenta.
+
+- `GET` devuelve `id`, `email`, `role`, `active`, `fullName`, `dateOfBirth`, `phoneNumber` y `profilePhotoUrl`. Aunque reúne los datos utilizables de `users` y `owner_profiles`, nunca expone `passwordHash`.
+- `PATCH` acepta exclusivamente `phoneNumber`, conserva las reglas E.164 y devuelve `200` con el perfil actualizado. La foto utiliza su operación binaria separada.
+- `DELETE` cambia `active` a `false` y devuelve `204`. Es una desactivación lógica deliberadamente expresada con el verbo HTTP `DELETE`; no elimina registros físicamente.
+
+Veterinarios y administradores no pueden autodesactivarse mediante esta ruta. Los datos profesionales del veterinario se administrarán por un contrato posterior; el veterinario solo podrá cambiar su propia foto. El superadministrador queda fuera del alcance actual.
+
+## Revocación de sesiones en PostgreSQL
+
+`DELETE /api/v1/auth/sessions/current` revoca el JWT Bearer presentado y devuelve `204`. La persistencia acordada es `revoked_access_tokens`, identificada por `(issuer, jwt_id)`, con `user_id`, `revoked_at` y `expires_at`. No se añade Redis, Valkey ni otro caché externo.
+
+El filtro de seguridad valida primero firma, emisor, audiencia y tiempo. Después comprueba que el token no esté revocado y que la cuenta continúe existente y activa; el rol y los permisos vigentes se resuelven desde PostgreSQL. Un token revocado, o uno perteneciente a una cuenta inactiva, recibe `401 AUTHENTICATION_REQUIRED`. Los registros de revocación se eliminan después de `expires_at` más los 30 segundos de tolerancia de reloj. No hay refresh token.
+
+El frontend borra su copia de `localStorage` al recibir el cierre correcto o detectar el vencimiento. Eso mejora el comportamiento del cliente, pero no sustituye la lista de revocación. La limitación de intentos queda aplazada para un incremento futuro.
+
+## Continuidad después de SCRUM-67
+
+1. Mantener el OpenAPI generado y sus pruebas alineados con las nueve operaciones implementadas; no editar manualmente el snapshot.
+2. Revisar con ambos frontends los esquemas y ejemplos y registrar cambios incompatibles antes de integrarlos.
+3. Extender permisos por recurso únicamente cuando se implementen mascotas, personal y módulos clínicos posteriores.
 
 Antes de implementar autorización clínica se concretarán la relación que habilita al veterinario a consultar una historia y los datos clínicos que puede leer el administrador. Estas decisiones pertenecen a los contratos de personal y atención y no obligan a resolver ahora todos los módulos del sistema.

@@ -46,14 +46,15 @@ public class JwtCryptographyConfiguration {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(JwtRsaKeyPair keyPair, JwtSecurityProperties properties, Clock clock) {
+    JwtDecoder jwtDecoder(JwtRsaKeyPair keyPair, JwtSecurityProperties properties, Clock clock,
+                          CurrentAccountJwtValidator currentAccountJwtValidator) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(keyPair.publicKey()).build();
         JwtTimestampValidator timestampValidator = new JwtTimestampValidator(properties.clockSkew());
         timestampValidator.setClock(clock);
         OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>("aud",
                 audiences -> audiences != null && audiences.contains(properties.audience()));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(timestampValidator,
-                new JwtIssuerValidator(properties.issuer()), audienceValidator));
+                new JwtIssuerValidator(properties.issuer()), audienceValidator, currentAccountJwtValidator));
         return decoder;
     }
 }

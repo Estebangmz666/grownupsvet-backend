@@ -2,14 +2,157 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato incremental generado desde código. Implementa registro de propietarios, login con JWT RS256 y respuestas de error. Perfil, cierre de sesión, fotos y mascotas todavía no están disponibles.",
-    "version" : "0.2.0"
+    "description" : "Contrato generado desde código para registro, login JWT RS256, perfil propio, foto, desactivación y cierre de sesión. Mascotas, recuperación y administración de personal pertenecen a incrementos posteriores.",
+    "version" : "0.3.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/users/me/profile/photo" : {
+      "get" : {
+        "tags" : [ "Foto de perfil propia" ],
+        "summary" : "Consultar la foto propia",
+        "operationId" : "getCurrentUserProfilePhoto",
+        "responses" : {
+          "200" : {
+            "description" : "Bytes JPEG o PNG procesados",
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "La cuenta no tiene foto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Foto de perfil propia" ],
+        "summary" : "Crear o reemplazar la foto propia",
+        "description" : "Recibe el campo multipart file. Acepta JPEG/PNG de hasta 2 MiB y almacena una copia procesada sin metadatos.",
+        "operationId" : "putCurrentUserProfilePhoto",
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Foto guardada"
+          },
+          "400" : {
+            "description" : "Imagen vacía, inválida o con dimensiones no permitidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "413" : {
+            "description" : "Archivo superior a 2 MiB",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "El contenido real no es JPEG ni PNG",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Foto de perfil propia" ],
+        "summary" : "Eliminar la foto propia",
+        "description" : "Es idempotente: devuelve 204 aunque la cuenta no tenga foto.",
+        "operationId" : "deleteCurrentUserProfilePhoto",
+        "responses" : {
+          "204" : {
+            "description" : "Foto eliminada o ya inexistente"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/auth/sessions" : {
       "post" : {
         "tags" : [ "Sesiones" ],
@@ -187,10 +330,253 @@
           }
         }
       }
+    },
+    "/api/v1/users/me" : {
+      "get" : {
+        "tags" : [ "Perfil propio" ],
+        "summary" : "Consultar el perfil propio",
+        "operationId" : "getCurrentOwnerProfile",
+        "responses" : {
+          "200" : {
+            "description" : "Perfil del propietario autenticado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwnerProfileResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Perfil propio" ],
+        "summary" : "Desactivar la cuenta propia",
+        "description" : "Realiza una desactivación lógica. Los JWT emitidos dejan de aceptarse inmediatamente.",
+        "operationId" : "deactivateCurrentOwnerAccount",
+        "responses" : {
+          "204" : {
+            "description" : "Cuenta desactivada"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "patch" : {
+        "tags" : [ "Perfil propio" ],
+        "summary" : "Actualizar el teléfono propio",
+        "operationId" : "updateCurrentOwnerProfile",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateOwnerProfileRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Perfil actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwnerProfileResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Teléfono o JSON inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "La cuenta no es de propietario",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/auth/sessions/current" : {
+      "delete" : {
+        "tags" : [ "Sesiones" ],
+        "summary" : "Cerrar la sesión actual",
+        "description" : "Revoca en PostgreSQL el JWT Bearer presentado. El mismo token deja de aceptarse inmediatamente.",
+        "operationId" : "deleteCurrentUserSession",
+        "responses" : {
+          "204" : {
+            "description" : "Sesión revocada"
+          },
+          "401" : {
+            "description" : "Token ausente, inválido, vencido o revocado",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin detalles sensibles",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "ApiErrorResponseDTO" : {
+        "type" : "object",
+        "description" : "Respuesta de error RFC 9457, con código funcional y errores por campo.",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "format" : "uri",
+            "description" : "Referencia URI al tipo de problema.",
+            "example" : "about:blank"
+          },
+          "title" : {
+            "type" : "string",
+            "description" : "Resumen del problema.",
+            "example" : "Solicitud incorrecta"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Estado HTTP de la respuesta.",
+            "example" : 400,
+            "maximum" : 599,
+            "minimum" : 400
+          },
+          "detail" : {
+            "type" : "string",
+            "description" : "Explicación de lo ocurrido en esta solicitud.",
+            "example" : "Revisa los campos indicados."
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri-reference",
+            "description" : "Referencia URI opcional que identifica esta ocurrencia del problema.",
+            "example" : "urn:uuid:7d667530-867b-4c78-a458-0904fb82d574"
+          },
+          "errorCode" : {
+            "type" : "string",
+            "description" : "Código funcional estable; el frontend no debe comparar los mensajes.",
+            "example" : "INVALID_REQUEST"
+          },
+          "fieldErrors" : {
+            "type" : "array",
+            "description" : "Errores por campo. Es una lista vacía cuando el error no corresponde a campos específicos.",
+            "items" : {
+              "$ref" : "#/components/schemas/FieldValidationErrorResponseDTO"
+            }
+          }
+        },
+        "required" : [ "detail", "errorCode", "fieldErrors", "status", "title", "type" ]
+      },
+      "FieldValidationErrorResponseDTO" : {
+        "type" : "object",
+        "description" : "Error asociado a un campo de la solicitud. Nunca contiene el valor recibido.",
+        "properties" : {
+          "field" : {
+            "type" : "string",
+            "description" : "Nombre del campo en el contrato JSON.",
+            "example" : "email"
+          },
+          "code" : {
+            "type" : "string",
+            "description" : "Código estable que identifica el error del campo.",
+            "example" : "TYPE_MISMATCH"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "Explicación legible para la persona usuaria.",
+            "example" : "Debe enviarse como texto."
+          }
+        },
+        "required" : [ "code", "field", "message" ]
+      },
       "UserLoginRequestDTO" : {
         "type" : "object",
         "description" : "Credentials used to sign in to GrownupsVet.",
@@ -265,77 +651,6 @@
         },
         "required" : [ "accessToken", "expiresIn", "tokenType", "user" ]
       },
-      "ApiErrorResponseDTO" : {
-        "type" : "object",
-        "description" : "Respuesta de error RFC 9457, con código funcional y errores por campo.",
-        "properties" : {
-          "type" : {
-            "type" : "string",
-            "format" : "uri",
-            "description" : "Referencia URI al tipo de problema.",
-            "example" : "about:blank"
-          },
-          "title" : {
-            "type" : "string",
-            "description" : "Resumen del problema.",
-            "example" : "Solicitud incorrecta"
-          },
-          "status" : {
-            "type" : "integer",
-            "format" : "int32",
-            "description" : "Estado HTTP de la respuesta.",
-            "example" : 400,
-            "maximum" : 599,
-            "minimum" : 400
-          },
-          "detail" : {
-            "type" : "string",
-            "description" : "Explicación de lo ocurrido en esta solicitud.",
-            "example" : "Revisa los campos indicados."
-          },
-          "instance" : {
-            "type" : "string",
-            "format" : "uri-reference",
-            "description" : "Referencia URI opcional que identifica esta ocurrencia del problema.",
-            "example" : "urn:uuid:7d667530-867b-4c78-a458-0904fb82d574"
-          },
-          "errorCode" : {
-            "type" : "string",
-            "description" : "Código funcional estable; el frontend no debe comparar los mensajes.",
-            "example" : "INVALID_REQUEST"
-          },
-          "fieldErrors" : {
-            "type" : "array",
-            "description" : "Errores por campo. Es una lista vacía cuando el error no corresponde a campos específicos.",
-            "items" : {
-              "$ref" : "#/components/schemas/FieldValidationErrorResponseDTO"
-            }
-          }
-        },
-        "required" : [ "detail", "errorCode", "fieldErrors", "status", "title", "type" ]
-      },
-      "FieldValidationErrorResponseDTO" : {
-        "type" : "object",
-        "description" : "Error asociado a un campo de la solicitud. Nunca contiene el valor recibido.",
-        "properties" : {
-          "field" : {
-            "type" : "string",
-            "description" : "Nombre del campo en el contrato JSON.",
-            "example" : "email"
-          },
-          "code" : {
-            "type" : "string",
-            "description" : "Código estable que identifica el error del campo.",
-            "example" : "TYPE_MISMATCH"
-          },
-          "message" : {
-            "type" : "string",
-            "description" : "Explicación legible para la persona usuaria.",
-            "example" : "Debe enviarse como texto."
-          }
-        },
-        "required" : [ "code", "field", "message" ]
-      },
       "UserSignupRequestDTO" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -399,6 +714,61 @@
           }
         },
         "required" : [ "email", "id" ]
+      },
+      "UpdateOwnerProfileRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Único cambio de perfil permitido al propietario. No admite propiedades adicionales.",
+        "properties" : {
+          "phoneNumber" : {
+            "type" : "string",
+            "example" : "+573001234567",
+            "maxLength" : 16,
+            "minLength" : 3,
+            "pattern" : "^\\+[1-9][0-9]{1,14}$"
+          }
+        },
+        "required" : [ "phoneNumber" ]
+      },
+      "OwnerProfileResponseDTO" : {
+        "type" : "object",
+        "description" : "Cuenta y perfil del propietario autenticado; nunca contiene credenciales.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR" ]
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "dateOfBirth" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "phoneNumber" : {
+            "type" : "string",
+            "pattern" : "^\\+[1-9][0-9]{1,14}$"
+          },
+          "profilePhotoUrl" : {
+            "type" : [ "string", "null" ],
+            "description" : "Ruta API relativa de la foto protegida, o null cuando no existe.",
+            "example" : "/api/v1/users/me/profile/photo"
+          }
+        },
+        "required" : [ "active", "dateOfBirth", "email", "fullName", "id", "phoneNumber", "role" ]
       }
     },
     "securitySchemes" : {

@@ -21,13 +21,13 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Persistent account shared by owners, veterinarians and administrators.
+ * Persistent account shared by owners, veterinarians, and administrators.
  * A service must encode passwords before constructing or updating an account.
  * API responses must use dedicated DTOs rather than exposing this entity.
  */
 @Entity
 @Table(name = "users", uniqueConstraints = @UniqueConstraint(name = "uk_users_email", columnNames = "email"))
-public class    User {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -93,7 +93,7 @@ public class    User {
         this.email = normalizedEmail;
     }
 
-    /** Applies the same canonical form for registration, login and persistence lookups. */
+    /** Applies the same canonical form for registration, login, and persistence lookups. */
     public static String normalizeEmail(String email) {
         Assert.hasText(email, "email must not be blank");
         return email.strip().toLowerCase(Locale.ROOT);

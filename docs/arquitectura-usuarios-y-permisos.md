@@ -1,34 +1,35 @@
 # GrownupsVet: usuarios, roles y foto de perfil
 
-Fecha inicial: 6 de septiembre de 2026. Actualizado el 10 de septiembre con la implementación de perfil, foto, desactivación, revocación y comprobación dinámica de cuenta. Base de diseño y evidencia para registro, acceso y perfil. Se contrastaron el código local y las historias de Jira citadas aquí.
+Fecha inicial: 6 de septiembre de 2026. Actualizado el 13 de septiembre con la incorporación de superadministrador, personal e invitaciones. El estado técnico se fundamenta en el código local; las historias enlazadas representan alcance y no acreditan revisión por los compañeros.
 
 ## Decisiones confirmadas y estado actual
 
 - Esteban confirmó **un solo rol por cuenta** para la primera versión.
-- El modelo existente `User` centraliza UUID, correo, hash de contraseña, rol y estado activo. `UserRole` y la migración `V1__create_users.sql` contienen `OWNER`, `VETERINARIAN` y `ADMINISTRATOR`.
+- `User` centraliza UUID, correo, hash de contraseña, rol y estado. V7 amplía los tres roles originales con `SUPER_ADMIN` y reemplaza la columna `active` por `status`: `PENDING_ACTIVATION`, `ACTIVE` o `DISABLED`.
 - Las historias de Jira distribuyen las funciones entre propietario, veterinario y administrador. El registro público crea propietarios; no permite autoconcederse roles profesionales.
-- El acceso común está implementado con credenciales de `User` y JWT RS256 de 24 horas. El propietario recibe cinco autoridades de perfil propio; veterinario y administrador reciben las dos autoridades de foto propia aplicables en este incremento.
-- La foto de perfil sí forma parte de la primera versión. Es opcional, se almacena procesada en PostgreSQL y cada uno de los tres roles puede gestionar solamente su propia foto.
+- El acceso común está implementado con credenciales de `User` y JWT RS256 de 24 horas. El propietario recibe permisos de perfil, mascotas y directorio profesional; los otros roles reciben los permisos administrativos específicos descritos más abajo y los de foto propia.
+- La foto es opcional y se almacena procesada en PostgreSQL. Cada rol gestiona su propia foto; el directorio permite a propietarios consultar la foto de veterinarios activos.
 - Solo el propietario consulta su perfil personal, modifica su teléfono y desactiva su propia cuenta. Los demás datos personales del registro no tienen edición por el propietario en esta versión. Cambio y recuperación de contraseña pertenecen a autenticación.
-- El administrador gestionará el perfil profesional del veterinario mediante operaciones posteriores. Permitir que el veterinario cambie su foto no le permite editar sus datos profesionales. Administradores y veterinarios no pueden desactivar su propia cuenta en este alcance.
+- El administrador gestiona el perfil profesional del veterinario, títulos y diplomas. Permitir que el veterinario cambie su foto no le permite editar sus datos profesionales. Administradores y veterinarios no pueden desactivar su propia cuenta en este alcance.
 
-## Responsabilidades de los tres roles
+## Responsabilidades de los cuatro roles
 
 | Rol | Responsabilidad prevista en el backlog | Límite de acceso |
 |---|---|---|
 | `OWNER` — Propietario | Su perfil, sus mascotas, solicitudes de cita y consulta de información clínica publicada de sus mascotas. | La autorización comprueba la propiedad del recurso. No puede acceder a perfiles o mascotas ajenos, administrar personal ni modificar información clínica. |
 | `VETERINARIAN` — Veterinario | Atención autorizada, registros clínicos, fórmulas y controles asociados. | Debe existir autorización sobre la atención o historia concreta. El alcance de lectura de antecedentes y agenda se concretará con sus contratos. Este rol no administra cuentas o roles. |
 | `ADMINISTRATOR` — Administrador | Habilitar/desactivar personal autorizado, gestionar disponibilidad y confirmar solicitudes de cita. | No puede modificar información clínica. Su acceso de lectura clínica todavía debe definirse; el nombre del rol no concede acceso ilimitado. |
+| `SUPER_ADMIN` — Superadministrador | Aprovisionar y administrar las cuentas de administradores. | Una cuenta por instalación, sin heredar gestión de veterinarios ni permisos clínicos. |
 
 Evidencia actual: [registro y perfil, SCRUM-6](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-6), [personal, SCRUM-10](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-10), [disponibilidad, SCRUM-11](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-11), [solicitud y confirmación, SCRUM-12](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-12), [atención clínica, SCRUM-14](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-14) y [fórmula, SCRUM-16](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-16). El alcance de consulta del propietario también se recoge en P10 del backlog general del proyecto.
 
-Se mantienen estos tres roles y un catálogo de permisos fijo en código. El incremento de login incluye `PROFILE_READ_SELF`, `PROFILE_UPDATE_SELF`, `PROFILE_PHOTO_READ_SELF` y `PROFILE_PHOTO_UPDATE_SELF`; expresan intención y no sustituyen la futura comprobación de propiedad del recurso. Las tareas administrativas previstas ya incluyen disponibilidad y confirmación; el alcance revisado no exige añadir recepcionista, auxiliar ni superadministrador.
+El catálogo de permisos es fijo en código. `SUPER_ADMIN` recibe `ADMINISTRATOR_MANAGE`; `ADMINISTRATOR`, `VETERINARIAN_MANAGE`; y `OWNER`, `VETERINARIAN_PROFILE_READ`, además de sus permisos previos. Todos reciben los dos permisos de foto propia. Las tareas administrativas de disponibilidad y confirmación continúan previstas; todavía no forman parte de las operaciones implementadas de personal.
 
 Los roles son responsabilidades independientes. No se propone una jerarquía que haga al administrador heredar las funciones clínicas del veterinario. La cuenta de mantenimiento que usa PostgreSQL es independiente del rol `ADMINISTRATOR` de la aplicación.
 
 ## Organización dentro del backend
 
-Mantener una cuenta `User` compartida y un mecanismo común de autenticación para ambos portales. El rol se almacena como el enum actual. Tener tres roles no exige tres tablas de credenciales, tres mecanismos de login ni herencia Java entre tipos de usuario.
+Se conserva una cuenta `User` compartida y un mecanismo común de autenticación para ambos portales. El rol se almacena como enum; los perfiles de propietario, administrador y veterinario se asocian a esa identidad. No hay tablas de credenciales duplicadas ni herencia Java entre tipos de usuario.
 
 El backend implementa el [contrato de login y sesión](contrato-api-bases-propuestas.md#login-y-sesión-de-24-horas): JWT RS256 de 24 horas sin renovación, con identificación, correo, rol y permisos. Spring Security valida firma, emisor, audiencia y tiempo, convierte `permissions` en autoridades y consulta en PostgreSQL la cuenta, rol, permisos y revocación en cada petición protegida. Los tokens revocados, inactivos u obsoletos dejan de aceptarse inmediatamente.
 
@@ -46,9 +47,9 @@ flowchart LR
 
 El diagrama describe la dirección propuesta; no significa que todos los roles puedan usar todas las operaciones. Spring Security comprueba acceso y los servicios aplican las reglas de cada recurso. Por ejemplo, ser `OWNER` permite solicitar la consulta de una mascota, pero también debe comprobarse que esa mascota pertenece a la cuenta autenticada. [Autorización de métodos en Spring Security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html).
 
-Las peticiones de registro público y de edición de perfil no exponen `role` ni `active` como campos modificables. El servidor asigna `OWNER` en el registro público. La creación de personal es una operación administrativa distinta; el procedimiento para crear el primer administrador se definirá al preparar ese flujo.
+Las peticiones de registro público y de edición de perfil no exponen `role` ni estado como campos modificables. El servidor asigna `OWNER` en el registro público. La creación de personal es una operación administrativa distinta. El primer `SUPER_ADMIN` se aprovisiona por bootstrap opcional con credenciales externas; luego invita al administrador, que establece su propia contraseña. El administrador invita al veterinario con el mismo mecanismo. La [guía de personal](personal-e-invitaciones.md) describe los estados y la configuración.
 
-Los perfiles de dominio pueden asociarse con `User` conforme se definan sus datos. La fecha de nacimiento y demás requisitos del registro del propietario no se convierten automáticamente en datos obligatorios para personal. Un perfil veterinario contendrá los datos profesionales que se acuerden al desarrollar esa historia. La foto puede asociarse a la cuenta sin duplicar el mecanismo de autenticación.
+La fecha de nacimiento del propietario no se exige al personal. El perfil veterinario incluye nombre completo, teléfono profesional público, matrícula, título base, institución y biografía opcional; el correo de acceso permanece privado. Los títulos estructurados admiten un diploma PDF opcional y publicación administrativa explícita. La foto se asocia a la cuenta sin duplicar autenticación.
 
 ## Foto opcional almacenada en PostgreSQL
 
@@ -63,7 +64,7 @@ Funcionamiento aprobado:
 - Admitir JPEG o PNG, máximo 2 MiB (2 097 152 bytes), 8.000 píxeles por lado y 20 millones de píxeles en total. Estos límites son decisiones de la aplicación, no restricciones de PostgreSQL.
 - Validar el contenido real de la imagen, además del tamaño; no confiar solo en la extensión o en el tipo declarado por el cliente. La carga, lectura, sustitución y eliminación deben aplicar autorización sobre la cuenta correspondiente. [OWASP: carga de archivos](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
 
-Cada cuenta autenticada `OWNER`, `VETERINARIAN` o `ADMINISTRATOR` puede consultar y gestionar únicamente su propia foto. No se habilita en este incremento la lectura de fotos ajenas. Este diseño no añade fotos de mascotas ni documentos clínicos.
+Cada cuenta autenticada de los cuatro roles puede gestionar únicamente su propia foto. El directorio añade lectura para `OWNER` de fotos de veterinarios activos mediante `/api/v1/veterinarian-profiles/{veterinarianId}/photo`. Este diseño no añade fotos de mascotas ni documentos clínicos.
 
 ### Tratamiento de fotos aprobado — 9 de septiembre
 
@@ -93,9 +94,9 @@ Rutas implementadas: `GET`, `PUT` y `DELETE /api/v1/users/me/profile/photo`. La 
 
 - `GET` devuelve `id`, `email`, `role`, `active`, `fullName`, `dateOfBirth`, `phoneNumber` y `profilePhotoUrl`. Aunque reúne los datos utilizables de `users` y `owner_profiles`, nunca expone `passwordHash`.
 - `PATCH` acepta exclusivamente `phoneNumber`, conserva las reglas E.164 y devuelve `200` con el perfil actualizado. La foto utiliza su operación binaria separada.
-- `DELETE` cambia `active` a `false` y devuelve `204`. Es una desactivación lógica deliberadamente expresada con el verbo HTTP `DELETE`; no elimina registros físicamente.
+- `DELETE` cambia `status` a `DISABLED` (el `active` de respuesta se deriva como `false`), incrementa la versión de autenticación y devuelve `204`. Es una desactivación lógica; no elimina registros físicamente.
 
-Veterinarios y administradores no pueden autodesactivarse mediante esta ruta. Los datos profesionales del veterinario se administrarán por un contrato posterior; el veterinario solo podrá cambiar su propia foto. El superadministrador queda fuera del alcance actual.
+Veterinarios y administradores no pueden autodesactivarse mediante esta ruta. Sus estados los administra el nivel autorizado mediante las operaciones de personal. El veterinario solo modifica su propia foto; el administrador gestiona sus datos profesionales. El superadministrador permanece activo y no tiene una operación de deshabilitación.
 
 ## Revocación de sesiones en PostgreSQL
 
@@ -109,6 +110,6 @@ El frontend borra su copia de `localStorage` al recibir el cierre correcto o det
 
 1. Mantener el OpenAPI generado y sus pruebas alineados con las operaciones implementadas de acceso, perfil, mascotas y recuperación; no editar manualmente el snapshot.
 2. Revisar con ambos frontends los esquemas y ejemplos y registrar cambios incompatibles antes de integrarlos.
-3. Los permisos PET_CREATE_SELF, PET_READ_SELF y PET_UPDATE_SELF pertenecen exclusivamente a OWNER y exigen propiedad por recurso. Extender permisos de personal y módulos clínicos cuando se implementen esos alcances.
+3. Los permisos PET_CREATE_SELF, PET_READ_SELF y PET_UPDATE_SELF pertenecen exclusivamente a OWNER y exigen propiedad por recurso. Los permisos de personal se limitan a su jerarquía de creación; los módulos clínicos requieren contratos y controles adicionales cuando se implementen.
 
 Antes de implementar autorización clínica se concretarán la relación que habilita al veterinario a consultar una historia y los datos clínicos que puede leer el administrador. Estas decisiones pertenecen a los contratos de personal y atención y no obligan a resolver ahora todos los módulos del sistema.

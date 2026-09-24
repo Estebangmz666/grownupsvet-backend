@@ -104,7 +104,7 @@ Mailtrap Email Sandbox captura los mensajes en una bandeja de pruebas; no los en
 
 Variables: `PASSWORD_RECOVERY_ENABLED`, `PASSWORD_RECOVERY_HMAC_SECRET`, `MAIL_FROM`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME` y `MAIL_PASSWORD`. El perfil dev usa SMTP con STARTTLS obligatorio y tiempos de espera de cinco segundos. Sin configuración, la recuperación permanece deshabilitada. Mantener estable la clave HMAC entre reinicios; cambiarla invalida códigos pendientes y cambia las claves de los contadores.
 
-En esta sesión el usuario informó que aún no tiene Sandbox. **La entrega real a Mailtrap queda pendiente**, al igual que la integración de las pantallas y la revisión de los otros dos integrantes. No se han cambiado estados ni fechas en Jira.
+El Sandbox de Mailtrap se configuró posteriormente en desarrollo y Esteban confirmó las pruebas manuales de recuperación, incluida la contraseña nueva y la anterior. La integración de pantallas y la revisión con los otros dos integrantes siguen pendientes por disponibilidad del equipo. Las plantillas Thymeleaf se aplazaron hasta disponer del diseño visual del frontend.
 
 ## Fuentes técnicas
 
@@ -123,4 +123,4 @@ El OpenAPI 3.1.0 generado, versión 0.4.0, contiene **16 operaciones** y pasó `
 
 Las pruebas automatizadas no incluyen Mailtrap remoto, pantallas frontend, despliegue ni revisión de los otros integrantes. Las migraciones V5/V6 se verificaron automáticamente en `grownupsvet_test`.
 
-Posteriormente, el 10 de septiembre de 2026, se comprobó conexión STARTTLS y autenticación SMTP con el Sandbox de Mailtrap. El desarrollador reportó el arranque local y Swagger funcionando, un `204` de `POST /api/v1/auth/password-resets` (captura compartida) y `authentication_version = 1` mediante consulta SQL. Esto documenta una comprobación manual en desarrollo; no sustituye la revisión del contrato por los tres integrantes. Aún no se ha reportado el resultado manual de iniciar sesión con la contraseña nueva y rechazar la anterior. No se incorporan credenciales, códigos ni tokens reales a esta evidencia.
+Posteriormente, el 10 de septiembre de 2026, se comprobó conexión STARTTLS y autenticación SMTP con el Sandbox de Mailtrap. El desarrollador reportó el arranque local y Swagger funcionando, un `204` de `POST /api/v1/auth/password-resets` (captura compartida) y `authentication_version = 1` mediante consulta SQL. En la conversación posterior Esteban confirmó que los casos de contraseña nueva y anterior pasaron. Esto documenta una verificación manual reportada por el desarrollador; no sustituye la revisión del contrato por los tres integrantes. No se incorporan credenciales, códigos ni tokens reales a esta evidencia.

@@ -170,6 +170,31 @@ class PasswordRecoveryHttpIntegrationTests {
     }
 
     @Test
+    void passwordRecoveryCannotBypassStaffInvitationActivation() throws Exception {
+        String pendingEmail = user.getEmail();
+        users.deleteById(user.getId());
+        users.flush();
+        user = users.saveAndFlush(User.pendingActivation(pendingEmail, UserRole.ADMINISTRATOR));
+
+        String pending = mvc.perform(json(PASSWORD_RECOVERIES_PATH, Map.of("email", user.getEmail())))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        String unknown = mvc.perform(json(PASSWORD_RECOVERIES_PATH,
+                        Map.of("email", "unknown+" + UUID.randomUUID() + "@example.com")))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
+        CountDownLatch drained = new CountDownLatch(2);
+        dispatcher.submit(drained::countDown);
+        dispatcher.submit(drained::countDown);
+        assertThat(drained.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(pending).isEqualTo(unknown);
+        assertThat(challengeCount()).isZero();
+        assertThat(sentCodes).isEmpty();
+        verify(sender, org.mockito.Mockito.never()).sendRecoveryCode(anyString(), any(), anyString());
+        assertThat(users.findById(user.getId()).orElseThrow().getPasswordHash()).isNull();
+        login(PASSWORD, 401);
+    }
+
+    @Test
     void wrongAttemptsAreCommittedAndTheFifthDisablesOnlyTheChallenge() throws Exception {
         String correct = requestAndReadCode();
         String wrong = correct.equals("000000") ? "111111" : "000000";

@@ -15,7 +15,9 @@ public class UserPermissionResolver {
             UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(),
             UserPermission.PET_CREATE_SELF.name(),
             UserPermission.PET_READ_SELF.name(),
-            UserPermission.PET_UPDATE_SELF.name());
+            UserPermission.PET_UPDATE_SELF.name(),
+            UserPermission.VETERINARIAN_PROFILE_READ.name(),
+            UserPermission.VETERINARIAN_AVAILABILITY_READ_AVAILABLE.name());
 
     private static final List<String> STAFF_PERMISSIONS = List.of(
             UserPermission.PROFILE_PHOTO_READ_SELF.name(),
@@ -25,7 +27,14 @@ public class UserPermissionResolver {
     public List<String> resolve(UserRole role) {
         return switch (role) {
             case OWNER -> OWNER_PERMISSIONS;
-            case VETERINARIAN, ADMINISTRATOR -> STAFF_PERMISSIONS;
+            case VETERINARIAN -> List.of(UserPermission.PROFILE_PHOTO_READ_SELF.name(),
+                    UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(),
+                    UserPermission.VETERINARIAN_AVAILABILITY_READ_SELF.name());
+            case ADMINISTRATOR -> List.of(UserPermission.PROFILE_PHOTO_READ_SELF.name(),
+                    UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(), UserPermission.VETERINARIAN_MANAGE.name(),
+                    UserPermission.VETERINARIAN_AVAILABILITY_MANAGE.name());
+            case SUPER_ADMIN -> List.of(UserPermission.PROFILE_PHOTO_READ_SELF.name(),
+                    UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(), UserPermission.ADMINISTRATOR_MANAGE.name());
         };
     }
 }

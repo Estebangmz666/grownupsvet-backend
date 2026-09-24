@@ -4,5 +4,6 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.user.model;
 public enum UserRole {
     OWNER,
     VETERINARIAN,
-    ADMINISTRATOR
+    ADMINISTRATOR,
+    SUPER_ADMIN
 }

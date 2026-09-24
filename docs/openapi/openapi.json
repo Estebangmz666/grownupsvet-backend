@@ -2,14 +2,1222 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato generado desde código para acceso, perfil, sesiones, mascotas propias y recuperación de contraseña. El envío de recuperación requiere habilitar y configurar el canal SMTP; en desarrollo se utiliza Mailtrap Email Sandbox.",
-    "version" : "0.4.0"
+    "description" : "Contrato generado desde código para acceso, perfil, sesiones, mascotas, recuperación, personal con invitaciones y disponibilidad veterinaria. El correo requiere configuración SMTP. La URL de activación del portal contiene un placeholder configurable. Reservas, consulta automática de COMVEZCOL y plantillas Thymeleaf quedan fuera de este incremento.",
+    "version" : "0.6.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/veterinarians/{veterinarianId}/qualifications/{qualificationId}" : {
+      "get" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Consultar un título académico",
+        "operationId" : "getVeterinarianQualification",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Título académico",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Reemplazar datos del título",
+        "description" : "Cambiar datos académicos retira la publicación del diploma para permitir una nueva revisión; conserva el archivo privado. El título base mantiene el tipo UNDERGRADUATE.",
+        "operationId" : "updateVeterinarianQualification",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VeterinarianQualificationRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Título actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Eliminar título adicional y su diploma",
+        "description" : "El título base es obligatorio y no se puede eliminar.",
+        "operationId" : "deleteVeterinarianQualification",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "204" : {
+            "description" : "Título eliminado"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/qualifications/{qualificationId}/diploma" : {
+      "get" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Descargar diploma para revisión administrativa",
+        "operationId" : "getAdministrativeVeterinarianDiploma",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "PDF del título",
+            "content" : {
+              "application/pdf" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Cargar o reemplazar diploma PDF",
+        "description" : "Un PDF por título, máximo 5 MiB y 50 páginas. Solo documentos sin cifrado, formularios, acciones ni adjuntos. published=true confirma la revisión y autoriza su publicación para propietarios; por defecto es privado. El servidor valida estructura y límites, sin afirmar análisis antivirus.",
+        "operationId" : "replaceVeterinarianDiploma",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "published",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Diploma almacenado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                }
+              }
+            }
+          },
+          "413" : {
+            "description" : "PDF mayor de 5 MiB",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Validación temporalmente ocupada; reintentar",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Eliminar diploma conservando el título",
+        "operationId" : "deleteVeterinarianDiploma",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "204" : {
+            "description" : "Diploma eliminado o ya ausente"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/availability-slots/{slotId}" : {
+      "get" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Consultar un turno",
+        "operationId" : "getVeterinarianAvailabilitySlot",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "slotId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Turno de la agenda indicada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Cambiar la hora de un turno",
+        "description" : "Solo permite cambiar turnos futuros. La protección frente a reservas reales se integrará con el módulo de citas. Conserva el UUID y registra auditoría.",
+        "operationId" : "rescheduleVeterinarianAvailabilitySlot",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "slotId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateVeterinarianAvailabilitySlotRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Turno actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{id}" : {
+      "get" : {
+        "tags" : [ "Administración de veterinarios" ],
+        "summary" : "Consultar veterinario",
+        "operationId" : "getVeterinarian",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Perfil administrativo",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Administración de veterinarios" ],
+        "summary" : "Reemplazar datos editables del perfil",
+        "description" : "Reemplazo completo de los datos editables. Conserva correo, rol y estado. Modificar datos académicos retira la publicación de su diploma hasta una nueva revisión.",
+        "operationId" : "updateVeterinarian",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateVeterinarianRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Perfil actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/users/me/profile/photo" : {
       "get" : {
         "tags" : [ "Foto de perfil propia" ],
@@ -146,6 +1354,1270 @@
                 }
               }
             }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/administrators/{id}" : {
+      "get" : {
+        "tags" : [ "Administración de administradores" ],
+        "summary" : "Consultar administrador",
+        "operationId" : "getAdministrator",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Perfil administrativo",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdministratorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Administración de administradores" ],
+        "summary" : "Reemplazar datos editables del perfil",
+        "description" : "Reemplazo completo de los datos editables. Conserva correo, rol y estado. ",
+        "operationId" : "updateAdministrator",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateAdministratorRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Perfil actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdministratorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians" : {
+      "get" : {
+        "tags" : [ "Administración de veterinarios" ],
+        "summary" : "Listar veterinarios",
+        "description" : "Incluye todos los estados si se omite status. Orden fijo por createdAt descendente e id ascendente. page empieza en cero; page × size no puede superar 2147483647.",
+        "operationId" : "listVeterinarians",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "PENDING_ACTIVATION", "ACTIVE", "DISABLED" ]
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de veterinarios",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Administración de veterinarios" ],
+        "summary" : "Crear cuenta pendiente de veterinario",
+        "description" : "Guarda cuenta y perfil e inicia la invitación por correo. No acepta contraseña, estado ni rol del cliente. El correo permanece privado e inmutable.",
+        "operationId" : "createVeterinarian",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateVeterinarianRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Cuenta pendiente creada e invitación programada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Invitaciones no disponibles; no se crea una cuenta parcial",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/qualifications" : {
+      "get" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Listar formación académica",
+        "description" : "Primero el título base; después los adicionales por orden de creación e id.",
+        "operationId" : "listVeterinarianQualifications",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Títulos académicos",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Agregar título académico",
+        "description" : "Hasta 20 títulos por veterinario, incluido el pregrado base. Los cursos no se presentan como especializaciones.",
+        "operationId" : "createVeterinarianQualification",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VeterinarianQualificationRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Título creado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/availability-slots" : {
+      "get" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Consultar turnos de un veterinario",
+        "description" : "Administradores consultan cualquier agenda; un veterinario consulta solo la propia. from/to son fechas locales inclusivas, máximo 31 días.",
+        "operationId" : "listVeterinarianAvailabilitySlots",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "PUBLISHED", "BLOCKED" ]
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de turnos",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Publicar un turno de 30 minutos",
+        "description" : "Solo un administrador puede publicar turnos futuros para un veterinario activo. El inicio debe caer en :00 o :30 de America/Bogota.",
+        "operationId" : "createVeterinarianAvailabilitySlot",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateVeterinarianAvailabilitySlotRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Turno publicado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/availability-slot-batches" : {
+      "post" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Generar un lote de turnos",
+        "description" : "Genera filas concretas para un rango inclusivo máximo de 31 días y no más de 1000 turnos. 24:00 solo se admite como fin exclusivo.",
+        "operationId" : "createVeterinarianAvailabilitySlotBatch",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateVeterinarianAvailabilitySlotBatchRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Rango o generación inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite crear turnos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario no encontrado",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Un turno solicitado ya existe",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "201" : {
+            "description" : "Turnos creados de forma atómica",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreateVeterinarianAvailabilitySlotBatchResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/staff/{userId}/invitations" : {
+      "post" : {
+        "tags" : [ "Invitaciones de personal" ],
+        "summary" : "Reenviar invitación de personal",
+        "description" : "SUPER_ADMIN invita ADMINISTRATOR; ADMINISTRATOR invita VETERINARIAN. Solo cuentas pendientes o deshabilitadas sin contraseña. Invalida el enlace anterior. 202 acredita la cola persistente; no confirma entrega SMTP.",
+        "operationId" : "resendStaffInvitation",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Sesión ausente, inválida o revocada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol actual no puede administrar esta cuenta",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cuenta no encontrada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "La cuenta ya tiene credenciales o está activa",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Máximo cinco invitaciones por cuenta en 24 horas y un minuto entre solicitudes",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Canal de invitaciones deshabilitado",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "202" : {
+            "description" : "Nueva invitación y tarea de correo persistidas",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StaffInvitationResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Invitaciones de personal" ],
+        "summary" : "Cancelar invitación de personal",
+        "description" : "Revoca enlaces pendientes, elimina el secreto temporal de entrega y deja la cuenta sin credenciales deshabilitada.",
+        "operationId" : "cancelStaffInvitation",
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Sesión ausente, inválida o revocada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol actual no puede administrar esta cuenta",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cuenta no encontrada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "La cuenta ya tiene credenciales o está activa",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Máximo cinco invitaciones por cuenta en 24 horas y un minuto entre solicitudes",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Canal de invitaciones deshabilitado",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "204" : {
+            "description" : "Invitación cancelada; repetir sobre la cuenta ya deshabilitada es idempotente"
           }
         },
         "security" : [ {
@@ -842,6 +3314,685 @@
         }
       }
     },
+    "/api/v1/auth/account-activations" : {
+      "post" : {
+        "tags" : [ "Activación de cuenta de personal" ],
+        "summary" : "Activar cuenta de personal mediante invitación",
+        "description" : "Consume un enlace opaco de un uso, válido durante 48 horas. Solo activa cuentas pendientes sin credenciales. Aplica la política de contraseña del registro, con confirmación idéntica. No crea automáticamente una sesión.",
+        "operationId" : "activateStaffAccount",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StaffAccountActivationRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Cuenta activada; puede iniciar sesión con la contraseña elegida"
+          },
+          "400" : {
+            "description" : "Campos inválidos, confirmación distinta o enlace inválido, vencido o consumido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "El cuerpo debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Activación por invitación deshabilitada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/administrators" : {
+      "get" : {
+        "tags" : [ "Administración de administradores" ],
+        "summary" : "Listar administradores",
+        "description" : "Incluye todos los estados si se omite status. Orden fijo por createdAt descendente e id ascendente. page empieza en cero; page × size no puede superar 2147483647.",
+        "operationId" : "listAdministrators",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "PENDING_ACTIVATION", "ACTIVE", "DISABLED" ]
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de administradores",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdministratorPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Administración de administradores" ],
+        "summary" : "Crear cuenta pendiente de administrador",
+        "description" : "Guarda cuenta y perfil e inicia la invitación por correo. No acepta contraseña, estado ni rol del cliente. El correo permanece privado e inmutable.",
+        "operationId" : "createAdministrator",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAdministratorRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Cuenta pendiente creada e invitación programada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdministratorResponseDTO"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "Invitaciones no disponibles; no se crea una cuenta parcial",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/qualifications/{qualificationId}/diploma/publication" : {
+      "patch" : {
+        "tags" : [ "Títulos y diplomas veterinarios" ],
+        "summary" : "Publicar o retirar la publicación de un diploma",
+        "description" : "Requiere un diploma existente. published=true confirma que el administrador revisó el archivo y autoriza su consulta a propietarios cuando el veterinario esté activo.",
+        "operationId" : "updateVeterinarianDiplomaPublication",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateDiplomaPublicationRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Publicación actualizada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/availability-slots/{slotId}/status" : {
+      "patch" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Bloquear o publicar un turno",
+        "description" : "Conserva la fila y registra cada cambio efectivo en un historial inmutable.",
+        "operationId" : "updateVeterinarianAvailabilitySlotStatus",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "slotId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateVeterinarianAvailabilitySlotStatusRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Estado actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{id}/status" : {
+      "patch" : {
+        "tags" : [ "Administración de veterinarios" ],
+        "summary" : "Deshabilitar o rehabilitar la cuenta",
+        "description" : "DISABLED bloquea acceso e invalida invitaciones pendientes. ACTIVE solo rehabilita cuentas que ya establecieron contraseña; nunca completa una invitación. Conserva identidad y datos.",
+        "operationId" : "updateVeterinarianStatus",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateStaffStatusRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Estado actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/users/me" : {
       "get" : {
         "tags" : [ "Perfil propio" ],
@@ -1189,6 +4340,844 @@
         } ]
       }
     },
+    "/api/v1/administrators/{id}/status" : {
+      "patch" : {
+        "tags" : [ "Administración de administradores" ],
+        "summary" : "Deshabilitar o rehabilitar la cuenta",
+        "description" : "DISABLED bloquea acceso e invalida invitaciones pendientes. ACTIVE solo rehabilita cuentas que ya establecieron contraseña; nunca completa una invitación. Conserva identidad y datos.",
+        "operationId" : "updateAdministratorStatus",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateStaffStatusRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Estado actualizado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdministratorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarians/{veterinarianId}/availability-slots/{slotId}/events" : {
+      "get" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Consultar auditoría de un turno",
+        "description" : "Solo administradores consultan el actor, motivos y estados anteriores y nuevos.",
+        "operationId" : "listVeterinarianAvailabilityEvents",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "slotId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud, fechas o versión inválidas",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, inválida o con permisos anteriores",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no permite la operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Veterinario o turno no encontrado en esta agenda",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Conflicto de horario, estado o versión",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página cronológica de eventos",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianAvailabilityEventPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarian-profiles" : {
+      "get" : {
+        "tags" : [ "Directorio veterinario para propietarios" ],
+        "summary" : "Consultar veterinarios activos",
+        "description" : "Solo OWNER autenticado. Excluye correos privados, nacimiento y documentos no publicados. Orden por creación descendente e id ascendente; page empieza en cero.",
+        "operationId" : "listPublicVeterinarianProfiles",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de fichas profesionales",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianPublicProfilePageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarian-profiles/{veterinarianId}" : {
+      "get" : {
+        "tags" : [ "Directorio veterinario para propietarios" ],
+        "summary" : "Consultar ficha profesional activa",
+        "operationId" : "getPublicVeterinarianProfile",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Ficha profesional sin correo privado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VeterinarianPublicProfileResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarian-profiles/{veterinarianId}/qualifications/{qualificationId}/diploma" : {
+      "get" : {
+        "tags" : [ "Directorio veterinario para propietarios" ],
+        "summary" : "Descargar diploma publicado",
+        "description" : "Solo cuando el título pertenece al veterinario solicitado, el diploma fue publicado y el veterinario continúa activo.",
+        "operationId" : "getPublicVeterinarianDiploma",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "qualificationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Diploma publicado",
+            "content" : {
+              "application/pdf" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/veterinarian-profiles/{veterinarianId}/photo" : {
+      "get" : {
+        "tags" : [ "Directorio veterinario para propietarios" ],
+        "summary" : "Consultar foto del veterinario activo",
+        "description" : "Amplía únicamente la lectura de la foto. Su carga y cambio siguen perteneciendo al titular de la cuenta.",
+        "operationId" : "getPublicVeterinarianPhoto",
+        "parameters" : [ {
+          "name" : "veterinarianId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Petición o parámetros inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Token ausente o inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Rol sin permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o no accesible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Correo, matrícula o estado en conflicto",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "406" : {
+            "description" : "Formato de respuesta no disponible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "415" : {
+            "description" : "Tipo de contenido no admitido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Foto de perfil",
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/availability-slots" : {
+      "get" : {
+        "tags" : [ "Disponibilidad veterinaria" ],
+        "summary" : "Consultar turnos solicitables",
+        "description" : "Solo muestra turnos publicados de veterinarios activos desde 2 horas hasta 60 días después de la consulta. from/to son fechas locales inclusivas y admiten hasta 31 días.",
+        "operationId" : "listAvailableVeterinarianSlots",
+        "parameters" : [ {
+          "name" : "from",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "veterinarianId",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Rango o paginación inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Solo propietarios pueden consultar opciones",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de turnos solicitables, sin datos administrativos",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AvailableVeterinarianSlotPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/auth/sessions/current" : {
       "delete" : {
         "tags" : [ "Sesiones" ],
@@ -1228,6 +5217,36 @@
   },
   "components" : {
     "schemas" : {
+      "VeterinarianQualificationRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "enum" : [ "UNDERGRADUATE", "SPECIALIZATION", "MASTERS", "DOCTORATE" ]
+          },
+          "title" : {
+            "type" : "string",
+            "example" : "Especialización en Medicina Interna",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "institution" : {
+            "type" : "string",
+            "example" : "Universidad del Quindío",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "graduationYear" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Opcional. No puede ser posterior al año actual en America/Bogota.",
+            "maximum" : 9999,
+            "minimum" : 1900
+          }
+        },
+        "required" : [ "institution", "title", "type" ]
+      },
       "ApiErrorResponseDTO" : {
         "type" : "object",
         "description" : "Respuesta de error RFC 9457, con código funcional y errores por campo.",
@@ -1298,6 +5317,401 @@
           }
         },
         "required" : [ "code", "field", "message" ]
+      },
+      "VeterinarianQualificationResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "UNDERGRADUATE", "SPECIALIZATION", "MASTERS", "DOCTORATE" ]
+          },
+          "title" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "institution" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "graduationYear" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "maximum" : 9999,
+            "minimum" : 1900
+          },
+          "isBaseDegree" : {
+            "type" : "boolean"
+          },
+          "diplomaAvailable" : {
+            "type" : "boolean"
+          },
+          "diplomaPublished" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "diplomaAvailable", "diplomaPublished", "graduationYear", "id", "institution", "isBaseDegree", "title", "type" ]
+      },
+      "UpdateVeterinarianAvailabilitySlotRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "expectedVersion", "reason", "startsAt" ]
+      },
+      "VeterinarianAvailabilitySlotResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PUBLISHED", "BLOCKED" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "timeZone" : {
+            "type" : "string",
+            "enum" : [ "America/Bogota" ]
+          }
+        },
+        "required" : [ "endsAt", "id", "startsAt", "status", "timeZone", "version", "veterinarianId" ]
+      },
+      "UpdateVeterinarianRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "fullName" : {
+            "type" : "string",
+            "example" : "María Fernanda Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          },
+          "professionalPhoneNumber" : {
+            "type" : "string",
+            "description" : "Contacto profesional público autorizado, en formato E.164.",
+            "example" : "+573001234567",
+            "minLength" : 1
+          },
+          "professionalRegistrationNumber" : {
+            "type" : "string",
+            "description" : "Identificador profesional único localmente, normalizado en mayúsculas; no acredita validación en COMVEZCOL.",
+            "example" : "12345",
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Za-z0-9][A-Za-z0-9 ./-]{0,49}$"
+          },
+          "baseDegreeTitle" : {
+            "type" : "string",
+            "example" : "Medicina Veterinaria",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "baseDegreeInstitution" : {
+            "type" : "string",
+            "example" : "Universidad del Quindío",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "biography" : {
+            "type" : [ "string", "null" ],
+            "description" : "Presentación profesional opcional. Omitir o enviar null la elimina al reemplazar el perfil.",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "baseDegreeInstitution", "baseDegreeTitle", "fullName", "professionalPhoneNumber", "professionalRegistrationNumber" ]
+      },
+      "VeterinarianResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "professionalPhoneNumber" : {
+            "type" : "string",
+            "maxLength" : 16
+          },
+          "professionalRegistrationNumber" : {
+            "type" : "string",
+            "maxLength" : 50
+          },
+          "baseDegreeTitle" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "baseDegreeInstitution" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "biography" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 2000
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo privado de acceso.",
+            "maxLength" : 254
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_ACTIVATION", "ACTIVE", "DISABLED" ]
+          },
+          "qualifications" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "baseDegreeInstitution", "baseDegreeTitle", "biography", "createdAt", "email", "fullName", "id", "professionalPhoneNumber", "professionalRegistrationNumber", "qualifications", "status", "updatedAt" ]
+      },
+      "UpdateAdministratorRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "fullName" : {
+            "type" : "string",
+            "example" : "María Fernanda Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          }
+        },
+        "required" : [ "fullName" ]
+      },
+      "AdministratorResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo privado de acceso.",
+            "maxLength" : 254
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING_ACTIVATION", "ACTIVE", "DISABLED" ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "createdAt", "email", "fullName", "id", "status", "updatedAt" ]
+      },
+      "CreateVeterinarianRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo privado de acceso; inmutable después de crear la cuenta.",
+            "example" : "personal@example.com",
+            "maxLength" : 254,
+            "minLength" : 3
+          },
+          "fullName" : {
+            "type" : "string",
+            "example" : "María Fernanda Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          },
+          "professionalPhoneNumber" : {
+            "type" : "string",
+            "description" : "Contacto profesional público autorizado, en formato E.164.",
+            "example" : "+573001234567",
+            "minLength" : 1
+          },
+          "professionalRegistrationNumber" : {
+            "type" : "string",
+            "description" : "Identificador profesional único localmente, normalizado en mayúsculas; no acredita validación en COMVEZCOL.",
+            "example" : "12345",
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Za-z0-9][A-Za-z0-9 ./-]{0,49}$"
+          },
+          "baseDegreeTitle" : {
+            "type" : "string",
+            "example" : "Medicina Veterinaria",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "baseDegreeInstitution" : {
+            "type" : "string",
+            "example" : "Universidad del Quindío",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "biography" : {
+            "type" : [ "string", "null" ],
+            "description" : "Presentación profesional opcional. Omitir o enviar null la elimina al reemplazar el perfil.",
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "baseDegreeInstitution", "baseDegreeTitle", "email", "fullName", "professionalPhoneNumber", "professionalRegistrationNumber" ]
+      },
+      "CreateVeterinarianAvailabilitySlotRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "example" : "2026-10-05T09:00:00-05:00"
+          }
+        },
+        "required" : [ "startsAt" ]
+      },
+      "CreateVeterinarianAvailabilitySlotBatchRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "startDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "endDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "daysOfWeek" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32",
+              "maximum" : 7,
+              "minimum" : 1
+            },
+            "maxItems" : 7,
+            "minItems" : 1
+          },
+          "dailyStartTime" : {
+            "type" : "string",
+            "pattern" : "^(?:[01][0-9]|2[0-3]):(?:00|30)$"
+          },
+          "dailyEndTime" : {
+            "type" : "string",
+            "example" : "24:00",
+            "pattern" : "^(?:(?:[01][0-9]|2[0-3]):(?:00|30)|24:00)$"
+          }
+        },
+        "required" : [ "dailyEndTime", "dailyStartTime", "daysOfWeek", "endDate", "startDate" ]
+      },
+      "CreateVeterinarianAvailabilitySlotBatchResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "createdCount" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 1000,
+            "minimum" : 1
+          },
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+            },
+            "maxItems" : 1000,
+            "minItems" : 1
+          },
+          "timeZone" : {
+            "type" : "string",
+            "enum" : [ "America/Bogota" ]
+          }
+        },
+        "required" : [ "createdCount", "items", "timeZone" ]
+      },
+      "StaffInvitationResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "Vencimiento del enlace de un uso, 48 horas desde su creación."
+          },
+          "deliveryStatus" : {
+            "type" : "string",
+            "description" : "Envío persistido y pendiente; no confirma recepción del correo.",
+            "enum" : [ "PENDING" ]
+          }
+        },
+        "required" : [ "deliveryStatus", "expiresAt", "invitationId", "userId" ]
       },
       "CreatePetRequestDTO" : {
         "type" : "object",
@@ -1428,7 +5842,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR" ]
+            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR", "SUPER_ADMIN" ]
           },
           "permissions" : {
             "type" : "array",
@@ -1623,6 +6037,100 @@
         },
         "required" : [ "expiresIn", "resetToken" ]
       },
+      "StaffAccountActivationRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "token" : {
+            "type" : "string",
+            "maxLength" : 43,
+            "minLength" : 43,
+            "pattern" : "[A-Za-z0-9_-]{43}",
+            "writeOnly" : true
+          },
+          "password" : {
+            "type" : "string",
+            "format" : "password",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          },
+          "confirmPassword" : {
+            "type" : "string",
+            "format" : "password",
+            "description" : "Debe coincidir exactamente con password, incluidos espacios y mayúsculas.",
+            "maxLength" : 128,
+            "minLength" : 15,
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "confirmPassword", "password", "token" ]
+      },
+      "CreateAdministratorRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "Correo privado de acceso; inmutable después de crear la cuenta.",
+            "example" : "personal@example.com",
+            "maxLength" : 254,
+            "minLength" : 3
+          },
+          "fullName" : {
+            "type" : "string",
+            "example" : "María Fernanda Gómez",
+            "maxLength" : 150,
+            "minLength" : 3
+          }
+        },
+        "required" : [ "email", "fullName" ]
+      },
+      "UpdateDiplomaPublicationRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "published" : {
+            "type" : "boolean",
+            "description" : "true confirma la revisión y permite consultar el diploma a propietarios autenticados cuando el veterinario esté activo."
+          }
+        },
+        "required" : [ "published" ]
+      },
+      "UpdateVeterinarianAvailabilitySlotStatusRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PUBLISHED", "BLOCKED" ]
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "expectedVersion", "reason", "status" ]
+      },
+      "UpdateStaffStatusRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "description" : "No permite activar una cuenta que nunca estableció contraseña ni asignar PENDING_ACTIVATION.",
+            "enum" : [ "ACTIVE", "DISABLED" ]
+          }
+        },
+        "required" : [ "status" ]
+      },
       "UpdateOwnerProfileRequestDTO" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -1653,7 +6161,7 @@
           },
           "role" : {
             "type" : "string",
-            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR" ]
+            "enum" : [ "OWNER", "VETERINARIAN", "ADMINISTRATOR", "SUPER_ADMIN" ]
           },
           "active" : {
             "type" : "boolean"
@@ -1722,6 +6230,253 @@
           }
         }
       },
+      "VeterinarianPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "VeterinarianAvailabilitySlotPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianAvailabilitySlotResponseDTO"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "VeterinarianAvailabilityEventPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianAvailabilityEventResponseDTO"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "VeterinarianAvailabilityEventResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "slotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "slotVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "actorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "eventType" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "RESCHEDULED", "BLOCKED", "PUBLISHED" ]
+          },
+          "previousStartsAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "previousEndsAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "previousStatus" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "PUBLISHED", "BLOCKED", null ]
+          },
+          "newStartsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "newEndsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "newStatus" : {
+            "type" : "string",
+            "enum" : [ "PUBLISHED", "BLOCKED" ]
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 500,
+            "minLength" : 1
+          }
+        },
+        "required" : [ "actorId", "eventType", "id", "newEndsAt", "newStartsAt", "newStatus", "occurredAt", "previousEndsAt", "previousStartsAt", "previousStatus", "reason", "slotId", "slotVersion" ]
+      },
+      "VeterinarianPublicProfilePageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianPublicProfileResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "VeterinarianPublicProfileResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "professionalPhoneNumber" : {
+            "type" : "string",
+            "maxLength" : 16
+          },
+          "professionalRegistrationNumber" : {
+            "type" : "string",
+            "maxLength" : 50
+          },
+          "baseDegreeTitle" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "baseDegreeInstitution" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "biography" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 2000
+          },
+          "profilePhotoUrl" : {
+            "type" : [ "string", "null" ],
+            "format" : "uri-reference",
+            "description" : "Ruta autenticada de la foto; null si aún no tiene foto."
+          },
+          "qualifications" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/VeterinarianQualificationResponseDTO"
+            }
+          }
+        },
+        "required" : [ "baseDegreeInstitution", "baseDegreeTitle", "biography", "fullName", "id", "professionalPhoneNumber", "professionalRegistrationNumber", "profilePhotoUrl", "qualifications" ]
+      },
       "PetPageResponseDTO" : {
         "type" : "object",
         "description" : "Página estable de mascotas propias, ordenada por createdAt descendente e id ascendente. Los totales aplican al filtro active, cuando se envía.",
@@ -1730,6 +6485,107 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/PetResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "AvailableVeterinarianSlotPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AvailableVeterinarianSlotResponseDTO"
+            },
+            "maxItems" : 100,
+            "minItems" : 0
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "AvailableVeterinarianSlotResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianFullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "timeZone" : {
+            "type" : "string",
+            "enum" : [ "America/Bogota" ]
+          }
+        },
+        "required" : [ "endsAt", "id", "startsAt", "timeZone", "veterinarianFullName", "veterinarianId" ]
+      },
+      "AdministratorPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AdministratorResponseDTO"
             }
           },
           "page" : {

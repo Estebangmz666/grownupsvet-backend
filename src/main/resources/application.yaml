@@ -9,14 +9,20 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+  mail:
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
   jpa:
     hibernate:
       ddl-auto: validate
 
   servlet:
     multipart:
-      max-file-size: 2MB
-      max-request-size: 3MB
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 # SQL exception messages can contain values from the failed row. The application
 # logs only a correlation id, exception type and stack locations for unexpected errors.
@@ -26,6 +32,22 @@ logging:
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"
 
 grownupsvet:
+  availability:
+    minimum-owner-lead-time: PT2H
+    maximum-owner-horizon: P60D
+  staff:
+    bootstrap:
+      enabled: ${SUPER_ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${SUPER_ADMIN_EMAIL:}
+      password: ${SUPER_ADMIN_PASSWORD:}
+    invitations:
+      enabled: ${STAFF_INVITATIONS_ENABLED:false}
+      # TO-DO: replace with front portal production URL.
+      activation-url: ${STAFF_ACTIVATION_URL:https://portal.example.invalid/activate-account}
+      encryption-key: ${STAFF_INVITATION_ENCRYPTION_KEY:}
+      sender-address: ${MAIL_FROM:}
+      dispatch-delay: 15000
+      max-delivery-attempts: 5
   security:
     password-recovery:
       enabled: ${PASSWORD_RECOVERY_ENABLED:false}

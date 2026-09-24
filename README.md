@@ -2,25 +2,25 @@
 
 Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
 
-El incremento 0.4.0 incorpora [mascotas propias y recuperación de contraseña](docs/mascotas-y-recuperacion.md). La recuperación requiere configurar el canal SMTP; la prueba real con Mailtrap está pendiente de crear el Sandbox. Los JWT anteriores sin `authenticationVersion` requieren un nuevo login.
+El incremento 0.6.0 incorpora [disponibilidad veterinaria](docs/disponibilidad-veterinaria.md) junto con [personal, invitaciones de activación y diplomas](docs/personal-e-invitaciones.md), sobre [mascotas propias y recuperación de contraseña](docs/mascotas-y-recuperacion.md). Los propietarios consultan turnos desde 2 horas hasta 60 días; el enlace de activación conserva su placeholder configurable. El bootstrap del superadministrador y las invitaciones requieren configuración externa explícita. Los JWT con permisos o versiones de cuenta anteriores requieren un nuevo login.
 
 ## Modelo inicial
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
 
-El alcance inicial permite al propietario consultar su perfil, editar únicamente el teléfono y desactivar su propia cuenta. La foto es opcional y todos los roles pueden gestionar solamente la suya; se almacena procesada en PostgreSQL en una tabla separada. Correo, nombre completo y fecha de nacimiento no tienen edición por el propietario. El perfil profesional del veterinario será administrado mediante operaciones posteriores exclusivas del administrador. Las correcciones administrativas, el cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación y recuperación, separados de la edición del perfil. Registro, inicio y cierre de sesión, perfil, foto y desactivación están implementados.
+El alcance inicial permite al propietario consultar su perfil, editar únicamente el teléfono y desactivar su propia cuenta. La foto es opcional y todos los roles pueden gestionar solamente la suya; se almacena procesada en PostgreSQL en una tabla separada. Correo, nombre completo y fecha de nacimiento no tienen edición por el propietario. El perfil profesional del veterinario se administra mediante operaciones exclusivas del administrador; los propietarios consultan la ficha profesional de veterinarios activos, incluidas foto y diplomas publicados. El cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación, activación y recuperación, separados de la edición del perfil.
 
 | Campo | Persistencia | Regla |
 |---|---|---|
 | `id` | UUID | Generado por JPA al persistir. |
 | `email` | Texto, máximo 254 caracteres | Único; se almacena en minúsculas y sin espacios alrededor. |
-| `passwordHash` | Texto, máximo 255 caracteres | Recibe una contraseña ya codificada por un servicio; nunca una contraseña sin codificar. |
-| `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN` o `ADMINISTRATOR`. |
-| `active` | Booleano | La cuenta se crea activa y permite activación/desactivación. |
+| `passwordHash` | Texto, máximo 255 caracteres | Codificado por un servicio. Es nulo hasta que una cuenta invitada establece su contraseña; obligatorio para cuentas activas. |
+| `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN`, `ADMINISTRATOR` o `SUPER_ADMIN`. |
+| `status` | Texto | `PENDING_ACTIVATION`, `ACTIVE` o `DISABLED`. El booleano `active` de la API existente se deriva de este estado. |
 
-La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; y V6 añade recuperación y versiones de autenticación. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
+La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; V6 añade recuperación y versiones de autenticación; V7 introduce estados y superadministrador; V8 añade perfiles de personal, títulos y diplomas; V9 persiste invitaciones y tareas de correo; V10 crea disponibilidad/auditoría y V11 añade restricciones a las transiciones del historial. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
 
-Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de propietario, veterinario y administrador. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
+Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de los cuatro roles. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
 
 La entidad no implementa autenticación ni sustituye un DTO de respuesta. El hash se excluye de JSON y del texto de diagnóstico. El servicio de login aplica la misma normalización del correo, exige una cuenta activa y verifica el hash Argon2id sin transformar la contraseña recibida. La comprobación de credenciales y la seguridad HTTP corresponden a servicios y a Spring Security.
 
@@ -63,7 +63,7 @@ La contraseña se codifica con Argon2id mediante `PasswordEncoder`, sin recortar
 
 La detección de correo duplicado combina una comprobación previa y la restricción única `uk_users_email` de PostgreSQL. Si dos peticiones intentan registrar el mismo correo simultáneamente, el servicio traduce específicamente esa restricción a `EmailAlreadyRegisteredException`. Otras fallas de integridad conservan su naturaleza de error interno y la transacción evita cuentas o perfiles parciales.
 
-Springdoc genera el contrato desde controladores, DTOs y anotaciones en `/v3/api-docs` y `/v3/api-docs.yaml`; Swagger UI está disponible en `/swagger-ui/index.html`. Registro, login y documentación son públicos; las demás rutas exigen un JWT Bearer válido. Este contrato incremental aporta a SCRUM-67 y las operaciones funcionales a SCRUM-23.
+Springdoc genera el contrato desde controladores, DTOs y anotaciones en `/v3/api-docs` y `/v3/api-docs.yaml`; Swagger UI está disponible en `/swagger-ui/index.html`. Registro, login, recuperación, activación por invitación y documentación tienen sus accesos públicos específicos; las rutas de recursos exigen un JWT Bearer válido. Este contrato incremental conserva las operaciones de SCRUM-67/SCRUM-23 y añade el alcance de personal documentado en su guía.
 
 ## Login y JWT implementados
 
@@ -97,7 +97,9 @@ Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
       "PROFILE_PHOTO_UPDATE_SELF",
       "PET_CREATE_SELF",
       "PET_READ_SELF",
-      "PET_UPDATE_SELF"
+      "PET_UPDATE_SELF",
+      "VETERINARIAN_PROFILE_READ",
+      "VETERINARIAN_AVAILABILITY_READ_AVAILABLE"
     ]
   }
 }
@@ -199,7 +201,7 @@ Desde esta carpeta, iniciar el backend con:
 
 También se puede ejecutar `GrownupsvetBackendApplication` desde IntelliJ. En ambos casos, si no se activa otro perfil explícitamente, Spring utiliza `dev` y se conecta a `grownupsvet_dev`.
 
-Flyway aplica las migraciones pendientes al cargar el contexto de Spring. V1 crea `users`, V2 `owner_profiles`, V3 `revoked_access_tokens`, V4 `user_profile_photos`, V5 `pets` y V6 las tablas de recuperación y versiones de autenticación; cada versión aplicada se registra en `flyway_schema_history`. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
+Flyway aplica las migraciones pendientes al cargar el contexto de Spring y registra cada versión en `flyway_schema_history`. V1–V6 corresponden a acceso, perfiles, mascotas y recuperación; V7–V9 incorporan estados, personal e invitaciones; V10–V11 incorporan disponibilidad y auditoría. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
 
 La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
 
@@ -223,7 +225,9 @@ El test de aplicación comprueba el arranque, la persistencia real de una cuenta
 
 `UserSignupHttpIntegrationTests` usa el perfil `test`, con filtros de seguridad reales y sin una transacción envolvente de prueba. Comprueba registro, hash Argon2id de hasta 128 caracteres Unicode, conservación de espacios de la contraseña, datos inválidos, propiedades de privilegios rechazadas, errores MVC y de seguridad, correo duplicado simultáneo y rollback completo cuando falla el perfil. `UserLoginHttpIntegrationTests` comprueba credenciales, estado activo, respuesta, claims, acceso Bearer y rechazo de una firma alterada. Las pruebas generan un par RSA efímero; nunca leen la clave privada local.
 
-Verificación del 10 de septiembre de 2026: `mvnw.cmd clean verify` terminó con **183 pruebas, sin fallos ni omisiones**, validó las cuatro migraciones y generó el JAR. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con el PKCS#12 local configurado.
+Verificación del 13 de septiembre de 2026: `mvnw.cmd verify` terminó con **334 pruebas, sin fallos, errores ni omisiones**, validó las nueve migraciones y generó el JAR. El OpenAPI 0.5.0 contiene 42 operaciones y 18 respuestas HTTP pasaron la validación independiente de esquemas. Se comprobó además el validador PDF desde el JAR empaquetado. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con las credenciales externas configuradas.
+
+Verificación final del 23 de septiembre de 2026: `mvnw.cmd verify` terminó con **396 pruebas, sin fallos, errores ni omisiones**, validó las once migraciones y generó el JAR. Incluye validación JSON estricta, concurrencia real entre conexiones, rollback del lote y límites temporales exactos. El OpenAPI 0.6.0 contiene **50 operaciones en 32 rutas** y **25 respuestas HTTP** pasaron la validación independiente de OpenAPI 3.1 y JSON Schema, junto con casos negativos de campos obligatorios, enteros y enums. La [evidencia de revisión](docs/verificacion-personal-disponibilidad-2026-09-23.md) detalla las correcciones. La ejecución usa `grownupsvet_test`; no incluye ocupación por reservas, pantallas frontend ni revisión compartida del contrato.
 
 Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y respuestas HTTP de los distintos módulos contra sus esquemas. Código y anotaciones son la fuente editable.
 
@@ -247,6 +251,6 @@ La configuración externa de base de datos y firma JWT también debe estar dispo
 
 ## Organización y convenciones
 
-El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` registra propietarios; `authentication` verifica credenciales y emite/valida JWT; `shared` contiene configuración y manejo uniforme de errores.
+El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` registra propietarios; `authentication` verifica credenciales y emite/valida JWT; `staff` gestiona personal, perfiles, diplomas, bootstrap e invitaciones; `availability` gestiona turnos e historial; `shared` contiene configuración y manejo uniforme de errores.
 
 El apartado «Respuesta de error» describe el manejo implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) delimitan el incremento completo de acceso, perfil y sesión. La autorización se aplica por acción y recurso: un claim o rol no concede acceso a datos ajenos, y el backend contrasta el estado vigente de la cuenta en cada petición protegida.

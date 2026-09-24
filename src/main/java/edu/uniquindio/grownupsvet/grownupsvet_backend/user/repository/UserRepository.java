@@ -1,6 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
 
     Optional<User> findByEmail(String email);
+
+    Optional<User> findByRole(UserRole role);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from User user where user.email = :email")

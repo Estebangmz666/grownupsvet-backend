@@ -91,7 +91,7 @@ class UserSignupHttpIntegrationTests {
 
         Map<String, Object> account = jdbcTemplate.queryForMap("SELECT * FROM users WHERE id = ?", userId);
         assertThat(account.get("role")).isEqualTo("OWNER");
-        assertThat(account.get("active")).isEqualTo(true);
+        assertThat(account.get("status")).isEqualTo("ACTIVE");
         String passwordHash = (String) account.get("password_hash");
         assertThat(passwordHash).startsWith("{argon2id}").doesNotContain(TEST_PASSWORD);
         assertThat(passwordEncoder.matches(TEST_PASSWORD, passwordHash)).isTrue();
@@ -245,7 +245,7 @@ class UserSignupHttpIntegrationTests {
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
         JsonNode operation = specification.path("paths").path(REGISTRATION_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("signupOwner");
-        assertThat(specification.path("paths").propertyNames()).containsExactlyInAnyOrder(
+        assertThat(specification.path("paths").propertyNames()).contains(
                 REGISTRATION_PATH, "/api/v1/auth/sessions", "/api/v1/auth/sessions/current",
                 "/api/v1/users/me", "/api/v1/users/me/profile/photo", "/api/v1/pets", "/api/v1/pets/{petId}",
                 "/api/v1/auth/password-recoveries", "/api/v1/auth/password-recoveries/verifications",

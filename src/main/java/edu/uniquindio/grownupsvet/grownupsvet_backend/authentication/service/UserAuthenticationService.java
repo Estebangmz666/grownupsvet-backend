@@ -34,7 +34,8 @@ public class UserAuthenticationService {
     public UserLoginResponseDTO authenticate(UserLoginRequestDTO request) {
         String normalizedEmail = User.normalizeEmail(request.email());
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
-        String storedPasswordHash = user == null ? dummyPasswordHash : user.getPasswordHash();
+        String storedPasswordHash = user == null || user.getPasswordHash() == null
+                ? dummyPasswordHash : user.getPasswordHash();
         boolean passwordMatches = passwordEncoder.matches(request.password(), storedPasswordHash);
         if (user == null || !user.isActive() || !passwordMatches) {
             throw new InvalidUserCredentialsException();

@@ -11,6 +11,7 @@ import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.type.LogicalType;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 /** Keeps JSON values consistent with the types declared in the API contract. */
 @Configuration(proxyBeanMethods = false)
@@ -32,16 +33,28 @@ public class JsonTypeConfiguration {
                     coercion.setCoercion(CoercionInputShape.Integer, CoercionAction.Fail);
                     coercion.setCoercion(CoercionInputShape.Float, CoercionAction.Fail);
                 })
+                .withCoercionConfig(LogicalType.Integer, coercion -> {
+                    coercion.setCoercion(CoercionInputShape.String, CoercionAction.Fail);
+                    coercion.setCoercion(CoercionInputShape.EmptyString, CoercionAction.Fail);
+                    coercion.setCoercion(CoercionInputShape.Float, CoercionAction.Fail);
+                    coercion.setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
+                })
                 .withCoercionConfig(LogicalType.Textual, coercion -> {
-            coercion.setCoercion(CoercionInputShape.Integer, CoercionAction.Fail);
-            coercion.setCoercion(CoercionInputShape.Float, CoercionAction.Fail);
-            coercion.setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
-        });
+                    coercion.setCoercion(CoercionInputShape.Integer, CoercionAction.Fail);
+                    coercion.setCoercion(CoercionInputShape.Float, CoercionAction.Fail);
+                    coercion.setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
+                });
     }
 
     @Bean
     public JsonMapperBuilderCustomizer strictLocalDateInputCustomizer() {
         return builder -> builder.addModule(new SimpleModule("strict-local-date-input")
                 .addDeserializer(LocalDate.class, new StrictLocalDateDeserializer()));
+    }
+
+    @Bean
+    public JsonMapperBuilderCustomizer strictOffsetDateTimeInputCustomizer() {
+        return builder -> builder.addModule(new SimpleModule("strict-offset-date-time-input")
+                .addDeserializer(OffsetDateTime.class, new StrictOffsetDateTimeDeserializer()));
     }
 }

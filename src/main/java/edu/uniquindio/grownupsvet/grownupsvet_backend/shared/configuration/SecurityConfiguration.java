@@ -52,6 +52,7 @@ public class SecurityConfiguration {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
                         .requestMatchers(HttpMethod.POST,
+                                "/api/v1/auth/account-activations",
                                 UserPasswordRecoveryController.PASSWORD_RECOVERIES_PATH,
                                 UserPasswordRecoveryController.PASSWORD_RECOVERY_VERIFICATIONS_PATH,
                                 UserPasswordRecoveryController.PASSWORD_RESETS_PATH).permitAll()

@@ -1,6 +1,11 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/grownupsvet_test
+    hikari:
+      # Spring caches several integration-test contexts; keep their pools bounded.
+      maximum-pool-size: 4
+      minimum-idle: 0
+      idle-timeout: 10000
 grownupsvet:
   security:
     password-recovery:

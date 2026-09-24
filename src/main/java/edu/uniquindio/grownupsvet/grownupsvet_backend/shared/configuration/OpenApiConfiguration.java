@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfiguration {
     @Bean
     public OpenAPI applicationOpenApi() {
-        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.4.0")
-                .description("Contrato generado desde código para acceso, perfil, sesiones, mascotas propias y recuperación de contraseña. El envío de recuperación requiere habilitar y configurar el canal SMTP; en desarrollo se utiliza Mailtrap Email Sandbox."));
+        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.6.0")
+                .description("Contrato generado desde código para acceso, perfil, sesiones, mascotas, recuperación, personal con invitaciones y disponibilidad veterinaria. El correo requiere configuración SMTP. La URL de activación del portal contiene un placeholder configurable. Reservas, consulta automática de COMVEZCOL y plantillas Thymeleaf quedan fuera de este incremento."));
     }
 }

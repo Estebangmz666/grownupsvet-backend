@@ -260,7 +260,7 @@ class PetHttpIntegrationTests {
     }
 
     @ParameterizedTest
-    @EnumSource(value = UserRole.class, names = {"VETERINARIAN", "ADMINISTRATOR"})
+    @EnumSource(value = UserRole.class, names = {"VETERINARIAN", "ADMINISTRATOR", "SUPER_ADMIN"})
     void staffCannotCreateListReadOrChangePets(UserRole role) throws Exception {
         String petId = createPetId(MINIMAL_PET);
         String staffToken = login(createAccount(role));

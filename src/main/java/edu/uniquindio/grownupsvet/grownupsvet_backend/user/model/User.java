@@ -22,7 +22,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Persistent account shared by owners, veterinarians, and administrators.
+ * Persistent account shared by owners, veterinarians, administrators, and the bootstrap administrator.
  * A service must encode passwords before constructing or updating an account.
  * API responses must use dedicated DTOs rather than exposing this entity.
  */
@@ -42,9 +42,8 @@ public class User {
     private String email;
 
     @JsonIgnore
-    @NotBlank
     @Size(max = 255)
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @NotNull
@@ -52,8 +51,10 @@ public class User {
     @Column(nullable = false, length = 32)
     private UserRole role;
 
-    @Column(nullable = false)
-    private boolean active = true;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private UserStatus status = UserStatus.ACTIVE;
 
     @JsonIgnore
     @Column(name = "authentication_version", nullable = false)
@@ -75,6 +76,17 @@ public class User {
         changeRole(role);
     }
 
+    /** Reserves a permanent staff identity before its recipient establishes credentials. */
+    public static User pendingActivation(String email, UserRole role) {
+        Assert.isTrue(role == UserRole.ADMINISTRATOR || role == UserRole.VETERINARIAN,
+                "Only administrative and veterinary accounts can be invited");
+        User user = new User();
+        user.changeEmail(email);
+        user.changeRole(role);
+        user.status = UserStatus.PENDING_ACTIVATION;
+        return user;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -93,7 +105,11 @@ public class User {
     }
 
     public boolean isActive() {
-        return active;
+        return status == UserStatus.ACTIVE;
+    }
+
+    public UserStatus getStatus() {
+        return status;
     }
 
     /** Login identifiers are stored without surrounding whitespace and in lowercase. */
@@ -131,15 +147,35 @@ public class User {
     }
 
     public void activate() {
-        this.active = true;
+        Assert.hasText(passwordHash, "An active account requires established credentials");
+        this.status = UserStatus.ACTIVE;
     }
 
     public void deactivate() {
-        this.active = false;
+        Assert.state(role != UserRole.SUPER_ADMIN, "The bootstrap administrator cannot be disabled");
+        if (status != UserStatus.DISABLED) {
+            authenticationVersion = Math.incrementExact(authenticationVersion);
+            status = UserStatus.DISABLED;
+        }
+    }
+
+    public void setPendingActivation() {
+        Assert.state(passwordHash == null, "Existing credentials cannot be replaced through an invitation");
+        Assert.state(role == UserRole.ADMINISTRATOR || role == UserRole.VETERINARIAN,
+                "Only staff accounts can await activation");
+        status = UserStatus.PENDING_ACTIVATION;
+    }
+
+    public void activateWithPasswordHash(String passwordHash) {
+        Assert.state(status == UserStatus.PENDING_ACTIVATION,
+                "Only an account awaiting activation can accept an invitation");
+        changePasswordHash(passwordHash);
+        authenticationVersion = Math.incrementExact(authenticationVersion);
+        status = UserStatus.ACTIVE;
     }
 
     @Override
     public String toString() {
-        return "User[id=" + id + ", role=" + role + ", active=" + active + "]";
+        return "User[id=" + id + ", role=" + role + ", active=" + isActive() + "]";
     }
 }

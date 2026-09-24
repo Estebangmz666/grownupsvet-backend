@@ -9,7 +9,13 @@ public enum UserPermission {
     PROFILE_PHOTO_UPDATE_SELF,
     PET_CREATE_SELF,
     PET_READ_SELF,
-    PET_UPDATE_SELF;
+    PET_UPDATE_SELF,
+    ADMINISTRATOR_MANAGE,
+    VETERINARIAN_MANAGE,
+    VETERINARIAN_PROFILE_READ,
+    VETERINARIAN_AVAILABILITY_MANAGE,
+    VETERINARIAN_AVAILABILITY_READ_SELF,
+    VETERINARIAN_AVAILABILITY_READ_AVAILABLE;
 
     /** Compile-time strings for annotations, kept in one place with the enum values. */
     public static final class Constants {
@@ -21,6 +27,12 @@ public enum UserPermission {
         public static final String PET_CREATE_SELF = "PET_CREATE_SELF";
         public static final String PET_READ_SELF = "PET_READ_SELF";
         public static final String PET_UPDATE_SELF = "PET_UPDATE_SELF";
+        public static final String ADMINISTRATOR_MANAGE = "ADMINISTRATOR_MANAGE";
+        public static final String VETERINARIAN_MANAGE = "VETERINARIAN_MANAGE";
+        public static final String VETERINARIAN_PROFILE_READ = "VETERINARIAN_PROFILE_READ";
+        public static final String VETERINARIAN_AVAILABILITY_MANAGE = "VETERINARIAN_AVAILABILITY_MANAGE";
+        public static final String VETERINARIAN_AVAILABILITY_READ_SELF = "VETERINARIAN_AVAILABILITY_READ_SELF";
+        public static final String VETERINARIAN_AVAILABILITY_READ_AVAILABLE = "VETERINARIAN_AVAILABILITY_READ_AVAILABLE";
 
         private Constants() { }
     }

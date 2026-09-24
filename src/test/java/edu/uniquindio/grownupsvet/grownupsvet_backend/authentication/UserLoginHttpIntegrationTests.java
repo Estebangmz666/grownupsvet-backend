@@ -1,6 +1,8 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.authentication;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.controller.UserSessionController;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.security.UserPermissionResolver;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.service.JwtTokenService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfiguration;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
@@ -57,6 +59,8 @@ class UserLoginHttpIntegrationTests {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtDecoder jwtDecoder;
+    @Autowired private JwtTokenService jwtTokenService;
+    @Autowired private UserPermissionResolver userPermissionResolver;
 
     private String email;
     private User user;
@@ -92,7 +96,8 @@ class UserLoginHttpIntegrationTests {
         assertThat(response.path("user").path("permissions").valueStream().map(JsonNode::asText).toList())
                 .containsExactly("PROFILE_READ_SELF", "PROFILE_UPDATE_SELF",
                         "PROFILE_DEACTIVATE_SELF", "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF",
-                        "PET_CREATE_SELF", "PET_READ_SELF", "PET_UPDATE_SELF");
+                        "PET_CREATE_SELF", "PET_READ_SELF", "PET_UPDATE_SELF", "VETERINARIAN_PROFILE_READ",
+                        "VETERINARIAN_AVAILABILITY_READ_AVAILABLE");
 
         Jwt jwt = jwtDecoder.decode(response.path("accessToken").asText());
         assertThat(jwt.getHeaders()).containsEntry("alg", "RS256")
@@ -155,6 +160,65 @@ class UserLoginHttpIntegrationTests {
     }
 
     @Test
+    void rejectsAStillSignedTokenThatUsesThePreviousPermissionSet() throws Exception {
+        String oldToken = jwtTokenService.issue(user, userPermissionResolver.resolve(UserRole.OWNER).stream()
+                .filter(permission -> !permission.equals("VETERINARIAN_AVAILABILITY_READ_AVAILABLE")).toList()).accessToken();
+
+        mockMvc.perform(get(AUTHENTICATED_TEST_PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + oldToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void pendingStaffCannotLoginAndReceiveTheSameErrorAsAnUnknownAccount() throws Exception {
+        replaceAccountWithPendingStaff();
+
+        MvcResult pendingAccount = login(email, RAW_PASSWORD, 401);
+        MvcResult unknownAccount = login("unknown+" + UUID.randomUUID() + "@example.com", RAW_PASSWORD, 401);
+
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getPasswordHash()).isNull();
+        assertInvalidCredentials(pendingAccount, RAW_PASSWORD);
+        assertInvalidCredentials(unknownAccount, RAW_PASSWORD);
+        assertThat(pendingAccount.getResponse().getContentAsString())
+                .isEqualToIgnoringWhitespace(unknownAccount.getResponse().getContentAsString()
+                        .replaceAll("urn:uuid:[0-9a-f-]+", extractInstance(pendingAccount)));
+    }
+
+    @Test
+    void rejectsACryptographicallyValidTokenForAnAccountAwaitingActivation() throws Exception {
+        replaceAccountWithPendingStaff();
+        // Bypass login only in the fixture: every protected request must still check current account state.
+        String issuedToken = jwtTokenService.issue(user, userPermissionResolver.resolve(user.getRole())).accessToken();
+
+        mockMvc.perform(get(AUTHENTICATED_TEST_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + issuedToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void reactivatingAnAccountDoesNotRestoreAccessForTokensIssuedBeforeItsDeactivation() throws Exception {
+        String issuedToken = jsonMapper.readTree(login(email, RAW_PASSWORD, 200)
+                .getResponse().getContentAsString()).path("accessToken").asText();
+        user.deactivate();
+        user = userRepository.saveAndFlush(user);
+        login(email, RAW_PASSWORD, 401);
+
+        user.activate();
+        user = userRepository.saveAndFlush(user);
+
+        mockMvc.perform(get(AUTHENTICATED_TEST_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + issuedToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
+        String replacementToken = jsonMapper.readTree(login(email, RAW_PASSWORD, 200)
+                .getResponse().getContentAsString()).path("accessToken").asText();
+        mockMvc.perform(get(AUTHENTICATED_TEST_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + replacementToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void generatesTheLoginContractAndBearerScheme() throws Exception {
         MvcResult result = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
@@ -181,6 +245,12 @@ class UserLoginHttpIntegrationTests {
                         .content(jsonMapper.writeValueAsString(Map.of(
                                 "email", requestedEmail, "password", requestedPassword))))
                 .andExpect(status().is(expectedStatus)).andReturn();
+    }
+
+    private void replaceAccountWithPendingStaff() {
+        userRepository.deleteById(user.getId());
+        userRepository.flush();
+        user = userRepository.saveAndFlush(User.pendingActivation(email, UserRole.VETERINARIAN));
     }
 
     private void assertInvalidCredentials(MvcResult result, String privatePassword) throws Exception {

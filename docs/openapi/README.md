@@ -1,8 +1,8 @@
-# OpenAPI generado — incremento 0.6.0
+# OpenAPI generado — incremento 0.7.0
 
-`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. Conserva acceso, perfil, sesión, mascotas, recuperación y personal; el incremento 0.6.0 agrega disponibilidad veterinaria. Publica Bearer JWT para recursos protegidos y permisos opacos de uso restringido para restablecer o establecer contraseñas. Reservas/citas, integración COMVEZCOL y refresh tokens quedan fuera de este incremento.
+`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento 0.7.0 añade ocupación de disponibilidad, solicitud, confirmación, consulta e historial de citas, reasignación administrativa y acceso justificado al correo del propietario. Conserva Bearer JWT y los permisos opacos de uso restringido para restablecer o establecer contraseñas. Frontend, urgencias, atención clínica e integración COMVEZCOL quedan fuera de este incremento.
 
-La [guía de personal e invitaciones](../personal-e-invitaciones.md) concreta permisos, estados, URL placeholder, credenciales externas, archivos y cuotas. La [guía de disponibilidad veterinaria](../disponibilidad-veterinaria.md) documenta turnos, permisos y límites futuros con reservas. La [guía de mascotas y recuperación](../mascotas-y-recuperacion.md) conserva el alcance anterior. Recuperación e invitaciones están deshabilitadas por defecto hasta configurar sus canales y secretos. El Sandbox de Mailtrap se configuró en desarrollo y Esteban confirmó los casos manuales de recuperación; esa evidencia no sustituye la revisión del contrato con los dos frontends.
+La [guía de personal e invitaciones](../personal-e-invitaciones.md) concreta permisos, estados, URL placeholder, credenciales externas, archivos y cuotas. La [guía de disponibilidad veterinaria](../disponibilidad-veterinaria.md) documenta turnos, permisos y ocupación real por citas. La [guía de citas y agenda](../citas-y-agenda.md) define estados, permisos, corte, reasignación y contacto. La [guía de mascotas y recuperación](../mascotas-y-recuperacion.md) conserva el alcance anterior. Recuperación e invitaciones están deshabilitadas por defecto hasta configurar sus canales y secretos. El Sandbox de Mailtrap se configuró en desarrollo y Esteban confirmó los casos manuales de recuperación; esa evidencia no sustituye la revisión del contrato con los dos frontends.
 
 Con el backend ejecutándose, consultar `/v3/api-docs` o `/swagger-ui/index.html`. El servidor de desarrollo del snapshot es `http://localhost:8080`; configurar la URL correspondiente al generar o utilizar un cliente para otro entorno.
 
@@ -10,7 +10,7 @@ Con el backend ejecutándose, consultar `/v3/api-docs` o `/swagger-ui/index.html
 
 Desde `grownupsvet-backend`, con Java 25, `JAVA_HOME`, PostgreSQL local, la base `grownupsvet_test` y las variables `DB_USERNAME` / `DB_PASSWORD` disponibles.
 
-El usuario de pruebas debe poder crear y eliminar sus propios esquemas en `grownupsvet_test`. Las pruebas de concurrencia y ciclo de vida de disponibilidad crean esquemas con un UUID exclusivo, aplican Flyway y los eliminan al terminar. Usan conexiones/transacciones independientes y conservan activas las restricciones del historial; no necesitan modificar `grownupsvet_dev`. Ejecutar:
+El usuario de pruebas debe poder crear y eliminar sus propios esquemas en `grownupsvet_test`. Las pruebas de concurrencia y ciclo de vida de disponibilidad, transacciones de citas y entrega de avisos crean esquemas con un UUID exclusivo, aplican Flyway y los eliminan al terminar. Usan conexiones/transacciones independientes y conservan activas las restricciones del historial; no necesitan modificar `grownupsvet_dev`. Ejecutar:
 
 ```powershell
 .\mvnw.cmd verify
@@ -31,6 +31,12 @@ Después de que ambos comandos de verificación terminen correctamente, actualiz
 ```powershell
 Copy-Item -LiteralPath target/generated-openapi/openapi.json -Destination docs/openapi/openapi.json
 ```
+
+## Incremento 0.7.0 — citas, ocupación y reasignación
+
+La especificación OpenAPI continúa en 3.1.0 y el contrato de la aplicación pasa a 0.7.0. El backend incorpora solicitud idempotente, consulta y eventos, confirmación/rechazo, corte diario recuperable, ocupación de disponibilidad, reasignación/reprogramación acordada, avisos durables y revelación auditada del correo. La respuesta de opciones de turno ahora incluye su `version`. `APPOINTMENT_WORKDAY_START_TIME` es obligatorio y la hora exacta se configura por entorno; no existe una hora comercial predeterminada. Para enviar avisos se requieren `MAIL_FROM` y SMTP.
+
+Las pruebas generan ejemplos reales autenticados para creación, repetición, conflicto, páginas, eventos y acceso al correo. El validador independiente comprueba OpenAPI 3.1, ejemplos, campos requeridos, tipos, enums, nulabilidad y errores de las siete operaciones de citas. Los campos del historial permanecen presentes cuando su valor es nulo. El informe [del incremento](../verificacion-citas-2026-09-28.md) incluye la cantidad ejecutada y la trazabilidad a SCRUM-36, SCRUM-39 y SCRUM-79. La revisión compartida del contrato por los tres integrantes permanece pendiente.
 
 ## Incremento 0.6.0 — disponibilidad veterinaria
 

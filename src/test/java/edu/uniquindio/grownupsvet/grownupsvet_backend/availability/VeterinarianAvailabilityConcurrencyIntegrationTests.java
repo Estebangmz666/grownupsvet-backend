@@ -5,11 +5,16 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.service.Jwt
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.model.QualificationType;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.model.VeterinarianProfile;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.model.VeterinarianQualification;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.Pet;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.PetSpecies;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.repository.PetRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.repository.VeterinarianProfileRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.repository.VeterinarianQualificationRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfiguration;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.OwnerProfile;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +90,8 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
     @Autowired private UserRepository users;
     @Autowired private VeterinarianProfileRepository profiles;
     @Autowired private VeterinarianQualificationRepository qualifications;
+    @Autowired private OwnerProfileRepository ownerProfiles;
+    @Autowired private PetRepository pets;
     @Autowired private UserPermissionResolver permissions;
     @Autowired private JwtTokenService tokens;
     @Autowired private PlatformTransactionManager transactionManager;
@@ -93,11 +100,13 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
     @Autowired private Clock clock;
 
     private UUID veterinarianId;
+    private UUID ownerId;
     private UUID firstAdministratorId;
     private UUID secondAdministratorId;
     private String firstAdministratorToken;
     private String secondAdministratorToken;
     private String ownerToken;
+    private String secondOwnerToken;
     private LocalDate appointmentDate;
 
     @BeforeEach
@@ -110,6 +119,8 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
             firstAdministratorId = firstAdministrator.getId();
             secondAdministratorId = secondAdministrator.getId();
             veterinarianId = veterinarian.getId();
+            ownerId = owner.getId();
+            ownerProfiles.saveAndFlush(new OwnerProfile(owner, "María Gómez", LocalDate.of(1955, 5, 20), "+573001234567"));
             Instant now = clock.instant();
             VeterinarianProfile profile = profiles.saveAndFlush(new VeterinarianProfile(veterinarian,
                     "Dra. Laura Marcela Ramírez", "+573001234567", "MV-" + veterinarianId,
@@ -250,6 +261,49 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
             assertThat(eventCount()).isEqualTo(2);
             return null;
         });
+    }
+
+    @Test
+    void concurrentOwnersRequestingTheSameSlotCommitOneAppointmentAndOneRequestEvent() throws Exception {
+        MvcResult published = createSlot(firstAdministratorToken, "09:00");
+        assertThat(published.getResponse().getStatus()).isEqualTo(201);
+        UUID slotId = UUID.fromString(body(published).path("id").asText());
+        UUID[] petIds = inNewTransaction(() -> {
+            // Use the committed owner represented by the already-issued token and a second independent owner.
+            User first = users.findById(ownerId).orElseThrow();
+            User second = account(UserRole.OWNER);
+            ownerProfiles.saveAndFlush(new OwnerProfile(second, "Carlos Pérez", LocalDate.of(1950, 3, 12), "+573001234568"));
+            Pet firstPet = pets.saveAndFlush(new Pet(ownerProfiles.findById(ownerId).orElseThrow(), "Luna", PetSpecies.DOG,
+                    null, null, null, false, clock.instant()));
+            Pet secondPet = pets.saveAndFlush(new Pet(ownerProfiles.findById(second.getId()).orElseThrow(), "Toby", PetSpecies.CAT,
+                    null, null, null, false, clock.instant()));
+            secondOwnerToken = token(second);
+            return new UUID[]{firstPet.getId(), secondPet.getId()};
+        });
+        long slotVersion = jdbc.queryForObject("SELECT version FROM veterinarian_availability_slots WHERE id=?", Long.class, slotId);
+        UUID firstRequest = UUID.randomUUID();
+        UUID secondRequest = UUID.randomUUID();
+        List<MvcResult> results = raceWhileVeterinarianIsLocked(
+                () -> requestAppointment(ownerToken, firstRequest, petIds[0], slotId, slotVersion),
+                () -> requestAppointment(secondOwnerToken, secondRequest, petIds[1], slotId, slotVersion), false);
+
+        assertThat(results.stream().map(result -> result.getResponse().getStatus()).toList())
+                .containsExactlyInAnyOrder(201, 409);
+        int winner = results.get(0).getResponse().getStatus() == 201 ? 0 : 1;
+        assertThat(body(results.get(1 - winner)).path("errorCode").asText()).isEqualTo("APPOINTMENT_SLOT_OCCUPIED");
+        inNewTransaction(() -> {
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointments WHERE current_slot_id=?", Integer.class, slotId)).isEqualTo(1);
+            UUID appointmentId = jdbc.queryForObject("SELECT id FROM appointments WHERE current_slot_id=?", UUID.class, slotId);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_events WHERE appointment_id=? AND event_type='REQUESTED'", Integer.class, appointmentId)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_assignments WHERE appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
+            return null;
+        });
+    }
+
+    private MvcResult requestAppointment(String token, UUID requestId, UUID petId, UUID slotId, long slotVersion) throws Exception {
+        return mvc.perform(authenticated(post("/api/v1/appointments"), token, Map.of("clientRequestId", requestId,
+                "petId", petId, "availabilitySlotId", slotId, "expectedAvailabilitySlotVersion", slotVersion,
+                "reason", "Consulta general para la mascota."))).andReturn();
     }
 
     private List<MvcResult> raceWhileVeterinarianIsLocked(Callable<MvcResult> firstRequest,

@@ -1,6 +1,6 @@
-# Disponibilidad veterinaria — contrato 0.6.0
+# Disponibilidad veterinaria — contrato 0.7.0
 
-Este incremento agrega la publicación, consulta, edición y bloqueo de turnos concretos de 30 minutos. Los turnos son disponibilidad potencial; todavía no representan una solicitud, reserva, confirmación ni cita clínica.
+Este incremento agrega la publicación, consulta, edición y bloqueo de turnos concretos de 30 minutos y su integración con solicitudes y citas activas. La agenda disponible ya excluye ocupaciones reales.
 
 ## Permisos
 
@@ -11,11 +11,12 @@ Este incremento agrega la publicación, consulta, edición y bloqueo de turnos c
 | `OWNER` | Consultar turnos publicados que cumplen la ventana, solo para veterinarios activos. No recibe bloqueos ni datos de auditoría. |
 | `SUPER_ADMIN` | No recibe permisos de disponibilidad. |
 
-Los endpoints requieren JWT Bearer. Los tokens existentes de administradores, veterinarios y propietarios llevan una lista exacta de permisos; tras desplegar 0.6.0, esos usuarios deben volver a iniciar sesión para obtener sus permisos vigentes.
+Los endpoints requieren JWT Bearer. Los tokens existentes llevan una lista exacta de permisos; después del despliegue 0.7.0, los usuarios deben volver a iniciar sesión para obtener sus permisos vigentes.
 
 ## Reglas de tiempo y publicación
 
 - El horario de negocio es `America/Bogota`; la sede considerada es Armenia.
+- La anticipación mínima para nuevas solicitudes es desde el inicio del día local siguiente; el horizonte máximo continúa en 60 días. El inicio de jornada se configura con `APPOINTMENT_WORKDAY_START_TIME` (`HH:mm`) y no se asume un valor predeterminado de negocio.
 - Los turnos son intervalos `[startsAt, endsAt)`, duran exactamente 30 minutos y comienzan en `:00` o `:30`, sin segundos ni fracciones. Turnos contiguos son válidos.
 - Los instantes de API reciben texto ISO 8601 con offset; no admiten timestamps numéricos ni fechas sin offset. El servidor valida la cuadrícula en `America/Bogota`, persiste un instante y responde con UTC (`Z`) junto con `timeZone`.
 - Publicar o mover exige que el turno sea futuro al validar la operación. Un turno iniciado no puede rescatarse cambiándolo de hora.
@@ -23,7 +24,8 @@ Los endpoints requieren JWT Bearer. Los tokens existentes de administradores, ve
 - El lote completo es atómico. Una colisión, incluso con un turno bloqueado, rechaza el lote completo. Una restricción única de PostgreSQL protege `(veterinarian_id, starts_at)`.
 - Bloquear conserva el UUID y la fila. Volver a publicar conserva el mismo turno y aumenta su versión. El historial registra cada cambio efectivo; una solicitud sin cambios no crea evento ni nueva versión.
 - Deshabilitar un veterinario oculta automáticamente sus turnos publicados a propietarios, sin borrarlos ni bloquearlos. Al rehabilitarlo, esos turnos vuelven a aparecer si siguen publicados y están dentro de la ventana. Los bloqueos administrativos se conservan.
-- La consulta de propietarios incluye turnos desde **2 horas** hasta **60 días** después del instante de consulta. La configuración predeterminada está en `application.yaml` bajo `grownupsvet.availability.minimum-owner-lead-time` y `maximum-owner-horizon`. La agenda administrativa y la agenda propia del veterinario no usan esa ventana.
+- La consulta de propietarios incluye turnos desde el inicio del día local siguiente hasta 60 días desde la consulta. No se reciben nuevas solicitudes para la fecha local de hoy, aunque falte tiempo para el turno. Mañana puede solicitarse sin esperar 24 horas completas. La agenda administrativa y la agenda propia del veterinario no usan este filtro de alta.
+- Las opciones excluyen turnos ya ocupados por citas `REQUESTED` o `CONFIRMED` y devuelven la versión del turno para detectar cambios después de que el propietario lo consultó. Bloquear un turno ocupado y cambiar la hora de cualquier turno con historial de citas producen un conflicto controlado.
 - El filtro de fechas `from`/`to` de las consultas es local e inclusivo y admite hasta 31 fechas. Un resultado vacío responde `200` con `items: []`.
 
 ## Rutas nuevas
@@ -81,14 +83,18 @@ Los siete esquemas de respuesta de disponibilidad declaran todos sus campos como
 
 ## Persistencia y concurrencia
 
-V10 crea `veterinarian_availability_slots` y `veterinarian_availability_events`; V11 refuerza las transiciones e intervalos válidos del historial. PostgreSQL comprueba la duración, la cuadrícula temporal, el estado, la versión y la unicidad por profesional e inicio. Los eventos no se pueden actualizar o borrar. Las mutaciones bloquean primero la cuenta administradora, después la cuenta veterinaria y finalmente el turno, en coordinación con el bloqueo de estado de personal. La consulta del propietario filtra en base de datos tanto el estado del turno como el estado de la cuenta y los límites temporales.
+V10 crea `veterinarian_availability_slots` y `veterinarian_availability_events`; V11 refuerza las transiciones e intervalos válidos del historial. V12 añade citas, asignaciones históricas inmutables, eventos, tareas de correo e índices únicos parciales de ocupación activa; V13 registra la reactivación del veterinario y V14 valida en PostgreSQL que cada asignación conserve el turno, veterinario e intervalo originales. V12 añade además las guardas para impedir que un turno referenciado cambie de hora o que se bloquee con una cita activa. No se editaron migraciones aplicadas.
+
+PostgreSQL comprueba la duración, cuadrícula, estado, versión y unicidad por profesional e inicio. Los eventos de disponibilidad, eventos de citas y asignaciones históricas no se pueden actualizar ni borrar. La consulta del propietario filtra en base de datos el estado del turno y de la cuenta, las fechas solicitables, las ocupaciones reales y los límites temporales.
 
 La seguridad de la unicidad evita duplicados también ante solicitudes concurrentes. No se convierte cualquier error de base de datos en conflicto de horario. El control de versión de la petición detecta datos desactualizados además de la versión optimista de JPA.
 
-## Límite con reservas futuras
+## Integración con solicitudes y citas
 
-Este módulo no conoce reservas ni solicitudes: no se atribuye cobertura de ocupación real. Al incorporar citas, se deben actualizar en conjunto la consulta de opciones, las guardas de edición/bloqueo y las pruebas concurrentes. No se debe cancelar ni liberar una cita como efecto lateral de editar disponibilidad.
+La consulta del propietario excluye turnos ocupados por citas `REQUESTED` y `CONFIRMED`. PostgreSQL protege la ocupación activa por turno y por mascota/intervalo; el servicio vuelve a validar la versión del turno después de bloquearlo. La respuesta de disponibilidad incluye `version` para que la solicitud no reserve silenciosamente un turno que cambió desde su consulta.
+
+Bloquear un turno ocupado falla y cambiar la hora de cualquier turno con historial de asignaciones falla, aunque la cita anterior ya se haya rechazado o cancelado. Rechazar o vencer una solicitud libera la ocupación dentro de la transacción que registra el evento terminal. Las reglas funcionales completas están en [Citas y agenda](citas-y-agenda.md).
 
 ## Verificación
 
-La evidencia automatizada de este incremento se registra en [OpenAPI y verificaciones](openapi/README.md). Los ejemplos HTTP se generan desde pruebas con identidades ficticias sobre PostgreSQL. Esta API no acredita revisión de frontend, despliegue, accesibilidad visual ni revisión compartida del equipo.
+La evidencia automatizada se registra en [OpenAPI y verificaciones](openapi/README.md) y en el [informe del incremento de citas](verificacion-citas-2026-09-28.md). Los ejemplos HTTP se generan desde pruebas con identidades ficticias sobre PostgreSQL. Esta API no acredita revisión de frontend, despliegue, accesibilidad visual ni revisión compartida del equipo.

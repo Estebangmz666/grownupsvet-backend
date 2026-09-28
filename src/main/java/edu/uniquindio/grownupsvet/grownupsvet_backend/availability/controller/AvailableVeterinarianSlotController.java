@@ -43,7 +43,7 @@ public class AvailableVeterinarianSlotController {
     public AvailableVeterinarianSlotController(VeterinarianAvailabilityService service) { this.service = service; }
 
     @Operation(operationId = "listAvailableVeterinarianSlots", summary = "Consultar turnos solicitables",
-            description = "Solo muestra turnos publicados de veterinarios activos desde 2 horas hasta 60 días después de la consulta. from/to son fechas locales inclusivas y admiten hasta 31 días.")
+            description = "Solo muestra turnos publicados, libres y de veterinarios activos desde la fecha local siguiente hasta 60 días. from/to son fechas locales inclusivas y admiten hasta 31 días. Cada opción incluye su versión para confirmar la selección al solicitar.")
     @ApiResponse(responseCode = "200", description = "Página de turnos solicitables, sin datos administrativos", content = @Content(schema = @Schema(implementation = AvailableVeterinarianSlotPageResponseDTO.class)))
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<AvailableVeterinarianSlotPageResponseDTO> list(@AuthenticationPrincipal Jwt jwt,

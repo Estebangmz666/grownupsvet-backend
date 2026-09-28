@@ -200,13 +200,15 @@ class VeterinarianAvailabilityHttpIntegrationTests {
     }
 
     @Test
-    void ownerWindowExcludesTurnoversWithinTwoHoursAndBeyondSixtyDays() throws Exception {
+    void ownerWindowExcludesTodayAndDatesBeyondSixtyDaysButIncludesTomorrow() throws Exception {
         LocalDateTime currentLocal = LocalDateTime.now(clock.withZone(ZoneId.of("America/Bogota")));
         int minutesUntilNextSlot = 30 - currentLocal.getMinute() % 30;
         LocalDateTime nearStart = currentLocal.withSecond(0).withNano(0).plusMinutes(minutesUntilNextSlot);
         createSlotAt(nearStart, UserRole.ADMINISTRATOR, 201);
         LocalDate farDate = LocalDate.now(clock.withZone(ZoneId.of("America/Bogota"))).plusDays(61);
         createSlot(farDate, "09:00", UserRole.ADMINISTRATOR, 201);
+        LocalDate tomorrow = LocalDate.now(clock.withZone(ZoneId.of("America/Bogota"))).plusDays(1);
+        createSlot(tomorrow, "23:30", UserRole.ADMINISTRATOR, 201);
 
         MvcResult nearPage = mvc.perform(authenticated(get(OWNER_BASE).param("from", nearStart.toLocalDate().toString())
                         .param("to", nearStart.toLocalDate().toString()), UserRole.OWNER))
@@ -214,8 +216,12 @@ class VeterinarianAvailabilityHttpIntegrationTests {
         MvcResult farPage = mvc.perform(authenticated(get(OWNER_BASE).param("from", farDate.toString())
                         .param("to", farDate.toString()), UserRole.OWNER))
                 .andExpect(status().isOk()).andReturn();
+        MvcResult tomorrowPage = mvc.perform(authenticated(get(OWNER_BASE).param("from", tomorrow.toString())
+                        .param("to", tomorrow.toString()), UserRole.OWNER))
+                .andExpect(status().isOk()).andReturn();
         assertThat(body(nearPage).path("items")).isEmpty();
         assertThat(body(farPage).path("items")).isEmpty();
+        assertThat(body(tomorrowPage).path("items").size()).isEqualTo(1);
     }
 
     @Test
@@ -270,7 +276,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
         JsonNode schemas = specification.path("components").path("schemas");
         Map<String, List<String>> requiredResponseFields = Map.of(
                 "VeterinarianAvailabilitySlotResponseDTO", List.of("id", "veterinarianId", "startsAt", "endsAt", "status", "version", "timeZone"),
-                "AvailableVeterinarianSlotResponseDTO", List.of("id", "veterinarianId", "veterinarianFullName", "startsAt", "endsAt", "timeZone"),
+                "AvailableVeterinarianSlotResponseDTO", List.of("id", "veterinarianId", "veterinarianFullName", "startsAt", "endsAt", "version", "timeZone"),
                 "VeterinarianAvailabilityEventResponseDTO", List.of("id", "slotId", "slotVersion", "actorId", "occurredAt", "eventType",
                         "previousStartsAt", "previousEndsAt", "previousStatus", "newStartsAt", "newEndsAt", "newStatus", "reason"),
                 "VeterinarianAvailabilitySlotPageResponseDTO", List.of("items", "page", "size", "totalElements", "totalPages"),
@@ -307,7 +313,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
         assertThat(batchProperties.path("timeZone").path("enum").valueStream().map(JsonNode::asText).toList())
                 .containsExactly("America/Bogota");
         assertThat(schemas.path("AvailableVeterinarianSlotResponseDTO").path("properties").propertyNames())
-                .containsExactlyInAnyOrder("id", "veterinarianId", "veterinarianFullName", "startsAt", "endsAt", "timeZone")
+                .containsExactlyInAnyOrder("id", "veterinarianId", "veterinarianFullName", "startsAt", "endsAt", "version", "timeZone")
                 .doesNotContain("email", "reason", "actorId", "status");
         assertThat(schemas.path("VeterinarianAvailabilityEventResponseDTO").path("properties").propertyNames())
                 .contains("previousStartsAt", "previousEndsAt", "previousStatus", "reason", "actorId");
@@ -330,7 +336,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
                 .isEqualTo(1);
         assertThat(schemas.path("CreateVeterinarianAvailabilitySlotBatchRequestDTO").path("properties")
                 .path("daysOfWeek").path("minItems").asInt()).isEqualTo(1);
-        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.6.0");
+        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.7.0");
         Path output = Path.of("target", "generated-openapi");
         Files.createDirectories(output);
         Files.writeString(output.resolve("openapi.json"), mapper.writerWithDefaultPrettyPrinter().writeValueAsString(specification));

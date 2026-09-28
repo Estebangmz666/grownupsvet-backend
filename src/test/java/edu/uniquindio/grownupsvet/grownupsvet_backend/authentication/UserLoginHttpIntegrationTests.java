@@ -97,7 +97,7 @@ class UserLoginHttpIntegrationTests {
                 .containsExactly("PROFILE_READ_SELF", "PROFILE_UPDATE_SELF",
                         "PROFILE_DEACTIVATE_SELF", "PROFILE_PHOTO_READ_SELF", "PROFILE_PHOTO_UPDATE_SELF",
                         "PET_CREATE_SELF", "PET_READ_SELF", "PET_UPDATE_SELF", "VETERINARIAN_PROFILE_READ",
-                        "VETERINARIAN_AVAILABILITY_READ_AVAILABLE");
+                        "VETERINARIAN_AVAILABILITY_READ_AVAILABLE", "APPOINTMENT_CREATE_SELF", "APPOINTMENT_READ_SELF");
 
         Jwt jwt = jwtDecoder.decode(response.path("accessToken").asText());
         assertThat(jwt.getHeaders()).containsEntry("alg", "RS256")

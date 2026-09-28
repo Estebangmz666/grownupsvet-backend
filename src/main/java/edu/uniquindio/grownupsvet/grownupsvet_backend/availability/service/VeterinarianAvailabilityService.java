@@ -1,6 +1,6 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.availability.service;
 
-import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.configuration.AvailabilityProperties;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.dto.*;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.exception.AvailabilityOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.*;
@@ -20,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,13 +51,14 @@ public class VeterinarianAvailabilityService {
     private final UserRepository users;
     private final VeterinarianProfileRepository veterinarians;
     private final Clock clock;
-    private final AvailabilityProperties properties;
+    private final AppointmentProperties appointmentProperties;
+    private final JdbcTemplate jdbc;
 
     public VeterinarianAvailabilityService(VeterinarianAvailabilitySlotRepository slots,
             VeterinarianAvailabilityEventRepository events, UserRepository users,
-            VeterinarianProfileRepository veterinarians, Clock clock, AvailabilityProperties properties) {
+            VeterinarianProfileRepository veterinarians, Clock clock, AppointmentProperties appointmentProperties, JdbcTemplate jdbc) {
         this.slots = slots; this.events = events; this.users = users; this.veterinarians = veterinarians;
-        this.clock = clock; this.properties = properties;
+        this.clock = clock; this.appointmentProperties = appointmentProperties; this.jdbc = jdbc;
     }
 
     @Transactional
@@ -149,6 +151,7 @@ public class VeterinarianAvailabilityService {
         requireActive(veterinarian);
         Instant newStart = requestedInstant(request.startsAt());
         if (newStart.equals(slot.getStartsAt())) { return response(slot); }
+        if (hasAppointmentHistory(slotId)) { throw slotReferencedByAppointment(); }
         Instant oldStart = slot.getStartsAt();
         Instant oldEnd = slot.getEndsAt();
         AvailabilitySlotStatus oldStatus = slot.getStatus();
@@ -169,6 +172,7 @@ public class VeterinarianAvailabilityService {
         if (slot.getVersion() != request.expectedVersion()) { throw concurrentUpdate(); }
         if (request.status() == AvailabilitySlotStatus.PUBLISHED) { requireActive(veterinarian); }
         if (slot.getStatus() == request.status()) { return response(slot); }
+        if (request.status() == AvailabilitySlotStatus.BLOCKED && hasActiveAppointment(slotId)) { throw slotOccupiedByAppointment(); }
         Instant oldStart = slot.getStartsAt();
         Instant oldEnd = slot.getEndsAt();
         AvailabilitySlotStatus oldStatus = slot.getStatus();
@@ -197,8 +201,10 @@ public class VeterinarianAvailabilityService {
         if (!owner.isActive() || owner.getRole() != UserRole.OWNER) { throw accessDenied(); }
         DateRange range = dateRange(from, to);
         Instant now = clock.instant();
-        Instant earliest = now.plus(properties.getMinimumOwnerLeadTime());
-        Instant latest = now.plus(properties.getMaximumOwnerHorizon());
+        LocalDate earliestDate = LocalDate.now(clock.withZone(BUSINESS_ZONE))
+                .plusDays(appointmentProperties.getMinimumOwnerAdvanceDays());
+        Instant earliest = earliestDate.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Instant latest = now.plus(appointmentProperties.getMaximumOwnerHorizonDays(), ChronoUnit.DAYS);
         Page<AvailableVeterinarianSlotResponseDTO> result = slots.findAvailable(range.from(), range.to(),
                 earliest, latest, veterinarianId, pageable(page, size,
                         Sort.by(Sort.Order.asc("startsAt"), Sort.Order.asc("id"))));
@@ -345,6 +351,14 @@ public class VeterinarianAvailabilityService {
         }
     }
 
+    private boolean hasActiveAppointment(UUID slotId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from appointments where current_slot_id=? and status in ('REQUESTED','CONFIRMED'))", Boolean.class, slotId));
+    }
+
+    private boolean hasAppointmentHistory(UUID slotId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from appointment_assignments where slot_id=?)", Boolean.class, slotId));
+    }
+
     private void requireActive(User veterinarian) {
         if (veterinarian.getStatus() != UserStatus.ACTIVE) {
             throw new AvailabilityOperationException(HttpStatus.CONFLICT, "VETERINARIAN_NOT_ACTIVE",
@@ -399,5 +413,13 @@ public class VeterinarianAvailabilityService {
     private static AvailabilityOperationException slotNotFound() {
         return new AvailabilityOperationException(HttpStatus.NOT_FOUND, "AVAILABILITY_SLOT_NOT_FOUND",
                 "No se encontró el turno solicitado.");
+    }
+    private static AvailabilityOperationException slotOccupiedByAppointment() {
+        return new AvailabilityOperationException(HttpStatus.CONFLICT, "AVAILABILITY_SLOT_OCCUPIED_BY_APPOINTMENT",
+                "No se puede bloquear un turno con una cita pendiente o confirmada.");
+    }
+    private static AvailabilityOperationException slotReferencedByAppointment() {
+        return new AvailabilityOperationException(HttpStatus.CONFLICT, "AVAILABILITY_SLOT_REFERENCED_BY_APPOINTMENT",
+                "No se puede cambiar la hora de un turno que ya tiene historial de citas.");
     }
 }

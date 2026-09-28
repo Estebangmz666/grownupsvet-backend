@@ -12,4 +12,5 @@ public record AvailableVeterinarianSlotResponseDTO(
         @Schema(types = {"string"}, maxLength = 150, requiredMode = Schema.RequiredMode.REQUIRED) String veterinarianFullName,
         @Schema(types = {"string"}, format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED) Instant startsAt,
         @Schema(types = {"string"}, format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED) Instant endsAt,
+        @Schema(types = {"integer"}, format = "int64", minimum = "0", requiredMode = Schema.RequiredMode.REQUIRED) long version,
         @Schema(types = {"string"}, allowableValues = "America/Bogota", requiredMode = Schema.RequiredMode.REQUIRED) String timeZone) { }

@@ -2,7 +2,7 @@
 
 Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
 
-El incremento 0.6.0 incorpora [disponibilidad veterinaria](docs/disponibilidad-veterinaria.md) junto con [personal, invitaciones de activación y diplomas](docs/personal-e-invitaciones.md), sobre [mascotas propias y recuperación de contraseña](docs/mascotas-y-recuperacion.md). Los propietarios consultan turnos desde 2 horas hasta 60 días; el enlace de activación conserva su placeholder configurable. El bootstrap del superadministrador y las invitaciones requieren configuración externa explícita. Los JWT con permisos o versiones de cuenta anteriores requieren un nuevo login.
+El incremento 0.7.0 incorpora [solicitudes, confirmación y agenda de citas](docs/citas-y-agenda.md), con ocupación real de disponibilidad, corte diario, reasignación y avisos durables, sobre [personal, invitaciones, mascotas y recuperación](docs/personal-e-invitaciones.md). Las opciones para propietarios excluyen hoy y turnos ocupados, y abarcan desde mañana hasta 60 días. Configura `APPOINTMENT_WORKDAY_START_TIME` en formato `HH:mm` para la zona `America/Bogota`; no se incluye una hora de negocio predeterminada. El envío de avisos requiere `MAIL_FROM` y configuración SMTP. Los JWT con permisos o versiones de cuenta anteriores requieren un nuevo login.
 
 ## Modelo inicial
 
@@ -18,7 +18,7 @@ El alcance inicial permite al propietario consultar su perfil, editar únicament
 | `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN`, `ADMINISTRATOR` o `SUPER_ADMIN`. |
 | `status` | Texto | `PENDING_ACTIVATION`, `ACTIVE` o `DISABLED`. El booleano `active` de la API existente se deriva de este estado. |
 
-La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; V6 añade recuperación y versiones de autenticación; V7 introduce estados y superadministrador; V8 añade perfiles de personal, títulos y diplomas; V9 persiste invitaciones y tareas de correo; V10 crea disponibilidad/auditoría y V11 añade restricciones a las transiciones del historial. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
+La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; V6 añade recuperación y versiones de autenticación; V7 introduce estados y superadministrador; V8 añade perfiles de personal, títulos y diplomas; V9 persiste invitaciones y tareas de correo; V10–V11 crean disponibilidad/auditoría y sus restricciones; V12–V15 crean citas, ocupación, asignaciones, eventos, avisos, validaciones históricas y adquisición segura del trabajo de correo. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
 
 Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de los cuatro roles. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
 
@@ -201,7 +201,7 @@ Desde esta carpeta, iniciar el backend con:
 
 También se puede ejecutar `GrownupsvetBackendApplication` desde IntelliJ. En ambos casos, si no se activa otro perfil explícitamente, Spring utiliza `dev` y se conecta a `grownupsvet_dev`.
 
-Flyway aplica las migraciones pendientes al cargar el contexto de Spring y registra cada versión en `flyway_schema_history`. V1–V6 corresponden a acceso, perfiles, mascotas y recuperación; V7–V9 incorporan estados, personal e invitaciones; V10–V11 incorporan disponibilidad y auditoría. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
+Flyway aplica las migraciones pendientes al cargar el contexto de Spring y registra cada versión en `flyway_schema_history`. V1–V6 corresponden a acceso, perfiles, mascotas y recuperación; V7–V9 incorporan estados, personal e invitaciones; V10–V11 incorporan disponibilidad; V12–V15 incorporan citas, ocupación, historia, avisos y recuperación segura de sus intentos. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
 
 La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
 

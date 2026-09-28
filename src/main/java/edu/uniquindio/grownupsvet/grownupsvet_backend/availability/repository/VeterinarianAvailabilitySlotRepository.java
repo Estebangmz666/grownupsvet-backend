@@ -28,17 +28,19 @@ public interface VeterinarianAvailabilitySlotRepository extends JpaRepository<Ve
             @Param("status") AvailabilitySlotStatus status, Pageable pageable);
 
     @Query(value = "select new edu.uniquindio.grownupsvet.grownupsvet_backend.availability.dto.AvailableVeterinarianSlotResponseDTO(" +
-            "slot.id, slot.veterinarianId, profile.fullName, slot.startsAt, slot.endsAt, 'America/Bogota') " +
+            "slot.id, slot.veterinarianId, profile.fullName, slot.startsAt, slot.endsAt, slot.version, 'America/Bogota') " +
             "from VeterinarianAvailabilitySlot slot, VeterinarianProfile profile " +
             "where profile.userId = slot.veterinarianId and profile.user.role = edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole.VETERINARIAN " +
             "and profile.user.status = edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserStatus.ACTIVE " +
             "and slot.status = edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.AvailabilitySlotStatus.PUBLISHED " +
+            "and not exists (select appointment.id from Appointment appointment where appointment.currentSlotId = slot.id and appointment.status in (edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus.REQUESTED, edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus.CONFIRMED)) " +
             "and slot.startsAt >= :from and slot.startsAt < :to and slot.startsAt >= :minimumStart and slot.startsAt <= :maximumStart " +
             "and (:veterinarianId is null or slot.veterinarianId = :veterinarianId)",
             countQuery = "select count(slot) from VeterinarianAvailabilitySlot slot, VeterinarianProfile profile " +
             "where profile.userId = slot.veterinarianId and profile.user.role = edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole.VETERINARIAN " +
             "and profile.user.status = edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserStatus.ACTIVE " +
             "and slot.status = edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.AvailabilitySlotStatus.PUBLISHED " +
+            "and not exists (select appointment.id from Appointment appointment where appointment.currentSlotId = slot.id and appointment.status in (edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus.REQUESTED, edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus.CONFIRMED)) " +
             "and slot.startsAt >= :from and slot.startsAt < :to and slot.startsAt >= :minimumStart and slot.startsAt <= :maximumStart " +
             "and (:veterinarianId is null or slot.veterinarianId = :veterinarianId)")
     Page<AvailableVeterinarianSlotResponseDTO> findAvailable(@Param("from") Instant from, @Param("to") Instant to,

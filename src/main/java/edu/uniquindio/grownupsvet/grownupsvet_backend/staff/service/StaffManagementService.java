@@ -1,6 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.staff.service;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.dto.*;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.exception.StaffOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.invitation.service.StaffInvitationService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.model.*;
@@ -36,14 +37,17 @@ public class StaffManagementService {
     private final StaffInvitationService invitations;
     private final DiplomaPdfValidator diplomaValidator;
     private final Clock clock;
+    private final AppointmentService appointments;
 
     public StaffManagementService(UserRepository users, AdministratorProfileRepository administrators,
             VeterinarianProfileRepository veterinarians, VeterinarianQualificationRepository qualifications,
             VeterinarianDiplomaRepository diplomas, UserProfilePhotoRepository photos,
-            StaffInvitationService invitations, DiplomaPdfValidator diplomaValidator, Clock clock) {
+            StaffInvitationService invitations, DiplomaPdfValidator diplomaValidator, Clock clock,
+            AppointmentService appointments) {
         this.users = users; this.administrators = administrators; this.veterinarians = veterinarians;
         this.qualifications = qualifications; this.diplomas = diplomas; this.photos = photos;
         this.invitations = invitations; this.diplomaValidator = diplomaValidator; this.clock = clock;
+        this.appointments = appointments;
     }
 
     public AdministratorResponseDTO createAdministrator(UUID actorId, CreateAdministratorRequestDTO request) {
@@ -137,7 +141,11 @@ public class StaffManagementService {
     public VeterinarianResponseDTO updateVeterinarianStatus(UUID actorId, UUID id, UpdateStaffStatusRequestDTO request) {
         requireActor(actorId, UserRole.ADMINISTRATOR, true);
         User user = lockTarget(id, UserRole.VETERINARIAN);
+        boolean disabling = user.isActive() && request.status() == UserStatus.DISABLED;
+        boolean reactivating = !user.isActive() && request.status() == UserStatus.ACTIVE;
         updateStatus(user, request.status());
+        if (disabling) { appointments.markVeterinarianDisabled(id, actorId); }
+        if (reactivating) { appointments.markVeterinarianReactivated(id, actorId); }
         VeterinarianProfile profile = veterinarian(id);
         profile.touch(actorId, clock.instant());
         return veterinarianResponse(profile);

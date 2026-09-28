@@ -2,8 +2,8 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato generado desde código para acceso, perfil, sesiones, mascotas, recuperación, personal con invitaciones y disponibilidad veterinaria. El correo requiere configuración SMTP. La URL de activación del portal contiene un placeholder configurable. Reservas, consulta automática de COMVEZCOL y plantillas Thymeleaf quedan fuera de este incremento.",
-    "version" : "0.6.0"
+    "description" : "Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial y reasignación de citas veterinarias. Los correos de reasignación requieren configuración SMTP. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento.",
+    "version" : "0.7.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
@@ -3367,6 +3367,410 @@
         }
       }
     },
+    "/api/v1/appointments" : {
+      "get" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Consultar agenda de citas",
+        "description" : "La consulta se filtra por el rol antes de paginar: propias para propietarios, asignadas actualmente para veterinarios y todas para administradores. from/to son fechas locales inclusivas en America/Bogota, con rango máximo de 31 días. Orden estable por inicio e identificador. No incluye correos.",
+        "operationId" : "listAppointments",
+        "parameters" : [ {
+          "name" : "from",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Página de citas autorizadas; items puede estar vacío",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Solicitar una cita",
+        "description" : "La solicitud reserva el turno inmediatamente. El propietario se deriva del JWT. Solo admite fechas posteriores al día actual en America/Bogota y hasta 60 días. clientRequestId identifica una intención persistente: misma clave y contenido devuelve la cita actual; contenido distinto devuelve 409.",
+        "operationId" : "requestAppointment",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAppointmentRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Solicitud creada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Reintento idempotente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Mascota propia o turno inexistente",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Turno ocupado, vencido o clave idempotente incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/appointments/{appointmentId}/veterinarian-reassignments" : {
+      "post" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Resolver la falta de veterinario de una cita",
+        "description" : "Solo administradores: cita vigente con NEEDS_REASSIGNMENT a un turno libre de otro veterinario activo. Conserva identidad y estado funcional. Cambiar fecha u hora requiere constancia de acuerdo previo con el propietario. Una confirmada puede resolverse a un turno futuro del mismo día; una pendiente no puede eludir su corte. Operación idempotente mediante clientRequestId.",
+        "operationId" : "reassignAppointmentVeterinarian",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReassignAppointmentRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Asignación completada o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita o turno inexistente",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado, vigencia o capacidad incompatibles",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/appointments/{appointmentId}/owner-email-accesses" : {
+      "post" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Consultar el correo del propietario con motivo",
+        "description" : "Solo el veterinario actualmente asignado a una cita CONFIRMED cuyo intervalo no terminó. Cada consulta exige motivo de contacto por WhatsApp fallido y se audita antes de responder. No concede acceso permanente.",
+        "operationId" : "revealAppointmentOwnerEmail",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RevealOwnerEmailRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Correo revelado y acceso auditado; respuesta privada sin caché",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwnerEmailResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita inexistente, no asignada al veterinario, no confirmada o terminada",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/administrators" : {
       "get" : {
         "tags" : [ "Administración de administradores" ],
@@ -4340,6 +4744,108 @@
         } ]
       }
     },
+    "/api/v1/appointments/{appointmentId}/status" : {
+      "patch" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Confirmar o rechazar una solicitud",
+        "description" : "Solo administradores: REQUESTED a CONFIRMED o REJECTED con expectedVersion. Rechazar requiere motivo. Confirmar exige propietario, mascota, veterinario y turno elegibles y plazo de confirmación vigente. No admite cancelación manual ni estados clínicos.",
+        "operationId" : "updateAppointmentStatus",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateAppointmentStatusRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Transición aplicada o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita inexistente",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado, plazo o requisitos de confirmación incompatibles",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/administrators/{id}/status" : {
       "patch" : {
         "tags" : [ "Administración de administradores" ],
@@ -5073,7 +5579,7 @@
       "get" : {
         "tags" : [ "Disponibilidad veterinaria" ],
         "summary" : "Consultar turnos solicitables",
-        "description" : "Solo muestra turnos publicados de veterinarios activos desde 2 horas hasta 60 días después de la consulta. from/to son fechas locales inclusivas y admiten hasta 31 días.",
+        "description" : "Solo muestra turnos publicados, libres y de veterinarios activos desde la fecha local siguiente hasta 60 días. from/to son fechas locales inclusivas y admiten hasta 31 días. Cada opción incluye su versión para confirmar la selección al solicitar.",
         "operationId" : "listAvailableVeterinarianSlots",
         "parameters" : [ {
           "name" : "from",
@@ -5168,6 +5674,190 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/AvailableVeterinarianSlotPageResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/appointments/{appointmentId}" : {
+      "get" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Consultar una cita",
+        "operationId" : "getAppointment",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Cita autorizada sin correo del propietario",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita inexistente o ajena",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/appointments/{appointmentId}/events" : {
+      "get" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Consultar el historial de una cita",
+        "description" : "Historial paginado de una cita autorizada. Los eventos de acceso al correo y sus motivos solo están disponibles para administradores.",
+        "operationId" : "listAppointmentEvents",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Página de eventos autorizados",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentEventPageResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita inexistente o ajena",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
                 }
               }
             }
@@ -6066,6 +6756,183 @@
         },
         "required" : [ "confirmPassword", "password", "token" ]
       },
+      "CreateAppointmentRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "petId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "availabilitySlotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedAvailabilitySlotVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "availabilitySlotId", "clientRequestId", "expectedAvailabilitySlotVersion", "petId", "reason" ]
+      },
+      "AppointmentResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ownerId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ownerFullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "ownerPhoneNumber" : {
+            "type" : "string",
+            "maxLength" : 16
+          },
+          "petId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "petName" : {
+            "type" : "string",
+            "maxLength" : 100
+          },
+          "veterinarianId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianFullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+          },
+          "assignmentStatus" : {
+            "type" : "string",
+            "enum" : [ "ASSIGNED", "NEEDS_REASSIGNMENT" ]
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "timeZone" : {
+            "type" : "string",
+            "enum" : [ "America/Bogota" ]
+          }
+        },
+        "required" : [ "assignmentStatus", "createdAt", "endsAt", "id", "ownerFullName", "ownerId", "ownerPhoneNumber", "petId", "petName", "reason", "startsAt", "status", "timeZone", "updatedAt", "version", "veterinarianFullName", "veterinarianId" ]
+      },
+      "ReassignAppointmentRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "availabilitySlotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedAvailabilitySlotVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          },
+          "agreementChannel" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "PHONE", "WHATSAPP", "OTHER" ],
+            "pattern" : "PHONE|WHATSAPP|OTHER"
+          },
+          "agreementContactedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "agreementNote" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "availabilitySlotId", "clientRequestId", "expectedAvailabilitySlotVersion", "expectedVersion", "reason" ]
+      },
+      "RevealOwnerEmailRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "OwnerEmailResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "appointmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "maxLength" : 254
+          }
+        },
+        "required" : [ "appointmentId", "email" ]
+      },
       "CreateAdministratorRequestDTO" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -6229,6 +7096,27 @@
             "description" : "No admite null. false archiva sin borrar la mascota ni su historial; true la reactiva. Una mascota archivada no debe admitir nuevas reservas."
           }
         }
+      },
+      "UpdateAppointmentStatusRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "expectedVersion", "status" ]
       },
       "VeterinarianPageResponseDTO" : {
         "type" : "object",
@@ -6571,12 +7459,149 @@
             "type" : "string",
             "format" : "date-time"
           },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
           "timeZone" : {
             "type" : "string",
             "enum" : [ "America/Bogota" ]
           }
         },
-        "required" : [ "endsAt", "id", "startsAt", "timeZone", "veterinarianFullName", "veterinarianId" ]
+        "required" : [ "endsAt", "id", "startsAt", "timeZone", "version", "veterinarianFullName", "veterinarianId" ]
+      },
+      "AppointmentPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AppointmentResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "AppointmentEventPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AppointmentEventResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "AppointmentEventResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "appointmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "appointmentVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "eventType" : {
+            "type" : "string",
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "DAILY_CUTOFF", "VETERINARIAN_DISABLED", "VETERINARIAN_RESTORED", "REASSIGNED", "EMAIL_ACCESSED" ]
+          },
+          "previousStatus" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", null ]
+          },
+          "newStatus" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", null ]
+          },
+          "previousAssignmentStatus" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ASSIGNED", "NEEDS_REASSIGNMENT", null ]
+          },
+          "newAssignmentStatus" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "ASSIGNED", "NEEDS_REASSIGNMENT", null ]
+          },
+          "previousSlotId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "newSlotId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "actorId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "actorType" : {
+            "type" : "string",
+            "enum" : [ "HUMAN", "SYSTEM" ]
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 1000
+          }
+        },
+        "required" : [ "actorId", "actorType", "appointmentId", "appointmentVersion", "eventType", "id", "newAssignmentStatus", "newSlotId", "newStatus", "occurredAt", "previousAssignmentStatus", "previousSlotId", "previousStatus", "reason" ]
       },
       "AdministratorPageResponseDTO" : {
         "type" : "object",

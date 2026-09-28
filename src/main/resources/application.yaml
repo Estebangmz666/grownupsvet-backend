@@ -32,9 +32,14 @@ logging:
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: "OFF"
 
 grownupsvet:
-  availability:
-    minimum-owner-lead-time: PT2H
-    maximum-owner-horizon: P60D
+  appointments:
+    workday-start-time: ${APPOINTMENT_WORKDAY_START_TIME:}
+    minimum-owner-advance-days: 1
+    maximum-owner-horizon-days: 60
+    cutoff-poll-delay-millis: 30000
+    email-poll-delay-millis: 15000
+    maximum-email-attempts: 5
+    sender-address: ${MAIL_FROM:}
   staff:
     bootstrap:
       enabled: ${SUPER_ADMIN_BOOTSTRAP_ENABLED:false}

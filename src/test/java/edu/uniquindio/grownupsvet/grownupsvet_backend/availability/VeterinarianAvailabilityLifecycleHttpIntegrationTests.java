@@ -236,14 +236,17 @@ class VeterinarianAvailabilityLifecycleHttpIntegrationTests {
     }
 
     @Test
-    void ownerLeadTimeIncludesExactlyTwoHoursAndExcludesOneSecondBelowIt() throws Exception {
-        Instant start = INITIAL_TIME.plus(Duration.ofHours(2));
-        String slotId = createSlot(start).path("id").asText();
-        assertOwnerVisibility(start, slotId, true);
-        clock.set(INITIAL_TIME.minusSeconds(1));
-        assertOwnerVisibility(start, slotId, true);
-        clock.set(INITIAL_TIME.plusSeconds(1));
-        assertOwnerVisibility(start, slotId, false);
+    void ownersCannotRequestTodayAndCanRequestTomorrowWithLessThanTwentyFourHoursNotice() throws Exception {
+        Instant todayStart = INITIAL_TIME.plus(Duration.ofHours(3));
+        String todaySlotId = createSlot(todayStart).path("id").asText();
+        assertOwnerVisibility(todayStart, todaySlotId, false);
+
+        Instant tomorrowStart = LocalDate.now(clock.withZone(BUSINESS_ZONE)).plusDays(1).atTime(8, 0)
+                .atZone(BUSINESS_ZONE).toInstant();
+        String tomorrowSlotId = createSlot(tomorrowStart).path("id").asText();
+        clock.set(INITIAL_TIME.plus(Duration.ofHours(10)));
+        assertThat(Duration.between(clock.instant(), tomorrowStart)).isLessThan(Duration.ofHours(24));
+        assertOwnerVisibility(tomorrowStart, tomorrowSlotId, true);
     }
 
     @Test

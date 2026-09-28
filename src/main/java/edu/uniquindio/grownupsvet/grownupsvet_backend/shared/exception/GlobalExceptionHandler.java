@@ -12,6 +12,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.OwnerProfil
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.ProfilePhotoNotFoundException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.exception.StaffOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.exception.AvailabilityOperationException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.exception.AppointmentOperationException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +77,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleAvailabilityOperation(AvailabilityOperationException exception) {
         return problemResponse(apiErrorResponseFactory.create(exception.getStatus(), exception.getErrorCode(),
                 exception.getMessage()), privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(AppointmentOperationException.class)
+    public ResponseEntity<Object> handleAppointmentOperation(AppointmentOperationException exception) {
+        return problemResponse(apiErrorResponseFactory.create(exception.getStatus(), exception.getErrorCode(),
+                exception.getDetail()), privateNoStoreHeaders());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)

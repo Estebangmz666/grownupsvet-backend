@@ -1,4 +1,4 @@
-# Personal, invitaciones y disponibilidad — contrato 0.6.0
+# Personal, invitaciones y disponibilidad — contrato 0.7.0
 
 Alcance: cuentas de administradores y veterinarios, invitación para establecer contraseña, perfil profesional y títulos con diploma opcional, más disponibilidad veterinaria de turnos concretos de 30 minutos. El contrato se genera desde controladores y DTOs. Solicitudes/reservas/citas, integración COMVEZCOL y plantillas Thymeleaf quedan aplazadas.
 
@@ -74,7 +74,7 @@ El directorio requiere una sesión `OWNER`, solo devuelve veterinarios activos y
 
 ## Disponibilidad veterinaria
 
-Los turnos publicados duran 30 minutos, comienzan en `:00` o `:30` de `America/Bogota` y se guardan para fechas concretas. Los administradores crean, editan, bloquean, republican y consultan el historial; el veterinario solo lee su agenda. El propietario solo ve turnos publicados de cuentas activas, desde 2 horas hasta 60 días después de la consulta. Bloquear conserva la identidad y el historial del turno. Los detalles completos de generación, ventana, concurrencia y privacidad están en [Disponibilidad veterinaria](disponibilidad-veterinaria.md).
+Los turnos publicados duran 30 minutos, comienzan en `:00` o `:30` de `America/Bogota` y se guardan para fechas concretas. Los administradores crean, editan, bloquean, republican y consultan el historial; el veterinario solo lee su agenda. El propietario solo ve turnos publicados, libres y de cuentas activas, desde mañana hasta el horizonte máximo de 60 días. Bloquear conserva la identidad y el historial del turno. Los detalles completos de generación, ventana, ocupación y privacidad están en [Disponibilidad veterinaria](disponibilidad-veterinaria.md).
 
 ## Rutas del contrato
 
@@ -105,9 +105,9 @@ El documento OpenAPI generado detalla campos, errores y tipos exactos. Las altas
 
 ## Persistencia y verificación
 
-Se añaden V7 (estados y superadministrador), V8 (perfiles, títulos y diplomas), V9 (invitaciones y tareas de correo), V10 (turnos de disponibilidad y auditoría) y V11 (restricciones de transiciones e intervalos del historial). El incremento de disponibilidad conserva V1–V9 intactas. V7 convierte las cuentas existentes conservando sus datos y revoca sesiones históricas de las que ya estaban desactivadas. Los perfiles profesionales no se inventan para cuentas antiguas creadas manualmente.
+Se añaden V7 (estados y superadministrador), V8 (perfiles, títulos y diplomas), V9 (invitaciones y tareas de correo), V10–V11 (disponibilidad y auditoría) y V12–V14 (citas, ocupación, asignaciones, eventos y validaciones históricas). V7 convierte las cuentas existentes conservando sus datos y revoca sesiones históricas de las que ya estaban desactivadas. Los perfiles profesionales no se inventan para cuentas antiguas creadas manualmente.
 
-Ejecutar `mvnw.cmd verify` contra `grownupsvet_test` y después `scripts/validate_generated_openapi.py` según la [guía OpenAPI](openapi/README.md). Las pruebas usan identidades ficticias y correo controlado; no constituyen revisión compartida, pruebas de pantallas ni entrega a destinatarios reales. La disponibilidad no implementa reservas reales: su ocupación debe verificarse al integrar el módulo de citas.
+Ejecutar `mvnw.cmd verify` contra `grownupsvet_test` y después `scripts/validate_generated_openapi.py` según la [guía OpenAPI](openapi/README.md). Las pruebas usan identidades ficticias y correo controlado; no constituyen revisión compartida, pruebas de pantallas ni entrega a destinatarios reales. La disponibilidad excluye las citas pendientes y confirmadas y protege su ocupación en PostgreSQL.
 
 El 13 de septiembre de 2026 se completaron 334 pruebas, sin fallos, errores ni omisiones. La verificación incluye conversión V6→V7 con cuentas históricas, bootstrap concurrente, permisos vigentes, recuperación/login/JWT de cuentas pendientes, invitaciones con PostgreSQL, expiración exacta, consumo concurrente, cancelación, cuotas, reintentos de correo y privacidad del directorio. Los nueve casos del validador PDF incluyen un documento comprimido que expandiría 512 MiB, su rechazo en el proceso separado y la validación de otro documento correcto inmediatamente después.
 

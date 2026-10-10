@@ -10,6 +10,8 @@ El [informe de verificación 0.9.0](docs/verificacion-procesos-1-2-preparacion-g
 
 La [guía de comprobación en Mailtrap](docs/verificacion-mailtrap.md) permite verificar recuperación, avisos de cambios y recordatorio desde el backend local. El despliegue cloud quedó aplazado por Esteban el 10/10/2026.
 
+El [guion de demostración de los dos procesos](docs/guion-demostracion-procesos-1-2.md) propone un recorrido breve desde Swagger con datos ficticios, roles, propiedad, versiones e historial. Sus resultados esperados deben registrarse al ejecutar la demostración; el guion no acredita capturas de Mailtrap, interfaces o despliegue.
+
 ## Modelo inicial
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
@@ -159,6 +161,8 @@ La fábrica añade un `instance` aleatorio con formato `urn:uuid:...` para ident
 
 ## Ejecución local y perfiles
 
+El [diagnóstico de configuración local](docs/ejecucion-local.md) permite comprobar la preparación del proceso actual sin arrancar la aplicación ni cambiar sus variables. Señala faltantes, versión Java, puerto y conexión TCP; no sustituye una conexión autenticada a PostgreSQL ni una captura en Mailtrap.
+
 Instalar un JDK 25 y configurar `JAVA_HOME` con la carpeta raíz de esa instalación. `java -version`, `javac -version` y `.\mvnw.cmd -version` permiten comprobar las versiones utilizadas. En IntelliJ, seleccionar ese JDK como SDK del proyecto, hacer que el módulo lo herede y comprobar el JDK del ejecutor de Maven y de la configuración Run.
 
 El desarrollo utiliza PostgreSQL instalado localmente. Antes de ejecutar el backend o las pruebas, iniciar PostgreSQL y crear desde DBeaver las bases `grownupsvet_dev` y `grownupsvet_test`, inicialmente sin tablas del proyecto. Ambas pueden estar en el mismo servidor, en `localhost:5432`.
@@ -212,6 +216,8 @@ Flyway aplica las migraciones pendientes al cargar el contexto de Spring y regis
 La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
 
 ## Verificación
+
+El [anexo de casos académicos de los dos procesos](docs/evidencia-casos-academicos-procesos-1-2-2026-10-10.md) relaciona CP-001–CP-012 con métodos y resultados ejecutados. Conserva los límites de cada escenario y mantiene los casos clínicos previstos fuera del alcance.
 
 Para las pruebas de DTO, tipos JSON y protección del hash, sin base de datos:
 

@@ -40,6 +40,7 @@ public class AppointmentService {
     private final Clock clock;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final AppointmentNotificationService notifications;
     private final ZoneId zone;
 
     private static final RowMapper<AppointmentResponseDTO> APPOINTMENT_ROW = (rs, row) -> new AppointmentResponseDTO(
@@ -59,9 +60,10 @@ public class AppointmentService {
     public record AppointmentCreationResult(AppointmentResponseDTO appointment, boolean created) { }
 
     public AppointmentService(NamedParameterJdbcTemplate jdbc, AppointmentProperties properties, Clock clock,
-            ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher) {
+            ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher, AppointmentNotificationService notifications) {
         this.jdbc = jdbc; this.properties = properties; this.clock = clock; this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.notifications = notifications;
         this.zone = properties.getBusinessZone();
     }
 
@@ -155,6 +157,10 @@ public class AppointmentService {
                 rs.getObject("previous_slot_id",UUID.class),rs.getObject("new_slot_id",UUID.class),rs.getObject("actor_id",UUID.class),rs.getString("actor_type"),
                 rs.getTimestamp("occurred_at").toInstant(),rs.getString("reason")));
         return new AppointmentEventPageResponseDTO(items,page,size,total,(int)Math.ceil((double)total/size));
+    }
+
+    public AppointmentNotificationPageResponseDTO notifications(UUID actorId, UUID appointmentId, int page, int size) {
+        return notifications.list(actorId, appointmentId, page, size);
     }
 
     @Transactional
@@ -384,7 +390,6 @@ public class AppointmentService {
         jdbc.update("insert into appointment_operation_idempotency(id,appointment_id,operation_type,client_request_id,request_fingerprint,resulting_version,created_at) values(:id,:appointment,'REASSIGNMENT',:requestId,:fingerprint,:version,:now)",
                 Map.of("id",UUID.randomUUID(),"appointment",appointmentId,"requestId",request.clientRequestId(),
                         "fingerprint",operationFingerprint,"version",appointment.version()+1,"now",dbTime(now)));
-        enqueueOwnerNotice(appointmentId, destination, now);
         return get(actorId,appointmentId);
     }
 
@@ -464,26 +469,11 @@ public class AppointmentService {
         }
     }
 
-    private void enqueueOwnerNotice(UUID appointmentId, Slot destination, Instant now) {
-        Map<String,Object> data = jdbc.queryForMap("select p.name pet_name,vp.full_name veterinarian_name,a.starts_at,a.version appointment_version from appointments a join pets p on p.id=a.pet_id join veterinarian_profiles vp on vp.user_id=:vet where a.id=:id",
-                Map.of("id",appointmentId,"vet",destination.veterinarianId()));
-        String payload = json(Map.of("petName",data.get("pet_name"),"veterinarianName",data.get("veterinarian_name"),
-                "startsAt",destination.startsAt().toString(),"timeZone","America/Bogota",
-                "availabilitySlotId",destination.id().toString(),"assignmentVersion",data.get("appointment_version")));
-        UUID eventKey = UUID.randomUUID();
-        Map<String,Object> owner = jdbc.queryForMap("select a.owner_id,u.email from appointments a join users u on u.id=a.owner_id where a.id=:id",Map.of("id",appointmentId));
-        jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,next_attempt_at,created_at) " +
-                "values(:id,:appointment,:event,:recipient,:email,'OWNER_REASSIGNED',cast(:payload as jsonb),'PENDING',0,:now,:now)",
-                Map.of("id",UUID.randomUUID(),"appointment",appointmentId,"event",eventKey,"recipient",owner.get("owner_id"),
-                        "email",owner.get("email"),"payload",payload,"now",dbTime(now)));
-        eventPublisher.publishEvent(new AppointmentNotificationsQueuedEvent(appointmentId));
-    }
-
     private void enqueueAdministratorNotice(UUID eventKey, AppointmentRow example, UUID veterinarianId, String veterinarianName, Instant now, int count) {
         List<Map<String,Object>> recipients = jdbc.queryForList("select u.id,u.email from users u join administrator_profiles ap on ap.user_id=u.id where u.role='ADMINISTRATOR' and u.status='ACTIVE' order by u.id",Map.of());
         if (recipients.isEmpty()) {
-            jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,next_attempt_at,last_error_code,created_at) " +
-                    "values(:id,:appointment,:event,null,null,'ADMIN_REASSIGNMENT',cast(:payload as jsonb),'FAILED',0,:now,'NO_ACTIVE_ADMINISTRATORS',:now)",
+            jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,scheduled_at,next_attempt_at,last_error_code,created_at) " +
+                    "values(:id,:appointment,:event,null,null,'ADMIN_REASSIGNMENT',cast(:payload as jsonb),'FAILED',0,:now,:now,'NO_ACTIVE_ADMINISTRATORS',:now)",
                     Map.of("id",UUID.randomUUID(),"appointment",example.id(),"event",eventKey,
                             "payload",json(Map.of("veterinarianId",veterinarianId,"veterinarianName",veterinarianName,"appointmentCount",count)),"now",dbTime(now)));
             eventPublisher.publishEvent(new AppointmentNotificationsQueuedEvent(example.id()));
@@ -491,8 +481,8 @@ public class AppointmentService {
         }
         String payload = json(Map.of("veterinarianId",veterinarianId,"veterinarianName",veterinarianName,"appointmentCount",count));
         for (Map<String,Object> recipient : recipients) {
-            jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,next_attempt_at,created_at) " +
-                            "values(:id,:appointment,:event,:recipient,:email,'ADMIN_REASSIGNMENT',cast(:payload as jsonb),'PENDING',0,:now,:now)",
+            jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,scheduled_at,next_attempt_at,created_at) " +
+                            "values(:id,:appointment,:event,:recipient,:email,'ADMIN_REASSIGNMENT',cast(:payload as jsonb),'PENDING',0,:now,:now,:now)",
                     Map.of("id",UUID.randomUUID(),"appointment",example.id(),"event",eventKey,"recipient",recipient.get("id"),
                             "email",recipient.get("email"),"payload",payload,"now",dbTime(now)));
         }
@@ -528,6 +518,7 @@ public class AppointmentService {
                         .addValue("previousSlot",previousSlot).addValue("newSlot",newSlot).addValue("actor",actor).addValue("actorType",actorType)
                         .addValue("now",dbTime(now)).addValue("reason",reason).addValue("channel",agreementChannel)
                         .addValue("contacted",agreementAt == null ? null : dbTime(agreementAt)).addValue("note",agreementNote));
+        notifications.recordEvent(appointmentId, version, type, now);
     }
 
     private Account account(UUID id) {
@@ -536,7 +527,9 @@ public class AppointmentService {
                 .stream().findFirst().orElseThrow(AppointmentService::accessDenied);
     }
     private Account lockAccount(UUID id) {
-        return jdbc.query("select id,role,status from users where id=:id for update",Map.of("id",id),
+        // User identities never change. NO KEY UPDATE protects role/status while permitting
+        // FK KEY SHARE from cutoff notices, whose appointment lock precedes the recipient FK.
+        return jdbc.query("select id,role,status from users where id=:id for no key update",Map.of("id",id),
                 (rs,row)->new Account(rs.getObject("id",UUID.class),UserRole.valueOf(rs.getString("role")),"ACTIVE".equals(rs.getString("status"))))
                 .stream().findFirst().orElseThrow(AppointmentService::accessDenied);
     }

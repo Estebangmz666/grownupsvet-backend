@@ -1,8 +1,8 @@
-# OpenAPI generado — incremento 0.8.0
+# OpenAPI generado — incremento 0.9.0
 
-`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento 0.8.0 añade cancelación manual, reprogramación general e inasistencia administrativas sobre las solicitudes, agenda, reasignación excepcional e historial del 0.7.0. Conserva Bearer JWT y los permisos opacos de uso restringido para restablecer o establecer contraseñas. Frontend, urgencias, atención clínica, avisos generales/recordatorios P12 e integración COMVEZCOL quedan fuera de este incremento.
+`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento **0.9.0** añade avisos generales, recordatorios P12 y su consulta privada sobre las citas 0.7.0 y los cambios administrativos P07 de 0.8.0; incluye recuperación con correo durable y preparación de configuración/empaquetado de nube. Conserva Bearer JWT y los permisos opacos de uso restringido para restablecer o establecer contraseñas. Frontend, urgencias, atención clínica e integración COMVEZCOL quedan fuera. Preparar el backend para Google Cloud no acredita despliegue ni aceptación de los dos procesos integrados.
 
-La [guía de personal e invitaciones](../personal-e-invitaciones.md) concreta permisos, estados, URL placeholder, credenciales externas, archivos y cuotas. La [guía de disponibilidad veterinaria](../disponibilidad-veterinaria.md) documenta turnos, permisos y ocupación real por citas. La [guía de citas y agenda](../citas-y-agenda.md) define estados, permisos, corte, reasignación y contacto. La [guía de mascotas y recuperación](../mascotas-y-recuperacion.md) conserva el alcance anterior. Recuperación e invitaciones están deshabilitadas por defecto hasta configurar sus canales y secretos. El Sandbox de Mailtrap se configuró en desarrollo y Esteban confirmó los casos manuales de recuperación; esa evidencia no sustituye la revisión del contrato con los dos frontends.
+La [guía de personal e invitaciones](../personal-e-invitaciones.md) concreta permisos, estados, URL de activación, credenciales externas, archivos y cuotas. La [guía de disponibilidad veterinaria](../disponibilidad-veterinaria.md) documenta turnos, permisos y ocupación real por citas. La [guía de citas y agenda](../citas-y-agenda.md) define estados, permisos, corte, cambios y P12; la [guía de mascotas y recuperación](../mascotas-y-recuperacion.md) describe el correo durable de recuperación. Recuperación e invitaciones están deshabilitadas por defecto hasta configurar sus canales y secretos. Esteban acordó Mailtrap Sandbox como evidencia remota suficiente para esta entrega; los ensayos anteriores de recuperación no demuestran los nuevos avisos P12 ni sustituyen la revisión del contrato con los dos frontends.
 
 Con el backend ejecutándose, consultar `/v3/api-docs` o `/swagger-ui/index.html`. El servidor de desarrollo del snapshot es `http://localhost:8080`; configurar la URL correspondiente al generar o utilizar un cliente para otro entorno.
 
@@ -10,7 +10,7 @@ Con el backend ejecutándose, consultar `/v3/api-docs` o `/swagger-ui/index.html
 
 Desde `grownupsvet-backend`, con Java 25, `JAVA_HOME`, PostgreSQL local, la base `grownupsvet_test` y las variables `DB_USERNAME` / `DB_PASSWORD` disponibles.
 
-El usuario de pruebas debe poder crear y eliminar sus propios esquemas en `grownupsvet_test`. Las pruebas de concurrencia y ciclo de vida de disponibilidad, transacciones de citas y entrega de avisos crean esquemas con un UUID exclusivo, aplican Flyway y los eliminan al terminar. Usan conexiones/transacciones independientes y conservan activas las restricciones del historial; no necesitan modificar `grownupsvet_dev`. Ejecutar:
+El usuario de pruebas debe poder crear y eliminar sus propios esquemas en `grownupsvet_test`. Las pruebas de concurrencia y ciclo de vida de disponibilidad, transacciones de citas, entrega de avisos y recuperación durable crean esquemas con un UUID exclusivo, aplican Flyway y los eliminan al terminar. Usan conexiones/transacciones independientes y conservan activas las restricciones del historial; no necesitan modificar `grownupsvet_dev`. Ejecutar:
 
 ```powershell
 .\mvnw.cmd verify
@@ -32,7 +32,25 @@ Después de que ambos comandos de verificación terminen correctamente, actualiz
 Copy-Item -LiteralPath target/generated-openapi/openapi.json -Destination docs/openapi/openapi.json
 ```
 
-## Incremento 0.8.0 — cambios administrativos P07
+## Incremento 0.9.0 — avisos P12 y consulta privada
+
+`GET /api/v1/appointments/{appointmentId}/notifications` añade la novena operación de citas. Propietario: solo avisos de su cita destinados a él; administrador: seguimiento autorizado, sin correos, destinatarios, payloads, leases o detalles SMTP privados. Veterinario y superadministrador reciben `403`; una cita ajena/inexistente recibe `404`. Conserva la paginación desde cero, máximo 100 elementos y orden estable por creación/identificador, con respuestas privadas y no almacenables.
+
+`AppointmentNotificationResponseDTO` documenta `id`, `appointmentId`, `notificationType`, `status`, `scheduledAt`, `nextAttemptAt`, `sentAt`, `attemptCount` y `errorCode`, presentes incluso cuando admiten null. `AppointmentNotificationPageResponseDTO` contiene `items`, `page`, `size`, `totalElements` y `totalPages`. `nextAttemptAt` tiene valor solamente para `PENDING`; no sustituye la fecha programada. Los estados son `PENDING`, `SENDING`, `SENT`, `FAILED` y `SUPERSEDED`. `SENT` acredita aceptación SMTP y no recepción/lectura en un buzón.
+
+Los avisos acordados informan confirmación, rechazo, cancelación humana o por corte y cambio de horario, conservando la reasignación excepcional. No se crea correo de inasistencia. Una cita `CONFIRMED` programa recordatorio 24 horas antes: en la frontera exacta sí se crea; confirmar con menos de 24 horas solo genera confirmación. Cambiar de programación invalida pendientes y recalcula el recordatorio sin crear uno retroactivo. Propietarios desactivados siguen recibiendo los cambios y recordatorios de sus citas confirmadas vigentes, sin obtener acceso a la API.
+
+V17 conserva V1–V16 y añade `scheduled_at` y tipos P12 a la cola existente. La intención usa el evento persistido, destinatario y tipo; replay y sondeos no generan otra intención. La entrega conserva recuperación, leases, intentos acotados y SMTP fuera de transacción. La revisión de programación no cambia por un acceso auditado al correo. Las tareas nuevas se crean desde eventos efectivos; no hay backfill automático de citas anteriores. V18 añade correo durable/cifrado de recuperación, conservando sus rutas y guardas anteriores.
+
+`FRONTEND_BASE_URL` es opcional para los avisos; vacío significa texto sin enlace, y no impide arrancar el backend. `CORS_ALLOWED_ORIGINS` permite los orígenes concretos de los portales, sin wildcard. El formulario de activación conserva su variable/ruta independiente. La preparación de `prod`, contenedor y nube no modifica por sí sola las URLs de clientes ni prueba integración.
+
+Los cuatro ejemplos HTTP nuevos son `appointment-notification-page.json`, `appointment-notification-admin-page.json`, `appointment-notification-empty-page.json` y `appointment-notification-forbidden-error.json`. El validador independiente comprueba required, tipos, enums, nulabilidad, privacidad y respuestas de la nueva operación además de las regresiones de contratos anteriores.
+
+El documento generado y validado registra **OpenAPI 3.1.0**, contrato **0.9.0**, **59 operaciones en 40 rutas** y **41 respuestas HTTP reales**. El snapshot se actualizó desde Java después de la última suite y validación, con SHA-256 idéntico a la salida generada. La suite definitiva contiene **508 pruebas**, sin fallos, errores ni omisiones. El [informe del incremento](../verificacion-procesos-1-2-preparacion-google-cloud-2026-10-09.md) registra la evidencia y los límites.
+
+Para revisar con ambos consumidores: distinguir fecha prevista de próximo intento; mostrar los estados de envío con su alcance real en Sandbox; manejar `401`/`403`/`404`; comprobar filtrado del propietario antes de paginar y administración sin campos privados. Registrar revisión de los tres e integración/aceptación separadamente. Estos resultados locales no acreditan Google Cloud desplegado, captura remota Mailtrap ni pantallas frontend.
+
+## Incremento histórico 0.8.0 — cambios administrativos P07
 
 `PATCH /api/v1/appointments/{appointmentId}/status` añade `CANCELLED` desde pendiente/confirmada antes del inicio y `NO_SHOW` desde confirmada al finalizar el turno, con motivo obligatorio y versión observada. `POST /api/v1/appointments/{appointmentId}/reschedulings` recibe ocho campos obligatorios de intención, destino, versiones, motivo y acuerdo previo. La reprogramación general solo ocurre antes del inicio original, hacia un turno publicado y libre con fecha local de mañana al día 60; conserva identidad, participantes y estado. Una solicitud vencida no puede eludir el corte reprogramándose.
 

@@ -15,6 +15,18 @@ function Read-SecretText([string] $Prompt) {
     }
 }
 
+function New-RandomRecoveryKey {
+    $secretBytes = [byte[]]::new(32)
+    $randomGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $randomGenerator.GetBytes($secretBytes)
+        return [Convert]::ToBase64String($secretBytes)
+    } finally {
+        $randomGenerator.Dispose()
+        [Array]::Clear($secretBytes, 0, $secretBytes.Length)
+    }
+}
+
 $mailtrapUsername = Read-Host 'Usuario SMTP de Integration en tu Sandbox de Mailtrap'
 $mailtrapPassword = Read-SecretText 'Contraseña SMTP del Sandbox (entrada oculta)'
 $mailSenderAddress = Read-Host 'Correo remitente de desarrollo, por ejemplo no-reply@grownupsvet.example'
@@ -32,15 +44,23 @@ try {
 
 $recoveryHmacSecret = [Environment]::GetEnvironmentVariable('PASSWORD_RECOVERY_HMAC_SECRET', 'User')
 if ([string]::IsNullOrWhiteSpace($recoveryHmacSecret)) {
-    $recoverySecretBytes = [byte[]]::new(32)
-    $randomGenerator = [Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $randomGenerator.GetBytes($recoverySecretBytes)
-        $recoveryHmacSecret = [Convert]::ToBase64String($recoverySecretBytes)
-    } finally {
-        $randomGenerator.Dispose()
-        [Array]::Clear($recoverySecretBytes, 0, $recoverySecretBytes.Length)
-    }
+    $recoveryHmacSecret = New-RandomRecoveryKey
+}
+$recoveryEmailEncryptionKey = [Environment]::GetEnvironmentVariable('PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY', 'User')
+if ([string]::IsNullOrWhiteSpace($recoveryEmailEncryptionKey)) {
+    $recoveryEmailEncryptionKey = New-RandomRecoveryKey
+}
+try {
+    $emailKeyBytes = [Convert]::FromBase64String($recoveryEmailEncryptionKey)
+    if ($emailKeyBytes.Length -ne 32) { throw 'Invalid key length' }
+    $recoveryEmailEncryptionKey = [Convert]::ToBase64String($emailKeyBytes)
+} catch {
+    throw 'La clave existente de correo de recuperación debe ser Base64 de 32 bytes; no se reemplazó.'
+} finally {
+    if ($null -ne $emailKeyBytes) { [Array]::Clear($emailKeyBytes, 0, $emailKeyBytes.Length) }
+}
+if ($recoveryEmailEncryptionKey -eq $recoveryHmacSecret) {
+    throw 'La clave de cifrado del correo debe ser distinta del secreto HMAC; no se reemplazó ninguna clave existente.'
 }
 
 $mailtrapSettings = @{
@@ -50,6 +70,7 @@ $mailtrapSettings = @{
     MAIL_PASSWORD = $mailtrapPassword
     MAIL_FROM = $mailSenderAddress
     PASSWORD_RECOVERY_HMAC_SECRET = $recoveryHmacSecret
+    PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY = $recoveryEmailEncryptionKey
     PASSWORD_RECOVERY_ENABLED = 'true'
 }
 foreach ($settingName in $mailtrapSettings.Keys) {
@@ -57,7 +78,7 @@ foreach ($settingName in $mailtrapSettings.Keys) {
     [Environment]::SetEnvironmentVariable($settingName, $mailtrapSettings[$settingName], 'Process')
 }
 $mailtrapSettings.Clear()
-Remove-Variable mailtrapPassword, recoveryHmacSecret
+Remove-Variable mailtrapPassword, recoveryHmacSecret, recoveryEmailEncryptionKey
 Write-Host 'Configuración guardada en las variables del usuario de Windows y de esta terminal.'
 Write-Host 'Reinicia IntelliJ o abre una terminal nueva antes de iniciar el backend desde allí.'
 Write-Host 'Este script no envía correos. Comprueba el flujo de recuperación y abre el mensaje en Mailtrap.'

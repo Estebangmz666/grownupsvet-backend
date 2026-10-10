@@ -15,8 +15,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -30,6 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -50,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestJwtKeyConfiguration.class)
+@Import({TestJwtKeyConfiguration.class, VeterinarianAvailabilityHttpIntegrationTests.AvailabilityClockConfiguration.class})
 @Transactional
 class VeterinarianAvailabilityHttpIntegrationTests {
     private static final String BASE = "/api/v1/veterinarians";
@@ -69,6 +73,15 @@ class VeterinarianAvailabilityHttpIntegrationTests {
     private final Map<UserRole, String> tokens = new EnumMap<>(UserRole.class);
     private User veterinarian;
     private LocalDate appointmentDate;
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class AvailabilityClockConfiguration {
+        @Bean
+        @Primary
+        Clock availabilityTestClock() {
+            return Clock.fixed(Instant.parse("2026-10-09T15:00:00Z"), ZoneId.of("America/Bogota"));
+        }
+    }
 
     @BeforeEach
     void createFictionalActorsAndVeterinarianProfile() {
@@ -340,7 +353,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
                 .isEqualTo(1);
         assertThat(schemas.path("CreateVeterinarianAvailabilitySlotBatchRequestDTO").path("properties")
                 .path("daysOfWeek").path("minItems").asInt()).isEqualTo(1);
-        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.8.0");
+        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.9.0");
         Path output = Path.of("target", "generated-openapi");
         Files.createDirectories(output);
         Files.writeString(output.resolve("openapi.json"), mapper.writerWithDefaultPrettyPrinter().writeValueAsString(specification));

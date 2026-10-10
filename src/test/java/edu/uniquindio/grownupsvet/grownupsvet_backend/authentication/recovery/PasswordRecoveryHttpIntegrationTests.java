@@ -68,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "grownupsvet.security.password-recovery.enabled=true",
         "grownupsvet.security.password-recovery.hmac-secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        "grownupsvet.security.password-recovery.email-encryption-key=YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=",
         "grownupsvet.security.password-recovery.sender-address=no-reply@example.test"
 })
 @AutoConfigureMockMvc
@@ -105,10 +106,7 @@ class PasswordRecoveryHttpIntegrationTests {
     @AfterEach
     void cleanUp() throws Exception {
         // Ensure asynchronous tasks finish before Spring resets the mock or the account is removed.
-        CountDownLatch drained = new CountDownLatch(2);
-        dispatcher.submit(drained::countDown);
-        dispatcher.submit(drained::countDown);
-        assertThat(drained.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(dispatcher.awaitIdle(Duration.ofSeconds(5))).isTrue();
         revokedTokens.deleteForUser(user.getId());
         users.deleteById(user.getId());
         users.flush();
@@ -181,10 +179,7 @@ class PasswordRecoveryHttpIntegrationTests {
         String unknown = mvc.perform(json(PASSWORD_RECOVERIES_PATH,
                         Map.of("email", "unknown+" + UUID.randomUUID() + "@example.com")))
                 .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
-        CountDownLatch drained = new CountDownLatch(2);
-        dispatcher.submit(drained::countDown);
-        dispatcher.submit(drained::countDown);
-        assertThat(drained.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(dispatcher.awaitIdle(Duration.ofSeconds(5))).isTrue();
 
         assertThat(pending).isEqualTo(unknown);
         assertThat(challengeCount()).isZero();
@@ -345,15 +340,16 @@ class PasswordRecoveryHttpIntegrationTests {
     }
 
     @Test
-    void smtpFailureKeepsGenericResponseAndRemovesUndeliverableChallenge() throws Exception {
+    void firstSmtpFailureKeepsGenericResponseAndPreservesChallengeForDurableRetry() throws Exception {
         doThrow(new MailSendException("Private SMTP diagnostics must never reach API"))
                 .when(sender).sendRecoveryCode(anyString(), any(), anyString());
         String response = mvc.perform(json(PASSWORD_RECOVERIES_PATH, Map.of("email", user.getEmail())))
                 .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsString();
         verify(sender, timeout(5000)).sendRecoveryCode(eq(user.getEmail()), any(), anyString());
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (challengeCount() != 0 && System.nanoTime() < deadline) { Thread.onSpinWait(); }
-        assertThat(challengeCount()).isZero();
+        assertThat(dispatcher.awaitIdle(Duration.ofSeconds(5))).isTrue();
+        assertThat(challengeCount()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM password_recovery_email_tasks WHERE user_id=?", String.class,
+                user.getId())).isEqualTo("PENDING");
         assertThat(response).doesNotContain("SMTP", user.getEmail(), "diagnostics");
         login(PASSWORD, 200);
     }

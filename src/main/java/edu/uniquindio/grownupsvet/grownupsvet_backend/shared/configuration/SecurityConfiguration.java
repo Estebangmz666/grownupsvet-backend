@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Map;
 
@@ -35,8 +36,9 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http,
-                                                      ApiSecurityErrorHandler apiSecurityErrorHandler) throws Exception {
+            ApiSecurityErrorHandler apiSecurityErrorHandler, UrlBasedCorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // This increment does not authenticate with cookies, HTTP Basic or sessions.
                 .csrf(AbstractHttpConfigurer::disable)
@@ -51,6 +53,7 @@ public class SecurityConfiguration {
                         .accessDeniedHandler(apiSecurityErrorHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
+                        .requestMatchers(HttpMethod.GET, "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/account-activations",
                                 UserPasswordRecoveryController.PASSWORD_RECOVERIES_PATH,

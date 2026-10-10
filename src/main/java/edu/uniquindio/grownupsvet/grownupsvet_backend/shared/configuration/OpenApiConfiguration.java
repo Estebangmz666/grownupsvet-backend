@@ -3,11 +3,13 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 
 
 @Configuration(proxyBeanMethods = false)
@@ -15,9 +17,12 @@ import org.springframework.context.annotation.Configuration;
         description = "JWT RS256 supplied in the Authorization header. Tokens expire 24 hours after login.")
 public class OpenApiConfiguration {
     @Bean
-    public OpenAPI applicationOpenApi() {
-        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.8.0")
-                .description("Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial, reasignación y cambios administrativos de citas veterinarias: cancelación manual, reprogramación con acuerdo previo e inasistencia. Los correos existentes de reasignación requieren configuración SMTP; este incremento no añade avisos generales ni recordatorios P12. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento."));
+    public OpenAPI applicationOpenApi(@Value("${grownupsvet.api.base-url:}") String baseUrl) {
+        OpenAPI specification = new OpenAPI().info(new Info().title("GrownupsVet API").version("0.9.0")
+                .description("Contrato generado desde Java para usuarios, mascotas, acceso, recuperación durable, personal, disponibilidad y gestión administrativa de citas. Incluye avisos durables de confirmación, rechazo, cancelación y cambios de horario, y recordatorio de citas confirmadas 24 horas antes. SMTP se configura para Mailtrap Sandbox; SENT acredita aceptación SMTP, no recepción en buzón. La jornada usa APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Atención clínica, tratamientos y recordatorios de medicamentos quedan fuera de esta entrega."));
+        String normalized = FrontendConfigurationProperties.normalizeUrl(baseUrl, false);
+        if (!normalized.isEmpty()) { specification.addServersItem(new Server().url(normalized)); }
+        return specification;
     }
 
     @Bean

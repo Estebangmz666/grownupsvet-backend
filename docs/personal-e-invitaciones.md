@@ -1,6 +1,6 @@
-# Personal, invitaciones y disponibilidad — contrato 0.8.0
+# Personal, invitaciones y disponibilidad — contrato 0.9.0
 
-Alcance de esta guía: cuentas de administradores y veterinarios, invitación para establecer contraseña, perfil profesional y títulos con diploma opcional, más disponibilidad veterinaria de turnos concretos de 30 minutos. El contrato se genera desde controladores y DTOs. Las solicitudes, reservas y cambios administrativos de citas están implementados y documentados en [Citas y agenda](citas-y-agenda.md). Integración COMVEZCOL y plantillas Thymeleaf quedan aplazadas.
+Alcance de esta guía: cuentas de administradores y veterinarios, invitación para establecer contraseña, perfil profesional y títulos con diploma opcional, más disponibilidad veterinaria de turnos concretos de 30 minutos. El contrato se genera desde controladores y DTOs. Las solicitudes, reservas, cambios administrativos y avisos de citas están documentados en [Citas y agenda](citas-y-agenda.md); la recuperación ahora tiene correo durable y cifrado, descrito en [Mascotas y recuperación](mascotas-y-recuperacion.md). Integración COMVEZCOL y plantillas Thymeleaf quedan aplazadas.
 
 ## Identidad, permisos y estados
 
@@ -49,12 +49,14 @@ El envío tiene hasta cinco intentos por defecto y timeouts SMTP de cinco segund
 | Variable | Uso |
 |---|---|
 | `STAFF_INVITATIONS_ENABLED` | `false` por defecto. Sin habilitarlo, las altas y reenvíos que requieren invitación devuelven `503` sin dejar perfiles parciales. |
-| `STAFF_INVITATION_ENCRYPTION_KEY` | Clave aleatoria de 32 bytes codificada en Base64, distinta del secreto de recuperación y de la contraseña JWT. Debe mantenerse estable entre reinicios y compartirse entre instancias que procesan las mismas tareas. |
-| `STAFF_ACTIVATION_URL` | URL base del formulario frontend. Predeterminado: `https://portal.example.invalid/activate-account`. Incluye `TO-DO: replace with front portal production URL` en código y configuración. |
+| `STAFF_INVITATION_ENCRYPTION_KEY` | Clave propia de invitaciones: 32 bytes aleatorios codificados en Base64. No reutilizar el HMAC, la clave de correo de recuperación ni las credenciales JWT. Mantenerla estable entre reinicios y compartirla entre instancias que procesan las mismas tareas. |
+| `STAFF_ACTIVATION_URL` | URL completa del formulario de activación del portal de gestión, suministrada por entorno cuando el frontend la proporcione. Desarrollo conserva `https://portal.example.invalid/activate-account` como placeholder; `prod` no tiene ese valor predeterminado y exige una URL HTTPS real al habilitar invitaciones. |
 | `MAIL_FROM` | Dirección remitente. |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | Canal SMTP del perfil de desarrollo existente. Otros perfiles deben configurar las propiedades `spring.mail` correspondientes. |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | SMTP de Mailtrap Sandbox, configurado explícitamente tanto en desarrollo como en `prod`, con autenticación, STARTTLS y timeouts. La entrega académica acredita mensajes capturados en el Sandbox, no recepción en buzones reales. |
 
-La URL admite HTTPS; HTTP se limita a `localhost` y `127.0.0.1` para desarrollo. No acepta credenciales, query ni fragmento en su configuración. El enlace de ejemplo es deliberadamente un placeholder y no sirve como portal. Antes de usarlo con destinatarios reales, reemplazarlo y disponer del formulario de activación. El frontend debe evitar registrar o reenviar el token a terceros y enviarlo únicamente al endpoint de activación.
+La URL admite HTTPS; HTTP se limita a `localhost` y `127.0.0.1` para desarrollo. No acepta credenciales, query ni fragmento en su configuración. `prod` rechaza destinos de loopback y dominios de ejemplo/prueba al habilitar invitaciones. La API puede arrancar inicialmente con invitaciones deshabilitadas mientras se recibe la URL, pero eso no completa el recorrido de personal del proceso 1. Antes de aceptarlo se debe configurar y comprobar el formulario real; cambiar la variable no requiere editar código ni reconstruir la imagen. El frontend debe evitar registrar o reenviar el token a terceros y enviarlo únicamente al endpoint de activación.
+
+La recuperación de cuentas activas reutiliza sus tres operaciones públicas y exige además `PASSWORD_RECOVERY_HMAC_SECRET` y `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY`, independientes. La clave de correo es Base64 de exactamente 32 bytes: V18 cifra el payload pendiente con AES-GCM y lo vincula a tarea, usuario, desafío y tipo. Al consumir/reemplazar el desafío o terminar la tarea se elimina el material cifrado correspondiente; la [guía de recuperación](mascotas-y-recuperacion.md) detalla cuotas, reintentos y límites de capacidad. En nube las claves y contraseñas se referencian desde Secret Manager y se mantienen estables entre revisiones, según la [guía de preparación](google-cloud.md).
 
 Las plantillas visuales siguen aplazadas hasta contar con estructura y colores del frontend. El incremento envía un mensaje de texto plano. Rotar la clave de cifrado sin terminar las tareas pendientes impide descifrarlas; en ese caso se debe emitir una nueva invitación con la nueva configuración.
 

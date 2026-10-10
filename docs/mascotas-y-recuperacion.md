@@ -48,7 +48,7 @@ En PATCH, `null` elimina únicamente datos opcionales; nunca sustituye un nombre
 
 ## Recuperación
 
-Aplica a cuentas activas de los tres roles. Una cuenta desactivada no recibe acceso ni se reactiva por recuperar una contraseña. El correo usa el mismo formato y normalización que el acceso existente.
+Aplica a las cuentas activas de los cuatro roles, incluido `SUPER_ADMIN`. Las cuentas pendientes de activación o desactivadas no reciben acceso ni se reactivan por recuperar una contraseña. El correo usa el mismo formato y normalización que el acceso existente.
 
 | Paso | Método y ruta | Entrada | Resultado |
 |---|---|---|---|
@@ -88,7 +88,9 @@ PATCH es válido para modificaciones parciales y no es intrínsecamente inseguro
 
 El formulario de código debe permitir pegar los seis dígitos completos, conservar ceros iniciales y ofrecer etiquetas visibles, teclado y reenvío con espera comprensible. Se recomienda un único campo de texto con teclado numérico, no un campo numérico que elimine ceros. La nueva contraseña y su confirmación deben permitir mostrar/ocultar, pegar y usar gestores de contraseñas.
 
-La cola de correo es acotada y está en memoria: dos trabajadores y hasta 64 tareas pendientes, con tiempos de espera SMTP finitos. Un reinicio puede descartar mensajes pendientes y no hay reintento duradero; el usuario puede solicitar otro código respetando la espera. Un fallo de envío invalida el desafío correspondiente, sin borrar uno más reciente. El aviso posterior al restablecimiento es independiente: un fallo de ese aviso no revierte una contraseña ya cambiada. Para entrega garantizada en producción se necesitaría una cola persistente o una bandeja de salida transaccional.
+Desde el incremento 0.9.0, V18 guarda el correo en una bandeja de salida PostgreSQL dentro de la transacción de desafío/restablecimiento. El OTP está cifrado con AES-GCM y una clave independiente; la validación del código sigue usando su HMAC. Después del commit, trabajadores acotados adquieren tareas con un token y envían SMTP fuera de la transacción; el sondeo recupera trabajo tras reinicio. La primera falla SMTP conserva el desafío para reintentar. El agotamiento o vencimiento termina solamente la intención correspondiente, sin borrar un desafío posterior; al terminar se purgan ciphertext y nonce.
+
+La admisión de capacidad se comprueba antes de consultar si existe la cuenta, manteniendo las respuestas públicas indistinguibles. Un aviso posterior al restablecimiento no revierte la contraseña: si no puede admitirse por capacidad, se registra `FAILED/DELIVERY_CAPACITY_EXHAUSTED`; los fallos SMTP normales sí se reintentan. La cola durable y sus leases no garantizan entrega exactamente una vez ante respuestas SMTP inciertas.
 
 Las respuestas públicas no distinguen la existencia de la cuenta y SMTP queda fuera de su recorrido. Esto reduce diferencias evidentes de tiempo, pero no demuestra respuestas de tiempo constante ni elimina todos los canales estadísticos de enumeración.
 
@@ -98,11 +100,11 @@ Mailtrap Email Sandbox captura los mensajes en una bandeja de pruebas; no los en
 
 1. Crear una cuenta y un **Email Sandbox** en Mailtrap; abrir su pestaña **Integration** y seleccionar SMTP.
 2. Tener a mano usuario y contraseña SMTP del Sandbox. No enviarlos por chat ni escribirlos en archivos del repositorio.
-3. Desde el backend, ejecutar `./scripts/configure-mailtrap.ps1`. Solicita las credenciales localmente, prepara el remitente, genera una clave HMAC aleatoria si no existe y guarda variables del usuario de Windows. El script no envía mensajes.
+3. Desde el backend, ejecutar `./scripts/configure-mailtrap.ps1`. Solicita las credenciales localmente, prepara el remitente y genera claves independientes HMAC/cifrado si faltan, conservando las existentes. Guarda variables del usuario de Windows; no envía mensajes ni imprime claves.
 4. Reiniciar IntelliJ o abrir otra terminal y arrancar el backend con Java 25 y PostgreSQL habituales.
 5. Usar una cuenta ficticia activa, solicitar recuperación, abrir el mensaje capturado en Mailtrap, verificar el código y establecer una contraseña válida. Confirmar que la contraseña antigua y los tokens anteriores ya no funcionan, y que el código y permiso usados se rechazan.
 
-Variables: `PASSWORD_RECOVERY_ENABLED`, `PASSWORD_RECOVERY_HMAC_SECRET`, `MAIL_FROM`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME` y `MAIL_PASSWORD`. El perfil dev usa SMTP con STARTTLS obligatorio y tiempos de espera de cinco segundos. Sin configuración, la recuperación permanece deshabilitada. Mantener estable la clave HMAC entre reinicios; cambiarla invalida códigos pendientes y cambia las claves de los contadores.
+Variables: `PASSWORD_RECOVERY_ENABLED`, `PASSWORD_RECOVERY_HMAC_SECRET`, **`PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY`**, `MAIL_FROM`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME` y `MAIL_PASSWORD`. La clave de correo es Base64 de exactamente 32 bytes y distinta del HMAC; se requiere al habilitar recuperación. El perfil dev usa SMTP con STARTTLS obligatorio y tiempos de espera de cinco segundos. Sin configuración, la recuperación permanece deshabilitada. Mantener ambas claves estables entre reinicios/revisiones; cambiar HMAC invalida desafíos/cuotas y cambiar cifrado sin terminar pendientes impide descifrarlos.
 
 El Sandbox de Mailtrap se configuró posteriormente en desarrollo y Esteban confirmó las pruebas manuales de recuperación, incluida la contraseña nueva y la anterior. La integración de pantallas y la revisión con los otros dos integrantes siguen pendientes por disponibilidad del equipo. Las plantillas Thymeleaf se aplazaron hasta disponer del diseño visual del frontend.
 

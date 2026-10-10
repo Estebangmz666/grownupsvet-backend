@@ -2,6 +2,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration.FrontendConfigurationProperties;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,13 +46,15 @@ public class AppointmentEmailDispatcher {
     private final Clock clock;
     private final TaskExecutor executor;
     private final TransactionTemplate transactions;
+    private final FrontendConfigurationProperties frontend;
 
     public AppointmentEmailDispatcher(JdbcTemplate jdbc, ObjectProvider<JavaMailSender> mailSenders,
             AppointmentProperties properties, ObjectMapper objectMapper, Clock clock,
             PlatformTransactionManager transactionManager,
-            @Qualifier("appointmentEmailExecutor") TaskExecutor executor) {
+            @Qualifier("appointmentEmailExecutor") TaskExecutor executor, FrontendConfigurationProperties frontend) {
         this.jdbc = jdbc; this.mailSenders = mailSenders; this.properties = properties;
         this.objectMapper = objectMapper; this.clock = clock; this.executor = executor;
+        this.frontend = frontend;
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -77,6 +80,8 @@ public class AppointmentEmailDispatcher {
     }
 
     public void dispatchPending() {
+        // An unconfigured channel postpones durable work without spending delivery attempts.
+        if (mailSenders.getIfAvailable() == null || properties.getSenderAddress() == null || properties.getSenderAddress().isBlank()) { return; }
         for (int count = 0; count < 50; count++) {
             DeliveryTask task = claimNext();
             if (task == null) { return; }
@@ -93,7 +98,7 @@ public class AppointmentEmailDispatcher {
                     timestamp(now), properties.getMaximumEmailAttempts());
             List<DeliveryTask> candidates = jdbc.query("select t.id,t.appointment_id,t.recipient_email,t.task_type,t.payload::text payload " +
                             "from appointment_email_tasks t join appointments a on a.id=t.appointment_id " +
-                            "where t.status in ('PENDING','SENDING') and t.next_attempt_at<=? and t.attempt_count<? " +
+                            "where t.status in ('PENDING','SENDING') and t.next_attempt_at<=? and t.scheduled_at<=? and t.attempt_count<? " +
                             "and t.recipient_email is not null " +
                             "and not exists(select 1 from appointment_email_tasks other where other.appointment_id=t.appointment_id " +
                             "and other.id<>t.id and other.status='SENDING') " +
@@ -101,7 +106,7 @@ public class AppointmentEmailDispatcher {
                     (row, index) -> new DeliveryTask(row.getObject("id", UUID.class),
                             row.getObject("appointment_id", UUID.class), row.getString("recipient_email"),
                             row.getString("task_type"), row.getString("payload"), UUID.randomUUID()),
-                    timestamp(now), properties.getMaximumEmailAttempts());
+                    timestamp(now), timestamp(now), properties.getMaximumEmailAttempts());
             if (candidates.isEmpty()) { return null; }
             DeliveryTask task = candidates.getFirst();
             // A new statement after the appointment lock sees any preceding claimant's commit.
@@ -134,7 +139,8 @@ public class AppointmentEmailDispatcher {
             notice = currentNotice(task);
             if (notice == null) { finishSuperseded(task); return; }
             helper.setSubject(notice.subject());
-            helper.setText(notice.body(), false);
+            String link = frontend.baseUrl().isBlank() ? "" : "\nPuedes consultar los detalles en: " + frontend.baseUrl();
+            helper.setText(notice.body() + link, false);
             sender.send(message);
             jdbc.update("update appointment_email_tasks set status='SENT',sent_at=?,last_error_code=null,lease_token=null " +
                             "where id=? and status='SENDING' and lease_token=?",
@@ -151,9 +157,53 @@ public class AppointmentEmailDispatcher {
                 Boolean.class, task.id(), task.leaseToken(), timestamp(clock.instant()));
         if (!Boolean.TRUE.equals(ownsLease)) { return null; }
         JsonNode payload = objectMapper.readTree(task.payload());
-        if ("OWNER_REASSIGNED".equals(task.taskType())) { return currentOwnerNotice(task, payload); }
         if ("ADMIN_REASSIGNMENT".equals(task.taskType())) { return currentAdministratorNotice(task, payload); }
+        if (payload.has("eventVersion")) { return currentOwnerEventNotice(task, payload); }
+        if ("OWNER_REASSIGNED".equals(task.taskType())) { return currentOwnerNotice(task, payload); }
         throw new IllegalStateException("Unsupported appointment notification type.");
+    }
+
+    private Notice currentOwnerEventNotice(DeliveryTask task, JsonNode payload) {
+        List<OwnerEventState> states = jdbc.query("select a.status,a.assignment_status,a.current_slot_id,a.starts_at," +
+                        "p.name pet_name,vp.full_name veterinarian_name,(v.status='ACTIVE') veterinarian_active," +
+                        "(select max(e.appointment_version) from appointment_events e where e.appointment_id=a.id " +
+                        "and e.event_type<>'EMAIL_ACCESSED') latest_business_version," +
+                        "(select max(e.appointment_version) from appointment_events e where e.appointment_id=a.id " +
+                        "and e.event_type in ('CONFIRMED','REASSIGNED','RESCHEDULED')) schedule_version " +
+                        "from appointments a join appointment_email_tasks t on t.appointment_id=a.id and t.recipient_id=a.owner_id " +
+                        "join pets p on p.id=a.pet_id join veterinarian_availability_slots s on s.id=a.current_slot_id " +
+                        "join veterinarian_profiles vp on vp.user_id=s.veterinarian_id join users v on v.id=s.veterinarian_id " +
+                        "where a.id=? and t.id=?",
+                (rs, row) -> new OwnerEventState(rs.getString("status"), rs.getString("assignment_status"),
+                        rs.getObject("current_slot_id", UUID.class), rs.getTimestamp("starts_at").toInstant(),
+                        rs.getString("pet_name"), rs.getString("veterinarian_name"), rs.getBoolean("veterinarian_active"),
+                        rs.getObject("latest_business_version", Long.class), rs.getObject("schedule_version", Long.class)),
+                task.appointmentId(), task.id());
+        if (states.isEmpty()) { return null; }
+        OwnerEventState state = states.getFirst();
+        long version = payload.path("eventVersion").asLong();
+        if (!state.startsAt().toString().equals(payload.path("startsAt").asText())
+                || !state.slotId().toString().equals(payload.path("availabilitySlotId").asText())) { return null; }
+        if ("OWNER_REMINDER".equals(task.taskType())) {
+            if (!"CONFIRMED".equals(state.status()) || !"ASSIGNED".equals(state.assignmentStatus())
+                    || !state.veterinarianActive() || !clock.instant().isBefore(state.startsAt())
+                    || state.scheduleVersion() == null || state.scheduleVersion() != version) { return null; }
+            return new Notice("Recordatorio de tu cita veterinaria", "Recuerda la cita confirmada de " + state.petName() +
+                    ". Veterinario: " + state.veterinarianName() + ". Fecha y hora: " + LOCAL_START.format(state.startsAt()) + " (America/Bogota).");
+        }
+        if (state.businessVersion() == null || state.businessVersion() != version) { return null; }
+        String action = switch (task.taskType()) {
+            case "OWNER_CONFIRMED" -> "CONFIRMED".equals(state.status()) ? "fue confirmada" : null;
+            case "OWNER_REJECTED" -> "REJECTED".equals(state.status()) ? "fue rechazada" : null;
+            case "OWNER_CANCELLED" -> "CANCELLED".equals(state.status()) ? "fue cancelada" : null;
+            case "OWNER_RESCHEDULED", "OWNER_REASSIGNED" ->
+                    ("REQUESTED".equals(state.status()) || "CONFIRMED".equals(state.status()))
+                            && "ASSIGNED".equals(state.assignmentStatus()) && state.veterinarianActive() ? "fue actualizada" : null;
+            default -> null;
+        };
+        if (action == null) { return null; }
+        return new Notice("Actualización de tu cita veterinaria", "La cita de " + state.petName() + " " + action +
+                ". Veterinario: " + state.veterinarianName() + ". Fecha y hora: " + LOCAL_START.format(state.startsAt()) + " (America/Bogota).");
     }
 
     private Notice currentOwnerNotice(DeliveryTask task, JsonNode payload) {
@@ -221,6 +271,8 @@ public class AppointmentEmailDispatcher {
     private static java.sql.Timestamp timestamp(Instant instant) { return java.sql.Timestamp.from(instant); }
     private record DeliveryTask(UUID id, UUID appointmentId, String recipientEmail, String taskType, String payload, UUID leaseToken) { }
     private record OwnerAssignment(UUID slotId, Instant startsAt, String petName, String veterinarianName, Long version) { }
+    private record OwnerEventState(String status, String assignmentStatus, UUID slotId, Instant startsAt,
+            String petName, String veterinarianName, boolean veterinarianActive, Long businessVersion, Long scheduleVersion) { }
     private record AdministratorNotice(String veterinarianName, long appointmentCount) { }
     private record Notice(String subject, String body) { }
 }

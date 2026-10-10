@@ -2,9 +2,14 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RescheduleAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RevealOwnerEmailRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.CreateAppointmentRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.UpdateAppointmentStatusRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentEmailDispatcher;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentNotificationService;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.VeterinarianAvailabilitySlot;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.VeterinarianAvailabilitySlotRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.Pet;
@@ -74,6 +79,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false",
         "grownupsvet.appointments.email-poll-delay-millis=3600000",
         "grownupsvet.appointments.cutoff-poll-delay-millis=3600000",
+        "grownupsvet.frontend.base-url=https://frontend.example.test/demo",
         "grownupsvet.appointments.sender-address=no-reply@example.test"})
 @ActiveProfiles("test")
 @Import({TestJwtKeyConfiguration.class, AppointmentEmailDispatcherIntegrationTests.ControlledClockConfiguration.class})
@@ -97,6 +103,8 @@ class AppointmentEmailDispatcherIntegrationTests {
     @Autowired private ApplicationEventPublisher events;
     @Autowired private AppointmentEmailDispatcher dispatcher;
     @Autowired private AppointmentService appointments;
+    @Autowired private AppointmentNotificationService notifications;
+    @Autowired private AppointmentProperties appointmentProperties;
     @Autowired private JsonMapper mapper;
     @Autowired private MutableNotificationClock clock;
     @Autowired private UserRepository users;
@@ -209,11 +217,11 @@ class AppointmentEmailDispatcherIntegrationTests {
         assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class,
                 fixture.appointmentId())).isEqualTo(fixture.slotId());
         assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
-                Integer.class, fixture.appointmentId())).isEqualTo(2);
+                Integer.class, fixture.appointmentId())).isEqualTo(6);
         dispatcher.dispatchPending();
         assertThat(taskStatus(currentTask)).isEqualTo("SUPERSEDED");
         assertThat(taskStatus(legacyTask)).isEqualTo("SUPERSEDED");
-        verifyNoInteractions(mailSender);
+        assertThat(delivered).hasSize(2);
     }
 
     @Test
@@ -318,6 +326,231 @@ class AppointmentEmailDispatcherIntegrationTests {
         assertThat(jdbc.queryForObject("select last_error_code from appointment_email_tasks where id=?", String.class, task)).isEqualTo("SMTP_DELIVERY_FAILED");
     }
 
+    @Test
+    void confirmationCreatesOneDurableNoticeAndFutureReminderAndReplayCreatesNeitherAgain() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        var confirmation = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null);
+        appointments.updateStatus(fixture.administratorId(), target.id(), confirmation);
+        appointments.updateStatus(fixture.administratorId(), target.id(), confirmation);
+        assertThat(taskCount(target.id(), "OWNER_CONFIRMED")).isEqualTo(1);
+        assertThat(taskCount(target.id(), "OWNER_REMINDER")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks t join appointment_events e on e.id=t.event_key " +
+                "where t.appointment_id=? and e.event_type='CONFIRMED'", Integer.class, target.id())).isEqualTo(2);
+        dispatcher.dispatchPending();
+        assertThat(delivered).hasSize(1);
+        assertThat(delivered.getFirst()).contains("confirmada", "https://frontend.example.test/demo");
+        UUID reminder = taskId(target.id(), "OWNER_REMINDER");
+        assertThat(taskStatus(reminder)).isEqualTo("PENDING");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, reminder)).isZero();
+    }
+
+    @Test
+    void exactTwentyFourHourBoundarySchedulesReminderButLateConfirmationDoesNot() {
+        clock.set(NOW.minusSeconds(60));
+        NotificationAppointment before = createRequestedAt(START);
+        NotificationAppointment exact = createRequestedAt(START);
+        NotificationAppointment late = createRequestedAt(START);
+        clock.set(NOW.minusNanos(1000));
+        confirm(before.id());
+        clock.set(NOW);
+        confirm(exact.id());
+        clock.set(NOW.plusNanos(1000));
+        confirm(late.id());
+        assertThat(taskCount(before.id(), "OWNER_REMINDER")).isEqualTo(1);
+        assertThat(taskCount(exact.id(), "OWNER_REMINDER")).isEqualTo(1);
+        assertThat(taskCount(late.id(), "OWNER_REMINDER")).isZero();
+        assertThat(taskCount(late.id(), "OWNER_CONFIRMED")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select scheduled_at from appointment_email_tasks where appointment_id=? and task_type='OWNER_REMINDER'",
+                java.sql.Timestamp.class, exact.id()).toInstant()).isEqualTo(NOW);
+    }
+
+    @Test
+    void scheduledReminderSurvivesInactivityAndSendsOnlyBeforeTheAppointmentStarts() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        dispatcher.dispatchPending();
+        UUID reminder = taskId(target.id(), "OWNER_REMINDER");
+        clock.set(target.startsAt().minusSeconds(3600));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(reminder)).isEqualTo("SENT");
+        assertThat(delivered).hasSize(2);
+        assertThat(delivered.getLast()).contains("Recuerda", "confirmada");
+        dispatcher.dispatchPending();
+        assertThat(delivered).hasSize(2);
+
+        clock.set(NOW);
+        NotificationAppointment expired = createRequestedAt(START.plusSeconds(172800));
+        confirm(expired.id());
+        dispatcher.dispatchPending();
+        int previouslyDelivered = delivered.size();
+        clock.set(expired.startsAt());
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(expired.id(), "OWNER_REMINDER"))).isEqualTo("SUPERSEDED");
+        assertThat(delivered).hasSize(previouslyDelivered);
+    }
+
+    @Test
+    void reminderRetryKeepsItsOriginalScheduleAndUsesANewAttemptTime() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        dispatcher.dispatchPending();
+        UUID reminder = taskId(target.id(), "OWNER_REMINDER");
+        Instant scheduled = target.startsAt().minusSeconds(86400);
+        clock.set(scheduled);
+        doThrow(new MailSendException("Controlled SMTP failure")).when(mailSender).send(any(MimeMessage.class));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(reminder)).isEqualTo("PENDING");
+        assertThat(jdbc.queryForObject("select scheduled_at from appointment_email_tasks where id=?", java.sql.Timestamp.class, reminder).toInstant()).isEqualTo(scheduled);
+        assertThat(jdbc.queryForObject("select next_attempt_at from appointment_email_tasks where id=?", java.sql.Timestamp.class, reminder).toInstant()).isEqualTo(scheduled.plusSeconds(60));
+        clock.set(scheduled.plusSeconds(60));
+        successfulSmtp();
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(reminder)).isEqualTo("SENT");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, reminder)).isEqualTo(2);
+    }
+
+    @Test
+    void disabledOwnerReceivesCancellationAndTheConfirmedReminder() {
+        NotificationAppointment cancellation = createRequestedAt(START.plusSeconds(86400));
+        NotificationAppointment reminder = createRequestedAt(START.plusSeconds(172800));
+        confirm(cancellation.id());
+        confirm(reminder.id());
+        dispatcher.dispatchPending();
+        jdbc.update("update users set status='DISABLED' where id=?", fixture.ownerId());
+        appointments.updateStatus(fixture.administratorId(), cancellation.id(),
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CANCELLED, 1L, "Cancelación acordada."));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(cancellation.id(), "OWNER_CANCELLED"))).isEqualTo("SENT");
+        assertThat(taskStatus(taskId(cancellation.id(), "OWNER_REMINDER"))).isEqualTo("SUPERSEDED");
+        clock.set(reminder.startsAt().minusSeconds(86400));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(reminder.id(), "OWNER_REMINDER"))).isEqualTo("SENT");
+    }
+
+    @Test
+    void rejectionAndDailyCutoffDeliverTerminalNoticesWithoutRevivingTheAppointment() {
+        NotificationAppointment rejected = createRequestedAt(START.plusSeconds(86400));
+        var rejection = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.REJECTED, 0L, "No hay capacidad.");
+        appointments.updateStatus(fixture.administratorId(), rejected.id(), rejection);
+        appointments.updateStatus(fixture.administratorId(), rejected.id(), rejection);
+        dispatcher.dispatchPending();
+        assertThat(taskCount(rejected.id(), "OWNER_REJECTED")).isEqualTo(1);
+        assertThat(taskStatus(taskId(rejected.id(), "OWNER_REJECTED"))).isEqualTo("SENT");
+        assertThat(delivered.getLast()).contains("rechazada");
+
+        NotificationAppointment cancelled = createRequestedAt(START.plusSeconds(172800));
+        Instant cutoff = jdbc.queryForObject("select confirmation_cutoff_at from appointments where id=?",
+                java.sql.Timestamp.class, cancelled.id()).toInstant();
+        clock.set(cutoff);
+        assertThat(appointments.expirePendingAppointments()).isGreaterThanOrEqualTo(1);
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(cancelled.id(), "OWNER_CANCELLED"))).isEqualTo("SENT");
+        assertThat(delivered.getLast()).contains("cancelada");
+        assertThat(taskCount(cancelled.id(), "OWNER_REMINDER")).isZero();
+    }
+
+    @Test
+    void changingAConfirmedScheduleSupersedesThePreviousReminderAndRecordsOnlyTheNewIntent() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        dispatcher.dispatchPending();
+        UUID older = taskId(target.id(), "OWNER_REMINDER");
+        var destination = transactions.execute(status -> slots.saveAndFlush(new VeterinarianAvailabilitySlot(target.veterinarianId(),
+                target.startsAt().plusSeconds(86400), target.startsAt().plusSeconds(88200), fixture.administratorId(), clock.instant())));
+        RescheduleAppointmentRequestDTO change = rescheduling(destination.getId(), 0L, 1L);
+        appointments.reschedule(fixture.administratorId(), target.id(), change);
+        appointments.reschedule(fixture.administratorId(), target.id(), change);
+        assertThat(taskStatus(older)).isEqualTo("SUPERSEDED");
+        assertThat(taskCount(target.id(), "OWNER_RESCHEDULED")).isEqualTo(1);
+        assertThat(taskCount(target.id(), "OWNER_REMINDER")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_REMINDER' and status='PENDING'",
+                Integer.class, target.id())).isEqualTo(1);
+        dispatcher.dispatchPending();
+        assertThat(delivered).hasSize(2);
+        assertThat(delivered.getLast()).contains("actualizada");
+    }
+
+    @Test
+    void emailAccessAuditDoesNotSupersedeTheScheduledReminder() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        dispatcher.dispatchPending();
+        appointments.revealOwnerEmail(target.veterinarianId(), target.id(), new RevealOwnerEmailRequestDTO("Contacto previo sin respuesta."));
+        clock.set(target.startsAt().minusSeconds(86400));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(target.id(), "OWNER_REMINDER"))).isEqualTo("SENT");
+        assertThat(delivered).hasSize(2);
+    }
+
+    @Test
+    void rolledBackBusinessTransitionCannotLeaveANoticeOrScheduledReminder() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        transactions.executeWithoutResult(status -> {
+            confirm(target.id());
+            assertThat(taskCount(target.id(), "OWNER_CONFIRMED")).isEqualTo(1);
+            status.setRollbackOnly();
+        });
+        assertThat(taskCount(target.id(), "OWNER_CONFIRMED")).isZero();
+        assertThat(taskCount(target.id(), "OWNER_REMINDER")).isZero();
+        assertThat(jdbc.queryForObject("select status from appointments where id=?", String.class, target.id())).isEqualTo("REQUESTED");
+        dispatcher.dispatchPending();
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void eventRecipientTypeUniquenessSurvivesRepeatedQueueingOfTheSamePersistedEvent() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        transactions.executeWithoutResult(status -> notifications.recordEvent(target.id(), 1L, "CONFIRMED", NOW));
+        transactions.executeWithoutResult(status -> notifications.recordEvent(target.id(), 1L, "CONFIRMED", NOW));
+        assertThat(taskCount(target.id(), "OWNER_CONFIRMED")).isEqualTo(1);
+        assertThat(taskCount(target.id(), "OWNER_REMINDER")).isEqualTo(1);
+    }
+
+    @Test
+    void absentSenderConfigurationDoesNotSpendDurableDeliveryAttempts() {
+        NotificationAppointment target = createRequestedAt(START.plusSeconds(86400));
+        confirm(target.id());
+        String configured = appointmentProperties.getSenderAddress();
+        try {
+            appointmentProperties.setSenderAddress("");
+            dispatcher.dispatchPending();
+            assertThat(jdbc.queryForObject("select sum(attempt_count) from appointment_email_tasks where appointment_id=?", Integer.class, target.id())).isZero();
+            verifyNoInteractions(mailSender);
+        } finally { appointmentProperties.setSenderAddress(configured); }
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(taskId(target.id(), "OWNER_CONFIRMED"))).isEqualTo("SENT");
+    }
+
+    private NotificationAppointment createRequestedAt(Instant startsAt) {
+        return transactions.execute(status -> {
+            User owner = users.findById(fixture.ownerId()).orElseThrow();
+            OwnerProfile profile = owners.findById(owner.getId()).orElseThrow();
+            Pet pet = pets.saveAndFlush(new Pet(profile, "Mascota de aviso", PetSpecies.DOG, null, null, null, false, clock.instant()));
+            User veterinarian = account(UserRole.VETERINARIAN);
+            veterinarians.saveAndFlush(new VeterinarianProfile(veterinarian, "Veterinario de avisos", "+573001234567",
+                    "MV-" + UUID.randomUUID(), "Perfil ficticio", fixture.administratorId(), clock.instant()));
+            var slot = slots.saveAndFlush(new VeterinarianAvailabilitySlot(veterinarian.getId(), startsAt, startsAt.plusSeconds(1800),
+                    fixture.administratorId(), clock.instant()));
+            UUID id = appointments.create(owner.getId(), new CreateAppointmentRequestDTO(UUID.randomUUID(), pet.getId(), slot.getId(), 0L, "Consulta general.")).appointment().id();
+            return new NotificationAppointment(id, veterinarian.getId(), slot.getId(), startsAt);
+        });
+    }
+
+    private void confirm(UUID id) {
+        appointments.updateStatus(fixture.administratorId(), id, new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null));
+    }
+
+    private int taskCount(UUID id, String type) {
+        return jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type=?", Integer.class, id, type);
+    }
+
+    private UUID taskId(UUID id, String type) {
+        return jdbc.queryForObject("select id from appointment_email_tasks where appointment_id=? and task_type=? order by created_at,id limit 1", UUID.class, id, type);
+    }
+
+    private record NotificationAppointment(UUID id, UUID veterinarianId, UUID slotId, Instant startsAt) { }
+
     private UUID queueOwner(long assignmentVersion) {
         return queue("OWNER_REASSIGNED", fixture.ownerId(), fixture.ownerEmail(), Map.of(
                 "petName", "Luna", "veterinarianName", "Doctora Primera", "startsAt", START.toString(),
@@ -337,9 +570,9 @@ class AppointmentEmailDispatcherIntegrationTests {
     private UUID queue(String type, UUID recipientId, String email, Map<String, Object> payload) {
         UUID id = UUID.randomUUID();
         jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload," +
-                        "status,attempt_count,next_attempt_at,created_at) values(?,?,?,?,?,?,cast(? as jsonb),'PENDING',0,?,?)",
+                        "status,attempt_count,scheduled_at,next_attempt_at,created_at) values(?,?,?,?,?,?,cast(? as jsonb),'PENDING',0,?,?,?)",
                 id, fixture.appointmentId(), UUID.randomUUID(), recipientId, email, type, mapper.writeValueAsString(payload),
-                timestamp(clock.instant()), timestamp(clock.instant()));
+                timestamp(clock.instant()), timestamp(clock.instant()), timestamp(clock.instant()));
         return id;
     }
 

@@ -110,6 +110,21 @@ public class AppointmentController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(service.events(UUID.fromString(jwt.getSubject()),appointmentId,page,size));
     }
 
+    @Operation(operationId="listAppointmentNotifications", summary="Consultar el estado de los avisos de una cita",
+            description="Propietario: únicamente avisos de su cita destinados a él. Administrador: seguimiento autorizado. Veterinario y superadministrador no tienen permiso. Página ordenada por creación e identificador, sin correos, payloads ni errores SMTP privados. scheduledAt conserva la fecha prevista; nextAttemptAt solo aparece con valor si está PENDING. SENT significa aceptación SMTP, no lectura ni entrega a buzón real. Los recordatorios de CONFIRMED se programan 24 horas antes; una confirmación tardía solo genera confirmación, y los cambios invalidan avisos superados.")
+    @ApiResponses({
+            @ApiResponse(responseCode="200", description="Página de estados autorizados", content=@Content(schema=@Schema(implementation=AppointmentNotificationPageResponseDTO.class))),
+            @ApiResponse(responseCode="404", description="Cita inexistente o ajena", content=@Content(mediaType=MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema=@Schema(implementation=ApiErrorResponseDTO.class)))
+    })
+    @GetMapping(path="/{appointmentId}/notifications", produces=MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyAuthority('"+UserPermission.Constants.APPOINTMENT_READ_SELF+"','"+UserPermission.Constants.APPOINTMENT_READ_ALL+"')")
+    public ResponseEntity<AppointmentNotificationPageResponseDTO> notifications(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID appointmentId, @RequestParam(defaultValue="0") @Min(0) int page,
+            @RequestParam(defaultValue="20") @Min(1) @Max(100) int size) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate())
+                .body(service.notifications(UUID.fromString(jwt.getSubject()), appointmentId, page, size));
+    }
+
     @Operation(operationId="reassignAppointmentVeterinarian",summary="Resolver la falta de veterinario de una cita", description="Solo administradores: cita vigente con NEEDS_REASSIGNMENT a un turno libre de otro veterinario activo. Conserva identidad y estado funcional. Cambiar fecha u hora requiere constancia de acuerdo previo con el propietario. Una confirmada puede resolverse a un turno futuro del mismo día; una pendiente no puede eludir su corte. Operación idempotente mediante clientRequestId.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Asignación completada o repetición equivalente", content = @Content(schema = @Schema(implementation = AppointmentResponseDTO.class))),
@@ -123,7 +138,7 @@ public class AppointmentController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(service.reassign(UUID.fromString(jwt.getSubject()),appointmentId,request));
     }
 
-    @Operation(operationId="rescheduleAppointment",summary="Reprogramar una cita con acuerdo previo", description="Solo administradores: REQUESTED o CONFIRMED con asignación ASSIGNED y participantes activos, antes del inicio original; una solicitud también debe conservar vigente su corte original. Destino publicado y libre desde mañana hasta 60 días en America/Bogota, del mismo veterinario o de otro activo. Conserva identidad, mascota, propietario y estado; exige motivo y constancia de acuerdo previo. El cambio y su historia son atómicos: un fallo conserva la reserva original. clientRequestId identifica una intención persistente del administrador: repetir la misma intención devuelve la cita actual, y reutilizar la clave con otros datos o actor produce 409. No crea nuevos avisos P12; invalida avisos existentes superados por el cambio.")
+    @Operation(operationId="rescheduleAppointment",summary="Reprogramar una cita con acuerdo previo", description="Solo administradores: REQUESTED o CONFIRMED con asignación ASSIGNED y participantes activos, antes del inicio original; una solicitud también debe conservar vigente su corte original. Destino publicado y libre desde mañana hasta 60 días en America/Bogota, del mismo veterinario o de otro activo. Conserva identidad, mascota, propietario y estado; exige motivo y constancia de acuerdo previo. El cambio y su historia son atómicos: un fallo conserva la reserva original. clientRequestId identifica una intención persistente del administrador: repetir la misma intención devuelve la cita actual, y reutilizar la clave con otros datos o actor produce 409. Persiste un aviso de reprogramación al propietario y supera los avisos pendientes del horario anterior. Si la cita está confirmada, programa el recordatorio de 24 horas de la nueva fecha únicamente cuando su momento todavía no pasó.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Reprogramación aplicada o repetición equivalente", content = @Content(schema = @Schema(implementation = AppointmentResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Campos, motivo o constancia del acuerdo inválidos", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),

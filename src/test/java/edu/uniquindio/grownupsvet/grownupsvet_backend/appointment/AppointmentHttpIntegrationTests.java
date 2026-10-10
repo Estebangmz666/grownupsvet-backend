@@ -654,7 +654,7 @@ class AppointmentHttpIntegrationTests {
                 String.class, UUID.fromString(id))).isEqualTo("PHONE");
         assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=? and operation_type='RESCHEDULING'",
                 Integer.class, UUID.fromString(id))).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_RESCHEDULED'", Integer.class, UUID.fromString(id))).isEqualTo(1);
         mvc.perform(authenticated(post(BASE), ownerTwo, request(UUID.randomUUID(), petTwo, slotOne))).andExpect(status().isCreated());
         mvc.perform(authenticated(get(BASE + "/" + id), ownerTwo)).andExpect(status().isNotFound());
         mvc.perform(authenticated(get(BASE + "/" + id + "/events"), ownerTwo)).andExpect(status().isNotFound());
@@ -899,6 +899,57 @@ class AppointmentHttpIntegrationTests {
         mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 1))).andExpect(status().isConflict());
         assertOriginalReservation(id, 1, 2);
         assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    @Test
+    void notificationQueriesFilterRecipientsBeforePaginationAndExposeNoDeliverySecrets() throws Exception {
+        String id = createConfirmedAppointment();
+        String path = BASE + "/" + id + "/notifications";
+        var ownerPage = mvc.perform(authenticated(get(path), ownerOne)).andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store, private"))
+                .andExpect(jsonPath("$.totalElements").value(2)).andReturn();
+        saveExample("appointment-notification-page.json", ownerPage);
+        String publicBody = ownerPage.getResponse().getContentAsString();
+        assertThat(publicBody).doesNotContain(ownerOne.getEmail(), "recipient", "payload", "leaseToken", "eventVersion");
+        disableVeterinarian(veterinarianOne);
+        mvc.perform(authenticated(get(path).param("size", "1"), ownerOne)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2)).andExpect(jsonPath("$.items.length()").value(1));
+        var administratorPage = mvc.perform(authenticated(get(path), administrator)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3)).andReturn();
+        saveExample("appointment-notification-admin-page.json", administratorPage);
+        assertThat(administratorPage.getResponse().getContentAsString()).doesNotContain(ownerOne.getEmail(), administrator.getEmail(), "payload", "lease_token");
+        saveExample("appointment-notification-empty-page.json", mvc.perform(authenticated(get(path).param("page", "10"), ownerOne))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0)).andReturn());
+        mvc.perform(authenticated(get(path), ownerTwo)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get(path), veterinarianOne)).andExpect(status().isUnauthorized());
+        saveExample("appointment-notification-forbidden-error.json", mvc.perform(authenticated(get(path), veterinarianTwo))
+                .andExpect(status().isForbidden()).andReturn());
+        mvc.perform(authenticated(get(path), account(UserRole.SUPER_ADMIN))).andExpect(status().isForbidden());
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(authenticated(get(path).param("page", "-1"), ownerOne)).andExpect(status().isBadRequest());
+        mvc.perform(authenticated(get(path).param("size", "101"), administrator)).andExpect(status().isBadRequest());
+        mvc.perform(authenticated(get(BASE + "/" + UUID.randomUUID() + "/notifications"), administrator)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void statusReplayQueuesOneEventNoticeAndNoShowQueuesNone() throws Exception {
+        String id = createConfirmedAppointment();
+        confirm(id);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_CONFIRMED'",
+                Integer.class, UUID.fromString(id))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_REMINDER'",
+                Integer.class, UUID.fromString(id))).isEqualTo(1);
+        clock.set(slotOne.getEndsAt());
+        mvc.perform(authenticated(patch(BASE + "/" + id + "/status"), administrator,
+                        Map.of("status", "NO_SHOW", "expectedVersion", 1, "reason", "No se presentó.")))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
+                Integer.class, UUID.fromString(id))).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and status='SUPERSEDED'",
+                Integer.class, UUID.fromString(id))).isEqualTo(2);
+        String page = mvc.perform(authenticated(get(BASE + "/" + id + "/notifications"), ownerOne)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(page).contains("SUPERSEDED", "NOTICE_NO_LONGER_CURRENT").doesNotContain("OWNER_NO_SHOW");
     }
 
     private Map<String, Object> rescheduling(VeterinarianAvailabilitySlot destination, long version) {

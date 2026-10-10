@@ -46,6 +46,11 @@ APPOINTMENT_REQUIRED_FIELDS = {
     "AppointmentPageResponseDTO": {"items", "page", "size", "totalElements", "totalPages"},
     "AppointmentEventPageResponseDTO": {"items", "page", "size", "totalElements", "totalPages"},
     "OwnerEmailResponseDTO": {"appointmentId", "email"},
+    "AppointmentNotificationResponseDTO": {
+        "id", "appointmentId", "notificationType", "status", "scheduledAt", "nextAttemptAt",
+        "sentAt", "attemptCount", "errorCode",
+    },
+    "AppointmentNotificationPageResponseDTO": {"items", "page", "size", "totalElements", "totalPages"},
 }
 
 
@@ -59,7 +64,7 @@ def response_validator(specification: dict, schema_name: str) -> Draft202012Vali
 def validate_enum_fields(validator: Draft202012Validator, schema_name: str, response: dict, fields: set) -> None:
     """Check enum fields even when their schemas use a component reference."""
     enum_fields = {"status", "assignmentStatus", "previousStatus", "newStatus", "previousAssignmentStatus",
-                   "newAssignmentStatus", "eventType", "actorType", "timeZone"}
+                   "newAssignmentStatus", "eventType", "actorType", "timeZone", "notificationType"}
     for field in fields & enum_fields:
         if validator.is_valid({**response, field: "INVALID_ENUM_VALUE"}):
             raise AssertionError(f"{schema_name}: {field} must reject values outside its enum")
@@ -114,6 +119,7 @@ def validate_appointment_operation_responses(specification: dict) -> None:
         ("/api/v1/appointments", "get"): {"200", "400", "401", "403", "500"},
         ("/api/v1/appointments/{appointmentId}", "get"): {"200", "400", "401", "403", "404", "500"},
         ("/api/v1/appointments/{appointmentId}/events", "get"): {"200", "400", "401", "403", "404", "500"},
+        ("/api/v1/appointments/{appointmentId}/notifications", "get"): {"200", "400", "401", "403", "404", "500"},
         ("/api/v1/appointments/{appointmentId}/status", "patch"): {"200", "400", "401", "403", "404", "409", "500"},
         ("/api/v1/appointments/{appointmentId}/veterinarian-reassignments", "post"): {"200", "400", "401", "403", "404", "409", "500"},
         ("/api/v1/appointments/{appointmentId}/reschedulings", "post"): {"200", "400", "401", "403", "404", "409", "500"},
@@ -145,6 +151,12 @@ def validate_appointment_required_fields(specification: dict, responses: dict) -
         "AppointmentEventPageResponseDTO": [responses["appointment-event-page.json"],
                                             responses["appointment-administrative-event-page.json"]],
         "OwnerEmailResponseDTO": [responses["appointment-owner-email.json"]],
+        "AppointmentNotificationResponseDTO": (responses["appointment-notification-page.json"]["items"]
+                                               + responses["appointment-notification-admin-page.json"]["items"]),
+        "AppointmentNotificationPageResponseDTO": [responses[filename] for filename in (
+            "appointment-notification-page.json", "appointment-notification-admin-page.json",
+            "appointment-notification-empty-page.json",
+        )],
     }
     for schema_name, required_fields in APPOINTMENT_REQUIRED_FIELDS.items():
         schema = specification["components"]["schemas"][schema_name]
@@ -179,8 +191,8 @@ def validate_appointment_required_fields(specification: dict, responses: dict) -
 
 def validate_administrative_appointment_contract(specification: dict, responses: dict) -> None:
     """Check the new administrative request and real HTTP transition/replay responses."""
-    if specification["info"]["version"] != "0.8.0":
-        raise AssertionError("Administrative appointment changes require application contract 0.8.0")
+    if specification["info"]["version"] != "0.9.0":
+        raise AssertionError("Appointment notifications require application contract 0.9.0")
     request_fields = {
         "clientRequestId", "availabilitySlotId", "expectedAvailabilitySlotVersion", "expectedVersion",
         "reason", "agreementChannel", "agreementContactedAt", "agreementNote",
@@ -240,6 +252,31 @@ def validate_administrative_appointment_contract(specification: dict, responses:
         raise AssertionError("Administrative appointment history requires real HTTP events")
 
 
+def validate_notification_contract(specification: dict, responses: dict) -> None:
+    """Use real recipient/admin views to verify privacy and scheduled delivery metadata."""
+    schema = specification["components"]["schemas"]["AppointmentNotificationResponseDTO"]
+    types = set(schema["properties"]["notificationType"].get("enum", []))
+    if not {"OWNER_CONFIRMED", "OWNER_REJECTED", "OWNER_CANCELLED", "OWNER_RESCHEDULED", "OWNER_REMINDER", "OWNER_REASSIGNED", "ADMIN_REASSIGNMENT"}.issubset(types):
+        raise AssertionError("Notification types must cover P12 and existing exceptional notices")
+    if "OWNER_NO_SHOW" in types:
+        raise AssertionError("No-show does not create an owner email")
+    states = set(schema["properties"]["status"].get("enum", []))
+    if states != {"PENDING", "SENDING", "SENT", "FAILED", "SUPERSEDED"}:
+        raise AssertionError("Notification delivery states are incomplete")
+    forbidden_fields = {"recipientId", "recipientEmail", "email", "payload", "leaseToken", "lastError"}
+    for filename in ("appointment-notification-page.json", "appointment-notification-admin-page.json"):
+        items = responses[filename]["items"]
+        if not items:
+            raise AssertionError(f"{filename}: a populated real HTTP view is required")
+        for item in items:
+            if set(item) & forbidden_fields:
+                raise AssertionError(f"{filename}: delivery secrets must not appear in public state")
+    if not any(item["notificationType"] == "OWNER_REMINDER" for item in responses["appointment-notification-page.json"]["items"]):
+        raise AssertionError("Owner notification example must contain a scheduled reminder")
+    if responses["appointment-notification-empty-page.json"]["items"]:
+        raise AssertionError("Notification empty-page example must come from an empty page")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", type=Path, default=Path("target/generated-openapi/openapi.json"))
@@ -286,6 +323,10 @@ def main() -> None:
         "appointment-rescheduling-replay.json": "AppointmentResponseDTO",
         "appointment-rescheduling-conflict-error.json": "ApiErrorResponseDTO",
         "appointment-administrative-event-page.json": "AppointmentEventPageResponseDTO",
+        "appointment-notification-page.json": "AppointmentNotificationPageResponseDTO",
+        "appointment-notification-admin-page.json": "AppointmentNotificationPageResponseDTO",
+        "appointment-notification-empty-page.json": "AppointmentNotificationPageResponseDTO",
+        "appointment-notification-forbidden-error.json": "ApiErrorResponseDTO",
     }
     responses = {}
     for filename, schema_name in examples.items():
@@ -296,6 +337,7 @@ def main() -> None:
     validate_appointment_required_fields(specification, responses)
     validate_appointment_operation_responses(specification)
     validate_administrative_appointment_contract(specification, responses)
+    validate_notification_contract(specification, responses)
     print(f"OpenAPI {specification['openapi']} valid; {len(examples)} HTTP response examples match their schemas; "
           f"required-field, integer and enum rejection checks passed for {len(AVAILABILITY_REQUIRED_FIELDS)} availability and "
           f"{len(APPOINTMENT_REQUIRED_FIELDS)} appointment schemas; appointment nullability, operation responses and "

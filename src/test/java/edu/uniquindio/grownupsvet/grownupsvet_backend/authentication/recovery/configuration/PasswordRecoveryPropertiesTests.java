@@ -14,6 +14,7 @@ class PasswordRecoveryPropertiesTests {
     @Test
     void missingSecretPreventsEnablingRecovery() {
         runner.withPropertyValues("grownupsvet.security.password-recovery.enabled=true",
+                "grownupsvet.security.password-recovery.email-encryption-key=YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=",
                 "grownupsvet.security.password-recovery.sender-address=no-reply@example.test")
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -22,6 +23,7 @@ class PasswordRecoveryPropertiesTests {
     void malformedOrTooShortSecretPreventsStartup() {
         for (String secret : new String[]{"malformed:base64", "YWJj"}) {
             runner.withPropertyValues("grownupsvet.security.password-recovery.enabled=true",
+                    "grownupsvet.security.password-recovery.email-encryption-key=YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=",
                     "grownupsvet.security.password-recovery.sender-address=no-reply@example.test",
                     "grownupsvet.security.password-recovery.hmac-secret=" + secret)
                     .run(context -> assertThat(context).hasFailed());
@@ -34,8 +36,26 @@ class PasswordRecoveryPropertiesTests {
             assertThat(context).hasNotFailed();
             assertThat(context.getBean(PasswordRecoveryProperties.class).enabled()).isFalse();
         });
-        PasswordRecoveryProperties properties = new PasswordRecoveryProperties(false, "private-value", "");
+        PasswordRecoveryProperties properties = new PasswordRecoveryProperties(false, "private-value", "", "private-encryption");
         assertThat(properties.toString()).doesNotContain("private-value");
+        assertThat(properties.toString()).doesNotContain("private-encryption");
+    }
+
+    @Test
+    void encryptionKeyIsMandatoryIndependentAndExactlyThirtyTwoBytes() {
+        String hmac = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+        for (String key : new String[]{"", "invalid:base64", "YWJj", hmac}) {
+            runner.withPropertyValues("grownupsvet.security.password-recovery.enabled=true",
+                    "grownupsvet.security.password-recovery.sender-address=no-reply@example.test",
+                    "grownupsvet.security.password-recovery.hmac-secret=" + hmac,
+                    "grownupsvet.security.password-recovery.email-encryption-key=" + key)
+                    .run(context -> assertThat(context).hasFailed());
+        }
+        runner.withPropertyValues("grownupsvet.security.password-recovery.enabled=true",
+                "grownupsvet.security.password-recovery.sender-address=no-reply@example.test",
+                "grownupsvet.security.password-recovery.hmac-secret=" + hmac,
+                "grownupsvet.security.password-recovery.email-encryption-key=YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=")
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     @Configuration(proxyBeanMethods = false)

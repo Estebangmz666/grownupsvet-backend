@@ -7,12 +7,11 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.em
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.exception.PasswordRecoveryException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.model.PasswordRecoveryChallenge;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.repository.PasswordRecoveryRepository;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.repository.PasswordRecoveryEmailTaskRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.OwnerProfile;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,21 +30,22 @@ import static edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.reco
 public class UserPasswordRecoveryService {
     public static final Duration CODE_LIFETIME = Duration.ofMinutes(10);
     public static final Duration RESET_LIFETIME = Duration.ofMinutes(5);
-    private static final Logger LOGGER = LoggerFactory.getLogger(UserPasswordRecoveryService.class);
     private final PasswordRecoveryProperties properties;
     private final PasswordRecoveryRepository repository;
     private final UserRepository users;
     private final OwnerProfileRepository ownerProfiles;
     private final PasswordEncoder encoder;
     private final PasswordRecoverySecrets secrets;
-    private final PasswordRecoveryMailDispatcher dispatcher;
+    private final PasswordRecoveryEmailOutbox outbox;
+    private final PasswordRecoveryEmailTaskRepository emailTasks;
     private final ObjectProvider<PasswordRecoveryEmailSender> senderProvider;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
     public UserPasswordRecoveryService(PasswordRecoveryProperties properties, PasswordRecoveryRepository repository,
             UserRepository users, OwnerProfileRepository ownerProfiles, PasswordEncoder encoder,
-            PasswordRecoverySecrets secrets, PasswordRecoveryMailDispatcher dispatcher,
+            PasswordRecoverySecrets secrets, PasswordRecoveryEmailOutbox outbox,
+            PasswordRecoveryEmailTaskRepository emailTasks,
             ObjectProvider<PasswordRecoveryEmailSender> senderProvider, Clock clock,
             PlatformTransactionManager transactionManager) {
         this.properties = properties;
@@ -54,7 +54,8 @@ public class UserPasswordRecoveryService {
         this.ownerProfiles = ownerProfiles;
         this.encoder = encoder;
         this.secrets = secrets;
-        this.dispatcher = dispatcher;
+        this.outbox = outbox;
+        this.emailTasks = emailTasks;
         this.senderProvider = senderProvider;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
@@ -64,28 +65,28 @@ public class UserPasswordRecoveryService {
     public void requestCode(String rawEmail, String clientAddress) {
         requireAvailable();
         String email = User.normalizeEmail(rawEmail);
-        Outcome<Delivery> outcome = transactions.execute(status -> {
+        Outcome<Void> outcome = transactions.execute(status -> {
             Instant now = clock.instant();
             long wait = rate("request-ip", clientAddress, 30, Duration.ZERO, now);
             if (wait > 0) { return Outcome.rateLimited(wait); }
             wait = rate("request-email", email, 5, Duration.ofSeconds(60), now);
             if (wait > 0) { return Outcome.rateLimited(wait); }
+            // Shared durable capacity is checked before account lookup, for every address.
+            if (!outbox.hasCapacity()) { return Outcome.failure(Reason.UNAVAILABLE); }
             UUID challengeId = UUID.randomUUID();
             String code = secrets.newCode();
             byte[] digest = secrets.codeDigest(challengeId, code);
             User user = users.findByEmailForUpdate(email).orElse(null);
             if (user == null || !user.isActive()) { return Outcome.success(null); }
             Instant createdAt = clock.instant();
+            emailTasks.supersedeRecoveryCodes(user.getId(), createdAt);
             repository.replaceChallenge(user.getId(), challengeId, email, user.getAuthenticationVersion(),
                     digest, createdAt.plus(CODE_LIFETIME), createdAt);
-            return Outcome.success(new Delivery(user.getId(), challengeId, email, displayName(user), code));
+            outbox.enqueueCode(user.getId(), challengeId, user.getAuthenticationVersion(), email,
+                    displayName(user), code, createdAt.plus(CODE_LIFETIME), createdAt);
+            return Outcome.success(null);
         });
         throwIfFailed(outcome);
-        // Unknown/inactive accounts also enqueue a task, so queue admission never reveals existence.
-        if (!dispatcher.submit(() -> deliverCode(outcome.value()))) {
-            invalidateFailedDelivery(outcome.value());
-            throw new PasswordRecoveryException(Reason.UNAVAILABLE);
-        }
     }
 
     public UserPasswordRecoveryVerificationResponseDTO verifyCode(String rawEmail, String code, String clientAddress) {
@@ -112,6 +113,7 @@ public class UserPasswordRecoveryService {
             }
             String token = secrets.newResetToken();
             repository.grantReset(user.getId(), secrets.resetTokenHash(token), verifiedAt.plus(RESET_LIFETIME), verifiedAt);
+            emailTasks.supersedeRecoveryCodes(user.getId(), verifiedAt);
             return Outcome.success(new UserPasswordRecoveryVerificationResponseDTO(token, RESET_LIFETIME.toSeconds()));
         });
         // Exceptions are raised after commit, retaining failed attempts and distributed rate counters.
@@ -125,10 +127,12 @@ public class UserPasswordRecoveryService {
             throw new PasswordRecoveryException(Reason.PASSWORD_CONFIRMATION_MISMATCH);
         }
         String tokenHash = secrets.resetTokenHash(request.resetToken());
-        Outcome<Delivery> outcome = transactions.execute(status -> {
+        Outcome<Void> outcome = transactions.execute(status -> {
             Instant now = clock.instant();
             long wait = rate("reset-ip", clientAddress, 100, Duration.ZERO, now);
             if (wait > 0) { return Outcome.rateLimited(wait); }
+            // Keep admission before account locks, matching requests and avoiding inverted locks.
+            boolean notificationAdmitted = outbox.hasCapacity();
             UUID userId = repository.findUserForResetToken(tokenHash).orElse(null);
             if (userId == null) { return Outcome.failure(Reason.INVALID_RESET_TOKEN); }
             User user = users.findByIdForUpdate(userId).orElse(null);
@@ -142,12 +146,13 @@ public class UserPasswordRecoveryService {
             user.resetPasswordHash(encoder.encode(request.newPassword()));
             users.flush();
             repository.deleteForUser(userId);
-            return Outcome.success(new Delivery(userId, null, user.getEmail(), displayName(user), null));
+            emailTasks.supersedeRecoveryCodes(userId, verifiedAt);
+            // A full notification queue records a terminal failed intent without undoing the reset.
+            outbox.enqueueResetNotification(userId, challenge.challengeId(), user.getAuthenticationVersion(),
+                    user.getEmail(), displayName(user), verifiedAt, notificationAdmitted);
+            return Outcome.success(null);
         });
         throwIfFailed(outcome);
-        if (!dispatcher.submit(() -> deliverNotification(outcome.value()))) {
-            LOGGER.warn("Password reset notification could not be queued.");
-        }
     }
 
     private boolean isCurrent(PasswordRecoveryChallenge challenge, User user) {
@@ -169,41 +174,10 @@ public class UserPasswordRecoveryService {
         }
     }
 
-    private void deliverCode(Delivery delivery) {
-        if (delivery == null) { return; }
-        try {
-            senderProvider.getObject().sendRecoveryCode(delivery.email(), delivery.displayName(), delivery.code());
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Password recovery delivery failed: exceptionType={}", exception.getClass().getName());
-            invalidateFailedDelivery(delivery);
-        }
-    }
-
-    private void deliverNotification(Delivery delivery) {
-        try {
-            senderProvider.getObject().sendPasswordResetNotification(delivery.email(), delivery.displayName());
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Password reset notification failed: exceptionType={}", exception.getClass().getName());
-        }
-    }
-
-    private void invalidateFailedDelivery(Delivery delivery) {
-        if (delivery == null) { return; }
-        try {
-            transactions.executeWithoutResult(status -> repository.deleteFailedDelivery(delivery.userId(), delivery.challengeId()));
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Password recovery delivery cleanup failed: exceptionType={}", exception.getClass().getName());
-        }
-    }
-
     private void throwIfFailed(Outcome<?> outcome) {
         if (outcome.failure() != null) {
             throw new PasswordRecoveryException(outcome.failure(), outcome.retryAfterSeconds());
         }
-    }
-
-    private record Delivery(UUID userId, UUID challengeId, String email, String displayName, String code) {
-        @Override public String toString() { return "RecoveryDelivery[contents=[REDACTED]]"; }
     }
 
     private record Outcome<T>(T value, Reason failure, long retryAfterSeconds) {

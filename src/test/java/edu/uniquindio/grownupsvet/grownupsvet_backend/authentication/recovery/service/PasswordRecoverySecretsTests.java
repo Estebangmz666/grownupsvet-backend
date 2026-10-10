@@ -12,7 +12,8 @@ import static org.mockito.Mockito.when;
 
 class PasswordRecoverySecretsTests {
     private final PasswordRecoveryProperties properties = new PasswordRecoveryProperties(true,
-            "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", "no-reply@example.test");
+            "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", "no-reply@example.test",
+            "YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=");
 
     @Test
     void lowRandomNumbersAreEncodedAsExactlySixDigits() {

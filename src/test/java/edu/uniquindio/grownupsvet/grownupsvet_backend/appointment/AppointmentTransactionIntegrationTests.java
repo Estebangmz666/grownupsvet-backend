@@ -217,7 +217,7 @@ class AppointmentTransactionIntegrationTests {
         assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=? " +
                 "and operation_type='RESCHEDULING'", Integer.class, id)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
-                Integer.class, id)).isZero();
+                Integer.class, id)).isEqualTo(1);
         assertFailure(() -> appointments.reschedule(secondAdministrator.getId(), id, request),
                 "APPOINTMENT_IDEMPOTENCY_CONFLICT");
     }
@@ -406,6 +406,46 @@ class AppointmentTransactionIntegrationTests {
         assertThat(appointments.expirePendingAppointments()).isGreaterThanOrEqualTo(0);
         assertThat(jdbc.queryForObject("select status from appointments where id=?", String.class, id)).isEqualTo("CANCELLED");
         assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='DAILY_CUTOFF'", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test
+    void cutoffOwnerNoticeForeignKeyDoesNotDeadlockAReschedulingThatAlreadyGuardsTheOwner() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(86400));
+        clock.set(Instant.parse("2026-10-06T11:00:00Z"));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor(); Connection cutoff = dataSource.getConnection()) {
+            cutoff.setAutoCommit(false);
+            Future<String> rescheduling;
+            try {
+                try (var statement = cutoff.createStatement()) { statement.execute("SET LOCAL lock_timeout='3s'"); }
+                lockRow(cutoff, "appointments", id);
+                int backend = backendId(cutoff);
+                rescheduling = executor.submit(() -> reschedulingResult(administrator.getId(), id, rescheduling(destination, 0L)));
+                awaitBlockedRequests(backend, 1);
+                UUID eventId = UUID.randomUUID();
+                try (var update = cutoff.prepareStatement("update appointments set status='CANCELLED',version=1,updated_at=? where id=?")) {
+                    update.setTimestamp(1, Timestamp.from(clock.instant())); update.setObject(2, id); update.executeUpdate();
+                }
+                try (var event = cutoff.prepareStatement("insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status,previous_assignment_status,new_assignment_status,previous_slot_id,new_slot_id,actor_type,occurred_at,reason) " +
+                        "values(?,?,1,'DAILY_CUTOFF','REQUESTED','CANCELLED','ASSIGNED','ASSIGNED',?,?,'SYSTEM',?,'DAILY_CONFIRMATION_CUTOFF')")) {
+                    event.setObject(1, eventId); event.setObject(2, id); event.setObject(3, slot.getId()); event.setObject(4, slot.getId());
+                    event.setTimestamp(5, Timestamp.from(clock.instant())); event.executeUpdate();
+                }
+                // The recipient FK requests KEY SHARE while the real service waits with the
+                // owner's NO KEY UPDATE guard. FOR UPDATE would deadlock this exact statement.
+                try (var notice = cutoff.prepareStatement("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload,status,attempt_count,scheduled_at,next_attempt_at,created_at) " +
+                        "values(?,?,?,?,?,'OWNER_CANCELLED','{}'::jsonb,'PENDING',0,?,?,?)")) {
+                    notice.setObject(1, UUID.randomUUID()); notice.setObject(2, id); notice.setObject(3, eventId);
+                    notice.setObject(4, owner.getId()); notice.setString(5, owner.getEmail());
+                    notice.setTimestamp(6, Timestamp.from(clock.instant())); notice.setTimestamp(7, Timestamp.from(clock.instant()));
+                    notice.setTimestamp(8, Timestamp.from(clock.instant())); notice.executeUpdate();
+                }
+                cutoff.commit();
+            } finally { cutoff.rollback(); }
+            assertThat(rescheduling.get(20, TimeUnit.SECONDS)).isEqualTo("CONCURRENT_UPDATE");
+        }
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_CANCELLED'", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='RESCHEDULED'", Integer.class, id)).isZero();
     }
 
     @Test

@@ -3,6 +3,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.LocalTime;
+import java.time.Duration;
 import java.time.ZoneId;
 
 @ConfigurationProperties(prefix = "grownupsvet.appointments")
@@ -15,6 +16,7 @@ public class AppointmentProperties {
     private long emailPollDelayMillis = 15_000;
     private int maximumEmailAttempts = 5;
     private String senderAddress = "";
+    private Duration reminderAdvance = Duration.ofHours(24);
 
     public LocalTime getWorkdayStartTime() { return workdayStartTime; }
     public void setWorkdayStartTime(LocalTime value) { workdayStartTime = value; }
@@ -32,6 +34,8 @@ public class AppointmentProperties {
     public void setMaximumEmailAttempts(int value) { maximumEmailAttempts = value; }
     public String getSenderAddress() { return senderAddress; }
     public void setSenderAddress(String value) { senderAddress = value; }
+    public Duration getReminderAdvance() { return reminderAdvance; }
+    public void setReminderAdvance(Duration value) { reminderAdvance = value; }
 
     @jakarta.annotation.PostConstruct
     void validate() {
@@ -39,6 +43,9 @@ public class AppointmentProperties {
                 || maximumOwnerHorizonDays < minimumOwnerAdvanceDays || cutoffPollDelayMillis < 1000
                 || emailPollDelayMillis < 1000 || maximumEmailAttempts < 1) {
             throw new IllegalStateException("Appointment scheduling properties are invalid or incomplete.");
+        }
+        if (!Duration.ofHours(24).equals(reminderAdvance)) {
+            throw new IllegalStateException("Appointment reminders must retain the agreed 24-hour advance.");
         }
         if (!ZoneId.of("America/Bogota").equals(businessZone)) {
             throw new IllegalStateException("Appointment business zone must be America/Bogota.");

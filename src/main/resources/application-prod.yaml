@@ -1,0 +1,50 @@
+server:
+  port: ${PORT:8080}
+  address: 0.0.0.0
+  shutdown: graceful
+  # Forwarded headers are ignored until the deployment's actual proxy chain is verified.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: ${TRUSTED_PROXY_PATTERN:^$}
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql:///${DB_NAME:grownupsvet}}
+    hikari:
+      maximum-pool-size: ${DB_MAXIMUM_POOL_SIZE:5}
+      minimum-idle: 0
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      data-source-properties:
+        socketFactory: com.google.cloud.sql.postgres.SocketFactory
+        cloudSqlInstance: ${CLOUD_SQL_INSTANCE_CONNECTION_NAME:}
+        cloudSqlRefreshStrategy: lazy
+        ipTypes: ${CLOUD_SQL_IP_TYPES:PUBLIC}
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+grownupsvet:
+  appointments:
+    # Confirmed for this academic delivery, America/Bogota.
+    workday-start-time: ${APPOINTMENT_WORKDAY_START_TIME:06:00}
+  staff:
+    invitations:
+      # Enabling invitations requires the real management-portal activation URL.
+      activation-url: ${STAFF_ACTIVATION_URL:}

@@ -1,0 +1,129 @@
+{
+  "runId": "eb8a1944-6468-4fd5-b2ad-8b8994f34fa3",
+  "success": true,
+  "stage": "AWAITING_INBOX_VERIFICATION",
+  "failureCode": null,
+  "smtpRealSandbox": true,
+  "timeSimulatedByPrivateClock": true,
+  "pets": [
+    {
+      "id": "4527b206-92d4-4495-bb67-a367a1c694c3",
+      "label": "A",
+      "name": "Mascota SMTP A eb8a1944-6468-4fd5-b2ad-8b8994f34fa3",
+      "email": "smtp-owner-eb8a1944-6468-4fd5-b2ad-8b8994f34fa3@example.test"
+    },
+    {
+      "id": "79ed6c0d-a601-4e40-a2f9-896e617bffa6",
+      "label": "B",
+      "name": "Mascota SMTP B eb8a1944-6468-4fd5-b2ad-8b8994f34fa3",
+      "email": "smtp-owner-eb8a1944-6468-4fd5-b2ad-8b8994f34fa3@example.test"
+    },
+    {
+      "id": "d41208c4-efd7-4c09-b2b7-ef8812ca73c8",
+      "label": "C",
+      "name": "Mascota SMTP C eb8a1944-6468-4fd5-b2ad-8b8994f34fa3",
+      "email": "smtp-owner-eb8a1944-6468-4fd5-b2ad-8b8994f34fa3@example.test"
+    }
+  ],
+  "appointmentIds": [
+    "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+    "9330aa57-93fe-45c1-8d33-ef182f63b7de",
+    "f90e08b9-b6ed-4a41-b848-9f93371eb898"
+  ],
+  "clocks": [
+    {
+      "label": "INITIAL_REAL_INSTANT_PRIVATE_CLOCK",
+      "instant": "2026-10-10T15:01:32Z",
+      "bogota": "2026-10-10T10:01:32-05:00[America/Bogota]"
+    },
+    {
+      "label": "REMINDER_AT_EXACT_START_MINUS_PT24H_SIMULATED",
+      "instant": "2026-10-11T19:00:00Z",
+      "bogota": "2026-10-11T14:00-05:00[America/Bogota]"
+    },
+    {
+      "label": "SYSTEM_CUTOFF_AT_STORED_0600_SIMULATED",
+      "instant": "2026-10-12T11:00:00Z",
+      "bogota": "2026-10-12T06:00-05:00[America/Bogota]"
+    }
+  ],
+  "tasks": [
+    {
+      "appointment_id": "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+      "task_type": "OWNER_CONFIRMED",
+      "status": "SENT",
+      "scheduled_at": "2026-10-10T15:01:32Z",
+      "sent_at": "2026-10-10T15:01:32Z",
+      "attempt_count": 1,
+      "event_type": "CONFIRMED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "9330aa57-93fe-45c1-8d33-ef182f63b7de",
+      "task_type": "OWNER_REJECTED",
+      "status": "SENT",
+      "scheduled_at": "2026-10-10T15:01:32Z",
+      "sent_at": "2026-10-10T15:01:32Z",
+      "attempt_count": 1,
+      "event_type": "REJECTED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+      "task_type": "OWNER_REMINDER",
+      "status": "SENT",
+      "scheduled_at": "2026-10-11T19:00:00Z",
+      "sent_at": "2026-10-11T19:00:00Z",
+      "attempt_count": 1,
+      "event_type": "RESCHEDULED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+      "task_type": "OWNER_REMINDER",
+      "status": "SUPERSEDED",
+      "scheduled_at": "2026-10-12T19:00:00Z",
+      "sent_at": null,
+      "attempt_count": 0,
+      "event_type": "CONFIRMED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+      "task_type": "OWNER_RESCHEDULED",
+      "status": "SENT",
+      "scheduled_at": "2026-10-10T15:01:32Z",
+      "sent_at": "2026-10-10T15:01:32Z",
+      "attempt_count": 1,
+      "event_type": "RESCHEDULED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "692806fb-d718-44cb-82ea-1c0ac948cdcf",
+      "task_type": "OWNER_CANCELLED",
+      "status": "SENT",
+      "scheduled_at": "2026-10-11T19:00:00Z",
+      "sent_at": "2026-10-11T19:00:00Z",
+      "attempt_count": 1,
+      "event_type": "CANCELLED",
+      "actor_type": "HUMAN"
+    },
+    {
+      "appointment_id": "f90e08b9-b6ed-4a41-b848-9f93371eb898",
+      "task_type": "OWNER_CANCELLED",
+      "status": "SENT",
+      "scheduled_at": "2026-10-12T11:00:00Z",
+      "sent_at": "2026-10-12T11:00:00Z",
+      "attempt_count": 1,
+      "event_type": "DAILY_CUTOFF",
+      "actor_type": "SYSTEM"
+    }
+  ],
+  "taskCount": 7,
+  "sentCount": 6,
+  "cleanup": {
+    "processExited": true,
+    "ownedSchemaAbsent": true,
+    "wrapperSchemaAbsent": true
+  }
+}

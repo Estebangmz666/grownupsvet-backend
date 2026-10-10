@@ -2,6 +2,8 @@
 
 Procedimiento manual para el contrato **0.9.0**. Estas instrucciones no acreditan una ejecución SMTP ni una captura ya realizada. [Mailtrap Sandbox](https://docs.mailtrap.io/email-sandbox/overview) captura mensajes de prueba; no los entrega al Gmail u otro buzón real.
 
+La [verificación del 10/10/2026](verificacion-mailtrap-2026-10-10.md) acredita seis envíos de citas y su presencia en lista/encabezados del Sandbox. Contenido visual y recuperación actual continúan pendientes. Recordatorio y corte se comprobaron con reloj privado simulado; el procedimiento de 24 horas reales de esta guía sigue pendiente.
+
 ## 1. Preparar una instancia actual del backend
 
 Desde `grownupsvet-backend`, con Java 25, PostgreSQL de desarrollo y la configuración JWT descrita en el [README](../README.md):

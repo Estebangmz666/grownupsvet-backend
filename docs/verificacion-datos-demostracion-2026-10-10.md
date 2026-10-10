@@ -31,8 +31,8 @@ La validación temporal del helper conserva la restricción efectiva del alta: m
 ## Pendientes de la entrega
 
 - Ejecutar el generador en la instancia de demostración cuando disponga de configuración JWT/DB/corte y personal activo, usando credenciales locales del operador. Seguir el [diagnóstico local](ejecucion-local.md).
-- Comprobar capturas nuevas y recordatorio real en Mailtrap; el Sandbox `grownupsvet` está accesible con sesión autenticada, pero las capturas nuevas de estos flujos siguen pendientes de verificación.
+- Completar contenido visual, recuperación actual y recordatorio de 24 horas reales en Mailtrap. Una [ejecución SMTP separada del 10/10](verificacion-mailtrap-2026-10-10.md) registró seis envíos y seis entradas con encabezados; usó reloj privado simulado para recordatorio/corte y no cambia `MailtrapCaptureVerified=false` de este helper.
 - Confirmar el frontend vigente del equipo antes de cambiar o integrar portales. Se preservó el [candidato público revisado](revision-frontend-candidato-2026-10-10.md) solo para lectura, conforme a la respuesta de Esteban.
 - Revisar los contratos y recorridos con los integrantes y registrar aceptación. El despliegue Google Cloud permanece aplazado; clínica sigue fuera del alcance.
 
-La publicación de este avance en Git/Jira registra herramientas y evidencia automatizada. No cierra por sí sola integración frontend, ejecución manual de los datos, capturas de correo o despliegue.
+La publicación de este avance en Git/Jira registra herramientas y evidencia automatizada. La evidencia SMTP separada tiene sus propios límites; integración frontend, ejecución manual del generador, contenido de los mensajes y despliegue conservan verificaciones pendientes.

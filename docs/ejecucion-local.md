@@ -67,4 +67,4 @@ Una vez arrancado, revisar el log de Flyway/`Started`, `GET /actuator/health/liv
 
 El helper no valida contraseña/alias del PKCS12, conexión autenticada PostgreSQL, existencia/privilegios de la base, formato de claves de recuperación/invitaciones, entrega SMTP, integración de portales o despliegue Google Cloud. Cada uno requiere su evidencia propia.
 
-Los datos ficticios persistentes se prepararán por separado. El [guion de demostración](guion-demostracion-procesos-1-2.md) ya propone los recorridos y datos ficticios que deben sustituirse por respuestas reales del ensayo. El smoke aislado registrado acredita su ejecución, pero no llena `grownupsvet_dev` con cuentas de demostración.
+El [generador de datos ficticios](datos-demostracion.md) ya permite preparar el recorrido mediante la API local cuando estén disponibles configuración, administrador y veterinario existentes. El [guion de demostración](guion-demostracion-procesos-1-2.md) usa las respuestas e identificadores reales del ensayo. La prueba aislada del helper acredita su funcionamiento, pero no llena `grownupsvet_dev` con cuentas de demostración.

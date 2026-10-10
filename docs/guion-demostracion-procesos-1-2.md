@@ -54,7 +54,7 @@ Como A, consultar `GET /api/v1/availability-slots` con `from` y `to` en `YYYY-MM
 | Solicitud | A: POST anterior; guardar `appointmentId` y `version` | `201`, estado `REQUESTED`; ocupa el turno. Repetir **el mismo cuerpo y clave** devuelve `200` con el mismo UUID, sin otra solicitud |
 | Restricción por rol | A: `PATCH /api/v1/appointments/{appointmentId}/status` con `status="CONFIRMED"` y la versión actual | `403`; ser propietario no permite confirmar |
 | Confirmación | Administrador: mismo PATCH con `status="CONFIRMED"` y `expectedVersion` actual | `200`, estado `CONFIRMED` y versión nueva; hacerlo antes del corte y del inicio original |
-| Estado de avisos | A o administrador: `GET /api/v1/appointments/{appointmentId}/notifications?page=0&size=20` | Mostrar `OWNER_CONFIRMED`, estado y fechas reales. Si se confirmó con más de 24 horas de anticipación, mostrar también el recordatorio futuro `OWNER_REMINDER` |
+| Estado de avisos | A o administrador: `GET /api/v1/appointments/{appointmentId}/notifications?page=0&size=20` | Mostrar `OWNER_CONFIRMED`, estado y fechas reales. Si se confirmó con al menos 24 horas de anticipación, mostrar también el recordatorio `OWNER_REMINDER`, programado para inicio menos 24 horas |
 | Conflicto de versión | Administrador: intentar cancelar con `status="CANCELLED"`, motivo y **versión anterior a la confirmación** | `409 CONCURRENT_UPDATE`; la cita conserva su estado. Explicar que una pantalla con datos antiguos no debe sobrescribir el cambio |
 | Cancelación válida | Administrador: leer `GET /api/v1/appointments/{appointmentId}` y repetir cancelación con su versión actual y motivo `Cancelación administrativa de prueba` | `200`, `CANCELLED`, versión nueva; hacerlo antes del inicio |
 | Historia conservada | A o administrador: `GET /api/v1/appointments/{appointmentId}/events?page=0&size=20`; volver a consultar notifications | Mostrar solicitud, confirmación y evento humano `CANCELLED`, actor, estados y motivo; mostrar `OWNER_CANCELLED`. El UUID se conserva y el turno vuelve a estar libre si continúa siendo solicitable |
@@ -66,7 +66,7 @@ Si se pretende capturar ambos correos, esperar la captura de confirmación antes
 
 ## Recuperación y Mailtrap: bloque condicionado a la captura manual
 
-La comprobación remota de Mailtrap quedó pendiente para la sesión siguiente; no se autenticó ni se enviaron correos como parte de preparar este guion. Cuando esté configurado y accesible, seguir [verificacion-mailtrap.md](verificacion-mailtrap.md):
+El Sandbox `grownupsvet` está accesible con sesión autenticada; las capturas nuevas de estos flujos siguen pendientes de verificación. Para comprobarlas, seguir [verificacion-mailtrap.md](verificacion-mailtrap.md):
 
 1. Quitar Authorize y usar la cuenta activa A: `POST /api/v1/auth/password-recoveries` con `email`; esperar `202` y abrir el mensaje en el Sandbox.
 2. `POST /api/v1/auth/password-recoveries/verifications` con `email` y `code` textual de seis dígitos; esperar `200` y conservar temporalmente `resetToken`.

@@ -12,6 +12,8 @@ La [guía de comprobación en Mailtrap](docs/verificacion-mailtrap.md) permite v
 
 El [guion de demostración de los dos procesos](docs/guion-demostracion-procesos-1-2.md) propone un recorrido breve desde Swagger con datos ficticios, roles, propiedad, versiones e historial. Sus resultados esperados deben registrarse al ejecutar la demostración; el guion no acredita capturas de Mailtrap, interfaces o despliegue.
 
+El [generador de datos de demostración](docs/datos-demostracion.md) crea un recorrido reproducible por la API local con personal existente y credenciales suministradas por el operador. La [verificación del helper](docs/verificacion-datos-demostracion-2026-10-10.md) registra 510 pruebas satisfactorias y sus límites; los datos de desarrollo todavía deben prepararse al ejecutar el ensayo.
+
 ## Modelo inicial
 
 `user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).

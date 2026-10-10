@@ -31,7 +31,7 @@ La validación temporal del helper conserva la restricción efectiva del alta: m
 ## Pendientes de la entrega
 
 - Ejecutar el generador en la instancia de demostración cuando disponga de configuración JWT/DB/corte y personal activo, usando credenciales locales del operador. Seguir el [diagnóstico local](ejecucion-local.md).
-- Completar contenido visual, recuperación actual y recordatorio de 24 horas reales en Mailtrap. Una [ejecución SMTP separada del 10/10](verificacion-mailtrap-2026-10-10.md) registró seis envíos y seis entradas con encabezados; usó reloj privado simulado para recordatorio/corte y no cambia `MailtrapCaptureVerified=false` de este helper.
+- Completar contenido visual y restablecimiento real de contraseña. Las ejecuciones separadas registraron [seis avisos iniciales](verificacion-mailtrap-2026-10-10.md), [recordatorio con reloj real](verificacion-recordatorio-real-2026-10-10.md) y [transporte de recuperación V18](verificacion-recuperacion-smtp-2026-10-10.md), con capturas de lista/encabezados. No cambian `MailtrapCaptureVerified=false` de este helper.
 - Confirmar el frontend vigente del equipo antes de cambiar o integrar portales. Se preservó el [candidato público revisado](revision-frontend-candidato-2026-10-10.md) solo para lectura, conforme a la respuesta de Esteban.
 - Revisar los contratos y recorridos con los integrantes y registrar aceptación. El despliegue Google Cloud permanece aplazado; clínica sigue fuera del alcance.
 

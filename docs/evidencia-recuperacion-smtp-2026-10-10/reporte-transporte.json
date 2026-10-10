@@ -1,0 +1,60 @@
+{
+  "classLabel": "TransportOnlyVerifyResetPending",
+  "baseCommit": "9659dd2e348b7ff81e0c73546b5b77ee56744ad6",
+  "runId": "e5878a47-cdf8-4f21-a3b6-56ed3309d231",
+  "transportSuccess": true,
+  "observedAtRealInstant": "2026-10-10T15:29:15.363622400Z",
+  "registrationHttpStatus": 201,
+  "recoveryHttpStatus": 202,
+  "recoveryNoStoreVerified": true,
+  "smtpEnvironment": "Mailtrap Sandbox",
+  "smtpAuthentication": true,
+  "smtpStartTlsRequired": true,
+  "timeSimulated": false,
+  "manualDispatcherInvoked": false,
+  "maximumSmtpMessages": 1,
+  "maximumAttempts": 1,
+  "task": {
+    "id": "98e4c492-5b16-4051-81ae-9e27f3d8a475",
+    "type": "RECOVERY_CODE",
+    "status": "SENT",
+    "attemptCount": 1,
+    "createdAt": "2026-10-10T15:29:03.599773Z",
+    "sentAt": "2026-10-10T15:29:15.258887Z",
+    "errorCode": null
+  },
+  "headersVerification": {
+    "verified": true,
+    "mailtrapMessageId": "5747394247",
+    "subject": "Código para recuperar tu contraseña de GrownupsVet",
+    "recipient": "recovery-transport-e5878a47-cdf8-4f21-a3b6-56ed3309d231@example.test",
+    "displayedDate": "2026-10-10 15:29",
+    "displayedDateTimezoneVerified": false,
+    "displayedSizeBytes": 698,
+    "bodyInspected": false
+  },
+  "isolation": {
+    "ownedTestSchemaOnly": true,
+    "realProductionClock": true,
+    "privateRsaFixtureInMemory": true,
+    "independentRandomRecoveryKeysInMemory": true,
+    "appointmentSenderDisabled": true,
+    "staffInvitationsDisabled": true,
+    "staffBootstrapDisabled": true,
+    "productionCodeChanged": false
+  },
+  "cleanup": {
+    "processExitCode": 0,
+    "ownedSchemaAbsentByIndependentReadOnlySql": true,
+    "loopbackPortClosed": true
+  },
+  "limits": {
+    "otpRead": false,
+    "verifyCodeExecuted": false,
+    "passwordResetExecuted": false,
+    "postResetLoginExecuted": false,
+    "postResetSessionRevocationVerified": false,
+    "frontendAcceptanceVerified": false,
+    "completeRecoveryFlowVerified": false
+  }
+}

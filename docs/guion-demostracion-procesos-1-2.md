@@ -66,7 +66,7 @@ Si se pretende capturar ambos correos, esperar la captura de confirmación antes
 
 ## Recuperación y Mailtrap: bloque condicionado a la captura manual
 
-El Sandbox `grownupsvet` está accesible con sesión autenticada. La [verificación del 10/10](verificacion-mailtrap-2026-10-10.md) registra seis avisos de citas en lista/encabezados, con contenido visual pendiente; recuperación actual todavía debe comprobarse. El harness usó reloj privado simulado para recordatorio/corte y no acredita espera de 24 horas reales. Para completar estos pasos, seguir [verificacion-mailtrap.md](verificacion-mailtrap.md):
+El Sandbox `grownupsvet` está accesible con sesión autenticada. La [verificación inicial](verificacion-mailtrap-2026-10-10.md) registra seis avisos de citas en lista/encabezados; después se comprobaron el [recordatorio con reloj real](verificacion-recordatorio-real-2026-10-10.md) y el [transporte de recuperación V18](verificacion-recuperacion-smtp-2026-10-10.md). La lectura visual del contenido y el restablecimiento completo siguen pendientes. Para completar estos pasos, seguir [verificacion-mailtrap.md](verificacion-mailtrap.md):
 
 1. Quitar Authorize y usar la cuenta activa A: `POST /api/v1/auth/password-recoveries` con `email`; esperar `202` y abrir el mensaje en el Sandbox.
 2. `POST /api/v1/auth/password-recoveries/verifications` con `email` y `code` textual de seis dígitos; esperar `200` y conservar temporalmente `resetToken`.

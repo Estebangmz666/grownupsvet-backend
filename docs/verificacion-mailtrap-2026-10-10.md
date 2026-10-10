@@ -2,6 +2,8 @@
 
 Fecha: **10 de octubre de 2026**. Backend **0.9.0**, revisión `4f0f209f288e94ec014083d206ecc8dad68714c7`, ejecución aislada con datos ficticios y SMTP real hacia el Sandbox `grownupsvet`. La comprobación no cambió `src/main`.
 
+Este informe conserva el alcance del primer ensayo. Después se ejecutaron el [recordatorio con reloj real](verificacion-recordatorio-real-2026-10-10.md) y el [transporte de recuperación V18](verificacion-recuperacion-smtp-2026-10-10.md), documentados por separado.
+
 ## Resultado comprobado
 
 El harness terminó con **6 tareas `SENT`, un intento por tarea**, sobre 7 tareas persistidas. El recordatorio anterior a la reprogramación quedó `SUPERSEDED`, sin intentos. No quedaron tareas `PENDING`, `SENDING` o `FAILED` en ese recorrido.
@@ -44,7 +46,7 @@ Se conservó `PT24H` y la jornada de corte de las **06:00 en `America/Bogota`**.
 | Inicio menos 24 horas | 11/10/2026 14:00 Colombia | Despacho explícito del recordatorio de la cita reprogramada para 12/10 a las 14:00 |
 | Corte almacenado | 12/10/2026 06:00 Colombia | Ejecución explícita del corte sobre una cita pendiente; evento `DAILY_CUTOFF`, actor `SYSTEM` |
 
-Las fechas `scheduled_at` y `sent_at` del reporte proceden de ese reloj privado; no representan la hora real de recepción en Mailtrap. Esta ejecución comprueba la condición temporal y el envío real, **sin esperar 24 horas reales**. Continúan pendientes el ensayo con reloj real y la observación del worker periódico durante esa espera.
+Las fechas `scheduled_at` y `sent_at` del reporte proceden de ese reloj privado; no representan la hora real de recepción en Mailtrap. Esta ejecución comprueba la condición temporal y el envío real, **sin esperar 24 horas reales**. La observación del trabajador periódico con reloj real pertenece al ensayo posterior enlazado arriba.
 
 ## Bandeja y capturas
 
@@ -60,6 +62,6 @@ En los encabezados seleccionados se leyó: primer aviso, `2026-10-10 15:01`, 541
 
 La comprobación independiente de limpieza confirmó que el proceso terminó, su puerto quedó cerrado y los esquemas temporales propios del harness y del wrapper ya no existían. No se prepararon datos persistentes en `grownupsvet_dev`.
 
-Quedan pendientes la lectura visual del contenido, recuperación actual con OTP/restablecimiento, ensayo de 24 horas reales, integración de ambos portales y revisión compartida. El despliegue permanece aplazado y la atención clínica queda fuera. Estas evidencias no cierran P12 ni la aceptación de los dos procesos.
+Quedan pendientes la lectura visual del contenido, el flujo real completo de OTP/restablecimiento, integración de ambos portales y revisión compartida. El recordatorio con reloj real y el transporte de recuperación tienen evidencia posterior independiente. El despliegue permanece aplazado y la atención clínica queda fuera. Estas evidencias no cierran P12 ni la aceptación de los dos procesos.
 
 El [helper de datos](datos-demostracion.md) conserva `MailtrapCaptureVerified=false`: su prueba aislada y su reporte no inspeccionan el Sandbox. La evidencia de esta ejecución SMTP pertenece a este informe separado. Para completar los recorridos manuales, seguir [verificacion-mailtrap.md](verificacion-mailtrap.md).

@@ -10,7 +10,9 @@ El [informe de verificación 0.9.0](docs/verificacion-procesos-1-2-preparacion-g
 
 La [guía de comprobación en Mailtrap](docs/verificacion-mailtrap.md) permite verificar recuperación, avisos de cambios y recordatorio desde el backend local. El despliegue cloud quedó aplazado por Esteban el 10/10/2026.
 
-La [verificación Mailtrap del 10/10](docs/verificacion-mailtrap-2026-10-10.md) registra seis avisos aceptados por SMTP y seis entradas observadas con encabezados en el Sandbox. La lectura del contenido y recuperación actual siguen pendientes; recordatorio y corte usaron un reloj privado simulado, sin espera de 24 horas reales.
+La [verificación Mailtrap inicial del 10/10](docs/verificacion-mailtrap-2026-10-10.md) registra seis avisos aceptados por SMTP y seis entradas observadas con encabezados en el Sandbox, con reloj privado simulado para recordatorio/corte. El [ensayo posterior con reloj real](docs/verificacion-recordatorio-real-2026-10-10.md) comprueba el recordatorio en inicio menos 24 horas, tras reabrir el contexto Spring y desactivar al propietario. También se verificó el [transporte de recuperación V18](docs/verificacion-recuperacion-smtp-2026-10-10.md); lectura del contenido y restablecimiento completo siguen pendientes.
+
+El [respaldo y restauración local](docs/verificacion-respaldo-restauracion-local-2026-10-10.md) recuperó el esquema de prueba completo y el acceso HTTP a la cuenta/mascota ficticias. Su alcance es PostgreSQL local; el entorno cloud conserva su validación pendiente.
 
 El [guion de demostración de los dos procesos](docs/guion-demostracion-procesos-1-2.md) propone un recorrido breve desde Swagger con datos ficticios, roles, propiedad, versiones e historial. Sus resultados esperados deben registrarse al ejecutar la demostración; el guion no acredita capturas de Mailtrap, interfaces o despliegue.
 

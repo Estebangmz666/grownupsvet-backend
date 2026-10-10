@@ -1,0 +1,218 @@
+{
+  "runId": "0940f180-6af3-4925-8747-4bef864831fc",
+  "codeBaseline": "9659dd2",
+  "success": true,
+  "time": {
+    "clockSource": "production Clock.system(America/Bogota)",
+    "clockOverride": false,
+    "timeSimulated": false,
+    "appointmentStartsAt": "2026-10-11T10:30-05:00",
+    "reminderDueAt": "2026-10-10T15:30:00Z",
+    "reminderAdvance": "PT24H",
+    "realWaitApproximatelyMinutes": 12
+  },
+  "restart": {
+    "mode": "SpringApplicationContext close/open",
+    "sameJvm": true,
+    "jvmRestarted": false,
+    "reminderIdentityAndScheduledTimePreserved": true,
+    "afterRestartHarnessObservesOnlySql": true
+  },
+  "worker": {
+    "pollMillis": 15000,
+    "periodicDelivery": true,
+    "manualDispatcherInvoked": false,
+    "manualCutoffInvoked": false
+  },
+  "smtp": {
+    "realSandboxTransport": true,
+    "sandbox": "grownupsvet / 4905208",
+    "host": "sandbox.smtp.mailtrap.io",
+    "startTlsRequired": true,
+    "maximumMessages": 2,
+    "attemptLimitPerTask": 1
+  },
+  "owner": {
+    "email": "real-owner-0940f180-6af3-4925-8747-4bef864831fc@example.test",
+    "fictitious": true,
+    "statusAtReminderDelivery": "DISABLED",
+    "deactivateHttpStatus": 204,
+    "profileWithPriorAuthenticationHttpStatus": 401,
+    "appointmentStatusAfterDeactivation": "CONFIRMED"
+  },
+  "appointment": {
+    "id": "1eede4fb-4cd5-44cc-90d5-d0166b88d3e0",
+    "petId": "4e9ab5db-b700-4f48-9e42-174eec4bc0dc",
+    "petName": "Mascota REAL 0940f180-6af3-4925-8747-4bef864831fc",
+    "fictitious": true
+  },
+  "evidence": [
+    {
+      "label": "REAL_HTTP_CONFIRMATION_SENT_AND_REMINDER_PENDING_FUTURE",
+      "observedAtRealInstant": "2026-10-10T15:18:00.431971200Z",
+      "tasks": [
+        {
+          "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+          "type": "OWNER_CONFIRMED",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:17:48.350181Z",
+          "sentAt": "2026-10-10T15:18:00.334360Z",
+          "attemptCount": 1
+        },
+        {
+          "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+          "type": "OWNER_REMINDER",
+          "status": "PENDING",
+          "scheduledAt": "2026-10-10T15:30:00Z",
+          "sentAt": null,
+          "attemptCount": 0
+        }
+      ]
+    },
+    {
+      "label": "OWNER_DELETE_204_AND_SAME_JWT_PROFILE_401",
+      "observedAtRealInstant": "2026-10-10T15:18:00.510742900Z",
+      "tasks": [
+        {
+          "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+          "type": "OWNER_CONFIRMED",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:17:48.350181Z",
+          "sentAt": "2026-10-10T15:18:00.334360Z",
+          "attemptCount": 1
+        },
+        {
+          "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+          "type": "OWNER_REMINDER",
+          "status": "PENDING",
+          "scheduledAt": "2026-10-10T15:30:00Z",
+          "sentAt": null,
+          "attemptCount": 0
+        }
+      ]
+    },
+    {
+      "label": "PENDING_REMINDER_BEFORE_CONTEXT_CLOSE",
+      "observedAtRealInstant": "2026-10-10T15:18:00.510742900Z",
+      "tasks": [
+        {
+          "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+          "type": "OWNER_CONFIRMED",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:17:48.350181Z",
+          "sentAt": "2026-10-10T15:18:00.334360Z",
+          "attemptCount": 1
+        },
+        {
+          "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+          "type": "OWNER_REMINDER",
+          "status": "PENDING",
+          "scheduledAt": "2026-10-10T15:30:00Z",
+          "sentAt": null,
+          "attemptCount": 0
+        }
+      ]
+    },
+    {
+      "label": "SAME_PENDING_REMINDER_PERSISTED_AFTER_RESTART",
+      "observedAtRealInstant": "2026-10-10T15:18:03.520566400Z",
+      "tasks": [
+        {
+          "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+          "type": "OWNER_CONFIRMED",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:17:48.350181Z",
+          "sentAt": "2026-10-10T15:18:00.334360Z",
+          "attemptCount": 1
+        },
+        {
+          "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+          "type": "OWNER_REMINDER",
+          "status": "PENDING",
+          "scheduledAt": "2026-10-10T15:30:00Z",
+          "sentAt": null,
+          "attemptCount": 0
+        }
+      ]
+    },
+    {
+      "label": "PERIODIC_WORKER_SENT_WITH_REAL_SYSTEM_CLOCK",
+      "observedAtRealInstant": "2026-10-10T15:30:15.540447300Z",
+      "tasks": [
+        {
+          "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+          "type": "OWNER_CONFIRMED",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:17:48.350181Z",
+          "sentAt": "2026-10-10T15:18:00.334360Z",
+          "attemptCount": 1
+        },
+        {
+          "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+          "type": "OWNER_REMINDER",
+          "status": "SENT",
+          "scheduledAt": "2026-10-10T15:30:00Z",
+          "sentAt": "2026-10-10T15:30:15.310735Z",
+          "attemptCount": 1
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "d9878005-959f-4979-a761-d9d23e163bf5",
+      "type": "OWNER_CONFIRMED",
+      "status": "SENT",
+      "scheduledAt": "2026-10-10T15:17:48.350181Z",
+      "sentAt": "2026-10-10T15:18:00.334360Z",
+      "attemptCount": 1
+    },
+    {
+      "id": "f0bf22f1-713e-47fe-8f9d-a277190a31c1",
+      "type": "OWNER_REMINDER",
+      "status": "SENT",
+      "scheduledAt": "2026-10-10T15:30:00Z",
+      "sentAt": "2026-10-10T15:30:15.310735Z",
+      "attemptCount": 1
+    }
+  ],
+  "taskCount": 2,
+  "sentCount": 2,
+  "mailtrapCapture": {
+    "listAndHeadersVerified": true,
+    "bodiesInspected": false,
+    "displayedDateTimezoneVerified": false,
+    "messageIds": [
+      "5747390257",
+      "5747394783"
+    ],
+    "messages": [
+      {
+        "type": "OWNER_CONFIRMED",
+        "messageId": "5747390257",
+        "recipient": "real-owner-0940f180-6af3-4925-8747-4bef864831fc@example.test",
+        "subject": "Actualización de tu cita veterinaria",
+        "displayedDate": "2026-10-10 15:17 (minute precision)",
+        "displayedBytes": 538,
+        "screenshot": "confirmacion.png"
+      },
+      {
+        "type": "OWNER_REMINDER",
+        "messageId": "5747394783",
+        "recipient": "real-owner-0940f180-6af3-4925-8747-4bef864831fc@example.test",
+        "subject": "Recordatorio de tu cita veterinaria",
+        "displayedDate": "2026-10-10 15:30 (minute precision)",
+        "displayedBytes": 526,
+        "screenshot": "recordatorio-reloj-real.png"
+      }
+    ]
+  },
+  "cleanup": {
+    "requestedAfterMailtrapCapture": true,
+    "terminalExitCode": 0,
+    "processExited": true,
+    "httpListenerClosed": true,
+    "isolatedDatabaseObjectsRemoved": true,
+    "verifiedWithIndependentSqlConnection": true
+  }
+}

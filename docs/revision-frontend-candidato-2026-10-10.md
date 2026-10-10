@@ -25,6 +25,6 @@ El backend publicado mantiene el contrato 0.9.0 con permisos, estados y respuest
 
 ## Dependencia antes de cambiar los portales
 
-Confirmar con el equipo el repositorio, rama y revisión que deben usarse y si falta publicar código reciente. Hasta recibir ese dato, el trabajo continúa en preparación y comprobación del backend. La [verificación Mailtrap separada](verificacion-mailtrap-2026-10-10.md) observó lista y encabezados de seis avisos; contenido, recuperación actual y espera real de 24 horas siguen pendientes. La revisión compartida, los portales integrados y el despliegue aplazado conservan sus verificaciones propias.
+Confirmar con el equipo el repositorio, rama y revisión que deben usarse y si falta publicar código reciente. Hasta recibir ese dato, el trabajo continúa en preparación y comprobación del backend. Las verificaciones separadas observaron [seis avisos iniciales](verificacion-mailtrap-2026-10-10.md), [recordatorio con reloj real](verificacion-recordatorio-real-2026-10-10.md) y [transporte de recuperación V18](verificacion-recuperacion-smtp-2026-10-10.md); contenido y restablecimiento completo siguen pendientes. La revisión compartida, los portales integrados y el despliegue aplazado conservan sus verificaciones propias.
 
 Esta revisión describe un commit público concreto y la falta de confirmación; **no establece el avance real de los compañeros ni permite cerrar sus tareas en Jira**.

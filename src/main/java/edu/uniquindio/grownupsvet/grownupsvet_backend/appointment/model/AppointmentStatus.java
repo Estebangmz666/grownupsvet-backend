@@ -1,3 +1,3 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model;
 
-public enum AppointmentStatus { REQUESTED, CONFIRMED, REJECTED, CANCELLED }
+public enum AppointmentStatus { REQUESTED, CONFIRMED, REJECTED, CANCELLED, NO_SHOW }

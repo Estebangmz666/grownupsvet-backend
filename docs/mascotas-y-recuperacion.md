@@ -44,7 +44,7 @@ Las operaciones exigen `OWNER` y permisos `PET_CREATE_SELF`, `PET_READ_SELF` o `
 
 En PATCH, `null` elimina únicamente datos opcionales; nunca sustituye un nombre, especie o booleano obligatorio. La combinación final de fecha e indicador estimado debe ser coherente. Los valores JSON mantienen sus tipos: `false` es booleano, `"false"` no lo es; los enums se envían como texto. No hay eliminación física de mascotas.
 
-`active=false` significa «archivada», no «fallecida». La interfaz puede mostrar «Archivar mascota» y «Volver a activar». La fila y su identidad se conservan. **La regla acordada para futuras reservas es exigir mascota activa y propia**; como el módulo de citas todavía no existe, no se presenta esa regla como una validación de reservas ya implementada. Archivar no cancela automáticamente citas anteriores ni modifica información clínica.
+`active=false` significa «archivada», no «fallecida». La interfaz puede mostrar «Archivar mascota» y «Volver a activar». La fila y su identidad se conservan. Solicitar una cita exige mascota activa y propia; confirmar y reprogramar comprueban también su elegibilidad, según [Citas y agenda](citas-y-agenda.md). Archivar no cancela automáticamente citas anteriores ni modifica información clínica. Administración puede cancelar una cita antes de su inicio o registrar su inasistencia al finalizar, aunque la mascota esté archivada.
 
 ## Recuperación
 

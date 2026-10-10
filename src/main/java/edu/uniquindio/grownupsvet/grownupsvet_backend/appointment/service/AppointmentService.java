@@ -162,10 +162,11 @@ public class AppointmentService {
         Account actor = lockAccount(actorId);
         requireRole(actor, UserRole.ADMINISTRATOR);
         AppointmentStatus target = request.status();
-        if (target != AppointmentStatus.CONFIRMED && target != AppointmentStatus.REJECTED) {
-            throw conflict("APPOINTMENT_TRANSITION_NOT_ALLOWED", "Esta operación solo permite confirmar o rechazar una solicitud.");
+        if (target != AppointmentStatus.CONFIRMED && target != AppointmentStatus.REJECTED
+                && target != AppointmentStatus.CANCELLED && target != AppointmentStatus.NO_SHOW) {
+            throw conflict("APPOINTMENT_TRANSITION_NOT_ALLOWED", "Esta transición de cita no está permitida.");
         }
-        String reason = target == AppointmentStatus.REJECTED ? requiredReason(request.reason()) : optionalReason(request.reason());
+        String reason = target == AppointmentStatus.CONFIRMED ? optionalReason(request.reason()) : requiredReason(request.reason());
         AppointmentRow snapshot = appointmentSnapshot(appointmentId);
         if (target == AppointmentStatus.CONFIRMED) {
             lockAccount(snapshot.ownerId());
@@ -186,8 +187,14 @@ public class AppointmentService {
             return get(actorId,appointmentId);
         }
         requireVersion(appointment.version(), request.expectedVersion());
-        if (appointment.status() != AppointmentStatus.REQUESTED) {
+        if (!allowsStatusTransition(appointment.status(), target)) {
             throw conflict("APPOINTMENT_TRANSITION_NOT_ALLOWED", "La solicitud ya cambió o esta transición no está permitida.");
+        }
+        if (target == AppointmentStatus.CANCELLED && !now.isBefore(appointment.startsAt())) {
+            throw conflict("APPOINTMENT_ALREADY_STARTED", "La cita ya comenzó y no puede cancelarse.");
+        }
+        if (target == AppointmentStatus.NO_SHOW && now.isBefore(appointment.endsAt())) {
+            throw conflict("APPOINTMENT_NOT_ENDED", "La inasistencia solo puede registrarse al terminar el turno.");
         }
         if (target == AppointmentStatus.CONFIRMED) {
             if (!now.isBefore(appointment.cutoffAt()) || !appointment.startsAt().isAfter(now)) {
@@ -204,6 +211,93 @@ public class AppointmentService {
         insertEvent(appointmentId, appointment.version()+1, target.name(), appointment.status().name(), target.name(),
                 appointment.assignmentStatus().name(), appointment.assignmentStatus().name(), appointment.slotId(), appointment.slotId(),
                 actorId, "HUMAN", now, reason, null, null, null);
+        return get(actorId, appointmentId);
+    }
+
+    @Transactional
+    public AppointmentResponseDTO reschedule(UUID actorId, UUID appointmentId, RescheduleAppointmentRequestDTO request) {
+        Account actor = lockAccount(actorId);
+        requireRole(actor, UserRole.ADMINISTRATOR);
+        String reason = requiredReason(request.reason());
+        AppointmentRow snapshot = appointmentSnapshot(appointmentId);
+        Account owner = lockAccount(snapshot.ownerId());
+        Pet pet = lockPet(snapshot.petId());
+        Slot initialDestination = readSlot(request.availabilitySlotId());
+        Slot initialCurrent = readSlot(snapshot.slotId());
+        lockAccountsInOrder(List.of(initialCurrent.veterinarianId(), initialDestination.veterinarianId()));
+        AppointmentRow appointment = lockAppointment(appointmentId);
+        Instant now = clock.instant();
+        requireAgreement(request.agreementChannel(), request.agreementContactedAt(), request.agreementNote(), now);
+        String operationFingerprint = reschedulingFingerprint(actorId, request, reason);
+        List<String> previousOperations = jdbc.query("select request_fingerprint from appointment_operation_idempotency " +
+                        "where appointment_id=:appointment and operation_type='RESCHEDULING' and client_request_id=:requestId",
+                Map.of("appointment", appointmentId, "requestId", request.clientRequestId()), (rs, row) -> rs.getString(1));
+        if (!previousOperations.isEmpty()) {
+            if (!MessageDigest.isEqual(previousOperations.getFirst().getBytes(StandardCharsets.US_ASCII),
+                    operationFingerprint.getBytes(StandardCharsets.US_ASCII))) {
+                throw conflict("APPOINTMENT_IDEMPOTENCY_CONFLICT", "La clave de operación ya se usó con otro actor o datos.");
+            }
+            return get(actorId, appointmentId);
+        }
+        if (!snapshot.slotId().equals(appointment.slotId())) {
+            throw conflict("CONCURRENT_UPDATE", "La asignación cambió. Actualiza la cita e inténtalo de nuevo.");
+        }
+        requireVersion(appointment.version(), request.expectedVersion());
+        if (appointment.status() != AppointmentStatus.REQUESTED && appointment.status() != AppointmentStatus.CONFIRMED) {
+            throw conflict("APPOINTMENT_TRANSITION_NOT_ALLOWED", "No se puede reprogramar una cita finalizada.");
+        }
+        if (appointment.assignmentStatus() != AppointmentAssignmentStatus.ASSIGNED) {
+            throw conflict("APPOINTMENT_REASSIGNMENT_REQUIRED", "Resuelve primero la falta de veterinario mediante una reasignación.");
+        }
+        if (!owner.active() || owner.role() != UserRole.OWNER || !pet.active()
+                || !pet.ownerId().equals(appointment.ownerId())) {
+            throw conflict("APPOINTMENT_PARTICIPANT_INACTIVE", "El propietario o la mascota ya no están activos para reprogramar la cita.");
+        }
+        requireActiveVeterinarian(appointment.veterinarianId());
+        List<UUID> slotIds = List.of(appointment.slotId(), initialDestination.id()).stream().distinct().sorted().toList();
+        for (UUID slotId : slotIds) { lockSlot(slotId); }
+        Slot current = readSlot(appointment.slotId());
+        Slot destination = readSlot(initialDestination.id());
+        if (!initialCurrent.veterinarianId().equals(current.veterinarianId())
+                || !initialDestination.veterinarianId().equals(destination.veterinarianId())) {
+            throw conflict("CONCURRENT_UPDATE", "La agenda cambió. Actualiza la cita e inténtalo de nuevo.");
+        }
+        requireVersion(destination.version(), request.expectedAvailabilitySlotVersion());
+        requireActiveVeterinarian(destination.veterinarianId());
+        // Re-evaluate deadlines after every blocking lock, rather than using the request arrival time.
+        now = clock.instant();
+        if (!now.isBefore(appointment.startsAt())) {
+            throw conflict("APPOINTMENT_ALREADY_STARTED", "La cita ya comenzó y no puede reprogramarse.");
+        }
+        if (appointment.status() == AppointmentStatus.REQUESTED && !now.isBefore(appointment.cutoffAt())) {
+            throw conflict("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED", "La solicitud ya llegó a su hora de corte.");
+        }
+        if (destination.id().equals(current.id()) || !"PUBLISHED".equals(destination.status())) {
+            throw conflict("APPOINTMENT_DESTINATION_NOT_AVAILABLE", "El turno de destino no permite reprogramar la cita.");
+        }
+        LocalDate today = LocalDate.now(clock.withZone(zone));
+        LocalDate destinationDate = destination.startsAt().atZone(zone).toLocalDate();
+        if (destinationDate.isBefore(today.plusDays(properties.getMinimumOwnerAdvanceDays()))
+                || destinationDate.isAfter(today.plusDays(properties.getMaximumOwnerHorizonDays()))) {
+            throw conflict("APPOINTMENT_OUTSIDE_REQUEST_WINDOW", "El destino debe estar entre mañana y 60 días desde hoy.");
+        }
+        requireUnoccupiedDestination(appointment, destination);
+        Instant cutoff = appointment.cutoffAt();
+        if (appointment.status() == AppointmentStatus.REQUESTED) {
+            cutoff = destinationDate.atTime(properties.getWorkdayStartTime()).atZone(zone).toInstant();
+            if (!now.isBefore(cutoff)) {
+                throw conflict("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED", "El turno de destino ya llegó a su hora de corte.");
+            }
+        }
+        moveAppointmentToSlot(appointment, destination, cutoff, now);
+        insertAssignment(appointmentId, destination, actorId, now, reason);
+        insertEvent(appointmentId, appointment.version()+1, "RESCHEDULED", appointment.status().name(), appointment.status().name(),
+                appointment.assignmentStatus().name(), "ASSIGNED", appointment.slotId(), destination.id(), actorId, "HUMAN", now, reason,
+                request.agreementChannel(), request.agreementContactedAt(), request.agreementNote().strip());
+        jdbc.update("insert into appointment_operation_idempotency(id,appointment_id,operation_type,client_request_id,request_fingerprint,resulting_version,created_at) " +
+                        "values(:id,:appointment,'RESCHEDULING',:requestId,:fingerprint,:version,:now)",
+                Map.of("id", UUID.randomUUID(), "appointment", appointmentId, "requestId", request.clientRequestId(),
+                        "fingerprint", operationFingerprint, "version", appointment.version()+1, "now", dbTime(now)));
         return get(actorId, appointmentId);
     }
 
@@ -270,30 +364,18 @@ public class AppointmentService {
         if (destination.id().equals(current.id()) || !"PUBLISHED".equals(destination.status()) || !destination.startsAt().isAfter(now)) {
             throw conflict("APPOINTMENT_DESTINATION_NOT_AVAILABLE", "El turno de destino ya no está disponible.");
         }
-        Boolean occupied = jdbc.queryForObject("select exists(select 1 from appointments where current_slot_id=:slot and id<>:id and status in ('REQUESTED','CONFIRMED'))",
-                Map.of("slot",destination.id(),"id",appointmentId),Boolean.class);
-        if (occupied) { throw conflict("APPOINTMENT_SLOT_OCCUPIED","Otra cita ya ocupa el turno de destino."); }
-        Boolean petOverlap = jdbc.queryForObject("select exists(select 1 from appointments where pet_id=:pet and starts_at=:start and id<>:id and status in ('REQUESTED','CONFIRMED'))",
-                Map.of("pet",appointment.petId(),"start",dbTime(destination.startsAt()),"id",appointmentId),Boolean.class);
-        if (petOverlap) { throw conflict("APPOINTMENT_PET_ALREADY_SCHEDULED","La mascota ya tiene otra cita en ese horario."); }
+        requireUnoccupiedDestination(appointment, destination);
         boolean timeChanged = !destination.startsAt().equals(appointment.startsAt());
         if (timeChanged) { requireAgreement(request,now); }
+        Instant cutoff = appointment.cutoffAt();
         if (appointment.status() == AppointmentStatus.REQUESTED) {
-            Instant newCutoff = destination.startsAt().atZone(zone).toLocalDate().atTime(properties.getWorkdayStartTime()).atZone(zone).toInstant();
-            if (!now.isBefore(newCutoff)) { throw conflict("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED", "El turno de destino ya llegó a su hora de corte."); }
+            cutoff = destination.startsAt().atZone(zone).toLocalDate().atTime(properties.getWorkdayStartTime()).atZone(zone).toInstant();
+            if (!now.isBefore(cutoff)) { throw conflict("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED", "El turno de destino ya llegó a su hora de corte."); }
             if (destination.startsAt().atZone(zone).toLocalDate().isBefore(LocalDate.now(clock.withZone(zone)).plusDays(properties.getMinimumOwnerAdvanceDays()))) {
                 throw conflict("APPOINTMENT_OUTSIDE_REQUEST_WINDOW", "El turno de destino no cumple la anticipación mínima.");
             }
-            try {
-                jdbc.update("update appointments set current_slot_id=:slot,starts_at=:start,ends_at=:end,confirmation_cutoff_at=:cutoff,assignment_status='ASSIGNED',version=version+1,updated_at=:now where id=:id",
-                        Map.of("slot",destination.id(),"start",dbTime(destination.startsAt()),"end",dbTime(destination.endsAt()),"cutoff",dbTime(newCutoff),"now",dbTime(now),"id",appointmentId));
-            } catch (DataIntegrityViolationException exception) { throw translateOccupancyConflict(exception); }
-        } else {
-            try {
-                jdbc.update("update appointments set current_slot_id=:slot,starts_at=:start,ends_at=:end,assignment_status='ASSIGNED',version=version+1,updated_at=:now where id=:id",
-                        Map.of("slot",destination.id(),"start",dbTime(destination.startsAt()),"end",dbTime(destination.endsAt()),"now",dbTime(now),"id",appointmentId));
-            } catch (DataIntegrityViolationException exception) { throw translateOccupancyConflict(exception); }
         }
+        moveAppointmentToSlot(appointment, destination, cutoff, now);
         insertAssignment(appointmentId,destination,actorId,now,reason);
         insertEvent(appointmentId,appointment.version()+1,"REASSIGNED",appointment.status().name(),appointment.status().name(),
                 appointment.assignmentStatus().name(),"ASSIGNED",appointment.slotId(),destination.id(),actorId,"HUMAN",now,reason,
@@ -508,11 +590,30 @@ public class AppointmentService {
         if (page<0||size<1||size>100||(long)page*size>Integer.MAX_VALUE) { throw invalid("La paginación solicitada no es válida."); }
     }
     private void requireAgreement(ReassignAppointmentRequestDTO request,Instant now) {
-        if (request.agreementChannel()==null||request.agreementContactedAt()==null||request.agreementNote()==null||request.agreementNote().isBlank()) {
+        requireAgreement(request.agreementChannel(), request.agreementContactedAt(), request.agreementNote(), now);
+    }
+    private void requireAgreement(String channel, Instant contactedAt, String note, Instant now) {
+        if (channel==null||contactedAt==null||note==null||note.isBlank()) {
             throw invalid("Registra el canal, la fecha y la constancia del acuerdo con el propietario para cambiar fecha u hora.");
         }
-        if (request.agreementContactedAt().isAfter(now)) { throw invalid("La fecha del contacto debe ser anterior o igual al momento del cambio."); }
-        if (!List.of("PHONE","WHATSAPP","OTHER").contains(request.agreementChannel())) { throw invalid("El canal de contacto no es válido."); }
+        if (contactedAt.isAfter(now)) { throw invalid("La fecha del contacto debe ser anterior o igual al momento del cambio."); }
+        if (!List.of("PHONE","WHATSAPP","OTHER").contains(channel) || note.length() > 500) { throw invalid("La constancia del acuerdo no es válida."); }
+    }
+    private void requireUnoccupiedDestination(AppointmentRow appointment, Slot destination) {
+        Boolean occupied = jdbc.queryForObject("select exists(select 1 from appointments where current_slot_id=:slot and id<>:id and status in ('REQUESTED','CONFIRMED'))",
+                Map.of("slot", destination.id(), "id", appointment.id()), Boolean.class);
+        if (occupied) { throw conflict("APPOINTMENT_SLOT_OCCUPIED", "Otra cita ya ocupa el turno de destino."); }
+        Boolean petOverlap = jdbc.queryForObject("select exists(select 1 from appointments where pet_id=:pet and starts_at=:start and id<>:id and status in ('REQUESTED','CONFIRMED'))",
+                Map.of("pet", appointment.petId(), "start", dbTime(destination.startsAt()), "id", appointment.id()), Boolean.class);
+        if (petOverlap) { throw conflict("APPOINTMENT_PET_ALREADY_SCHEDULED", "La mascota ya tiene otra cita en ese horario."); }
+    }
+    private void moveAppointmentToSlot(AppointmentRow appointment, Slot destination, Instant cutoff, Instant now) {
+        try {
+            jdbc.update("update appointments set current_slot_id=:slot,starts_at=:start,ends_at=:end,confirmation_cutoff_at=:cutoff," +
+                            "assignment_status='ASSIGNED',version=version+1,updated_at=:now where id=:id",
+                    Map.of("slot", destination.id(), "start", dbTime(destination.startsAt()), "end", dbTime(destination.endsAt()),
+                            "cutoff", dbTime(cutoff), "now", dbTime(now), "id", appointment.id()));
+        } catch (DataIntegrityViolationException exception) { throw translateOccupancyConflict(exception); }
     }
     private void requireRole(Account account,UserRole role) {
         if (!account.active()||account.role()!=role) { throw accessDenied(); }
@@ -521,10 +622,29 @@ public class AppointmentService {
             UUID actorId, String reason) {
         return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from appointment_events " +
                         "where appointment_id=:appointment and appointment_version=:version and event_type=:target " +
-                        "and previous_status='REQUESTED' and new_status=:target and actor_type='HUMAN' " +
+                        "and ((:target in ('CONFIRMED','REJECTED') and previous_status='REQUESTED') " +
+                        "or (:target='CANCELLED' and previous_status in ('REQUESTED','CONFIRMED')) " +
+                        "or (:target='NO_SHOW' and previous_status='CONFIRMED')) " +
+                        "and new_status=:target and actor_type='HUMAN' " +
                         "and actor_id=:actor and reason is not distinct from :reason)",
                 new MapSqlParameterSource().addValue("appointment", appointmentId).addValue("version", version)
                         .addValue("target", target.name()).addValue("actor", actorId).addValue("reason", reason), Boolean.class));
+    }
+    private static boolean allowsStatusTransition(AppointmentStatus current, AppointmentStatus target) {
+        return switch (target) {
+            case CONFIRMED, REJECTED -> current == AppointmentStatus.REQUESTED;
+            case CANCELLED -> current == AppointmentStatus.REQUESTED || current == AppointmentStatus.CONFIRMED;
+            case NO_SHOW -> current == AppointmentStatus.CONFIRMED;
+            default -> false;
+        };
+    }
+    private String reschedulingFingerprint(UUID actorId, RescheduleAppointmentRequestDTO request, String reason) {
+        String canonical = json(List.of(actorId.toString(), request.availabilitySlotId().toString(),
+                request.expectedAvailabilitySlotVersion(), request.expectedVersion(), reason, request.agreementChannel(),
+                request.agreementContactedAt().toString(), request.agreementNote().strip()));
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }
     private String requiredReason(String value) {
         String normalized = optionalReason(value);
@@ -554,7 +674,7 @@ public class AppointmentService {
     }
     private String json(Object value) {
         try { return objectMapper.writeValueAsString(value); }
-        catch (JacksonException exception) { throw new IllegalStateException("Could not serialize appointment notification.",exception); }
+        catch (JacksonException exception) { throw new IllegalStateException("Could not serialize appointment data.",exception); }
     }
     private static java.sql.Timestamp dbTime(Instant instant) { return java.sql.Timestamp.from(instant); }
     private static boolean constraint(Throwable error,String expected) {

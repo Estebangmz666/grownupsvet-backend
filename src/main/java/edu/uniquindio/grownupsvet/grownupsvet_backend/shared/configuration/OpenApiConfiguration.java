@@ -16,8 +16,8 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfiguration {
     @Bean
     public OpenAPI applicationOpenApi() {
-        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.7.0")
-                .description("Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial y reasignación de citas veterinarias. Los correos de reasignación requieren configuración SMTP. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento."));
+        return new OpenAPI().info(new Info().title("GrownupsVet API").version("0.8.0")
+                .description("Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial, reasignación y cambios administrativos de citas veterinarias: cancelación manual, reprogramación con acuerdo previo e inasistencia. Los correos existentes de reasignación requieren configuración SMTP; este incremento no añade avisos generales ni recordatorios P12. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento."));
     }
 
     @Bean

@@ -158,10 +158,13 @@ public class AppointmentEmailDispatcher {
 
     private Notice currentOwnerNotice(DeliveryTask task, JsonNode payload) {
         List<OwnerAssignment> current = jdbc.query("select a.current_slot_id,a.starts_at,p.name pet_name,vp.full_name veterinarian_name," +
-                        "(select max(e.appointment_version) from appointment_events e where e.appointment_id=a.id and e.event_type='REASSIGNED') assignment_version " +
+                        "notice_event.appointment_version assignment_version " +
                         "from appointments a join pets p on p.id=a.pet_id " +
                         "join veterinarian_availability_slots s on s.id=a.current_slot_id " +
                         "join veterinarian_profiles vp on vp.user_id=s.veterinarian_id join users v on v.id=s.veterinarian_id " +
+                        "join lateral (select e.appointment_version,e.event_type from appointment_events e " +
+                        "where e.appointment_id=a.id and e.event_type in ('REASSIGNED','RESCHEDULED') " +
+                        "order by e.appointment_version desc limit 1) notice_event on notice_event.event_type='REASSIGNED' " +
                         "where a.id=? and a.status in ('REQUESTED','CONFIRMED') and a.assignment_status='ASSIGNED' " +
                         "and v.status='ACTIVE' and (a.status='CONFIRMED' or a.confirmation_cutoff_at>?)",
                 (row, index) -> new OwnerAssignment(row.getObject("current_slot_id", UUID.class),

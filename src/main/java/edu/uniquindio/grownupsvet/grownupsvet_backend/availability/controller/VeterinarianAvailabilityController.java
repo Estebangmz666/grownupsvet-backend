@@ -81,7 +81,7 @@ public class VeterinarianAvailabilityController {
     }
 
     @Operation(operationId = "rescheduleVeterinarianAvailabilitySlot", summary = "Cambiar la hora de un turno",
-            description = "Solo permite cambiar turnos futuros. La protección frente a reservas reales se integrará con el módulo de citas. Conserva el UUID y registra auditoría.")
+            description = "Solo permite cambiar turnos futuros que nunca hayan sido referenciados por una cita, aunque esta sea terminal. Conserva el UUID y registra auditoría.")
     @ApiResponse(responseCode = "200", description = "Turno actualizado", content = @Content(schema = @Schema(implementation = VeterinarianAvailabilitySlotResponseDTO.class)))
     @PutMapping(value = "/{slotId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('VETERINARIAN_AVAILABILITY_MANAGE')")

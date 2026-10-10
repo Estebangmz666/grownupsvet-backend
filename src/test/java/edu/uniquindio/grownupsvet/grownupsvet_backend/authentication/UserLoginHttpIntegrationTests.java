@@ -220,8 +220,9 @@ class UserLoginHttpIntegrationTests {
 
     @Test
     void generatesTheLoginContractAndBearerScheme() throws Exception {
-        MvcResult result = mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+        MvcResult result = mockMvc.perform(get("http://localhost:8080/v3/api-docs")).andExpect(status().isOk()).andReturn();
         JsonNode specification = jsonMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(specification.path("servers").get(0).path("url").asText()).isEqualTo("http://localhost:8080");
         assertThat(specification.path("paths").has(AUTHENTICATED_TEST_PATH)).isFalse();
         JsonNode operation = specification.path("paths").path(SESSIONS_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("createUserSession");

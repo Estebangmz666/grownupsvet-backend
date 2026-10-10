@@ -1,4 +1,4 @@
-# Disponibilidad veterinaria — contrato 0.7.0
+# Disponibilidad veterinaria — contrato 0.8.0
 
 Este incremento agrega la publicación, consulta, edición y bloqueo de turnos concretos de 30 minutos y su integración con solicitudes y citas activas. La agenda disponible ya excluye ocupaciones reales.
 
@@ -93,7 +93,7 @@ La seguridad de la unicidad evita duplicados también ante solicitudes concurren
 
 La consulta del propietario excluye turnos ocupados por citas `REQUESTED` y `CONFIRMED`. PostgreSQL protege la ocupación activa por turno y por mascota/intervalo; el servicio vuelve a validar la versión del turno después de bloquearlo. La respuesta de disponibilidad incluye `version` para que la solicitud no reserve silenciosamente un turno que cambió desde su consulta.
 
-Bloquear un turno ocupado falla y cambiar la hora de cualquier turno con historial de asignaciones falla, aunque la cita anterior ya se haya rechazado o cancelado. Rechazar o vencer una solicitud libera la ocupación dentro de la transacción que registra el evento terminal. Las reglas funcionales completas están en [Citas y agenda](citas-y-agenda.md).
+Bloquear un turno ocupado falla y cambiar la hora de cualquier turno con historial de asignaciones falla, aunque la cita anterior sea terminal. Rechazar, cancelar o registrar inasistencia libera ocupación dentro de la transacción que registra el evento; reprogramar reserva el destino y libera el origen atómicamente. `NO_SHOW` no convierte un turno pasado en una opción solicitable. Las reglas funcionales completas están en [Citas y agenda](citas-y-agenda.md).
 
 ## Verificación
 

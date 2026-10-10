@@ -1,6 +1,6 @@
-# Personal, invitaciones y disponibilidad — contrato 0.7.0
+# Personal, invitaciones y disponibilidad — contrato 0.8.0
 
-Alcance: cuentas de administradores y veterinarios, invitación para establecer contraseña, perfil profesional y títulos con diploma opcional, más disponibilidad veterinaria de turnos concretos de 30 minutos. El contrato se genera desde controladores y DTOs. Solicitudes/reservas/citas, integración COMVEZCOL y plantillas Thymeleaf quedan aplazadas.
+Alcance de esta guía: cuentas de administradores y veterinarios, invitación para establecer contraseña, perfil profesional y títulos con diploma opcional, más disponibilidad veterinaria de turnos concretos de 30 minutos. El contrato se genera desde controladores y DTOs. Las solicitudes, reservas y cambios administrativos de citas están implementados y documentados en [Citas y agenda](citas-y-agenda.md). Integración COMVEZCOL y plantillas Thymeleaf quedan aplazadas.
 
 ## Identidad, permisos y estados
 

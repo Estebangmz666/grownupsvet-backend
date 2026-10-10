@@ -1,7 +1,10 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment;
 
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RescheduleAppointmentRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RevealOwnerEmailRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentEmailDispatcher;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.VeterinarianAvailabilitySlot;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.VeterinarianAvailabilitySlotRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.Pet;
@@ -93,6 +96,7 @@ class AppointmentEmailDispatcherIntegrationTests {
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private ApplicationEventPublisher events;
     @Autowired private AppointmentEmailDispatcher dispatcher;
+    @Autowired private AppointmentService appointments;
     @Autowired private JsonMapper mapper;
     @Autowired private MutableNotificationClock clock;
     @Autowired private UserRepository users;
@@ -190,6 +194,45 @@ class AppointmentEmailDispatcherIntegrationTests {
     }
 
     @Test
+    void reschedulingWithTheSameVeterinarianAndReturningToTheOriginalSlotSupersedesAnOlderNotice() {
+        UUID currentTask = queueOwner(1);
+        UUID legacyTask = queue("OWNER_REASSIGNED", fixture.ownerId(), fixture.ownerEmail(), Map.of(
+                "petName", "Luna", "veterinarianName", "Doctora Primera", "startsAt", START.toString()));
+        VeterinarianAvailabilitySlot destination = transactions.execute(status -> slots.saveAndFlush(
+                new VeterinarianAvailabilitySlot(fixture.veterinarianId(), START.plusSeconds(3600),
+                        START.plusSeconds(5400), fixture.administratorId(), NOW)));
+        appointments.reschedule(fixture.administratorId(), fixture.appointmentId(),
+                rescheduling(destination.getId(), destination.getVersion(), 1L));
+        appointments.reschedule(fixture.administratorId(), fixture.appointmentId(),
+                rescheduling(fixture.slotId(), 0L, 2L));
+
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class,
+                fixture.appointmentId())).isEqualTo(fixture.slotId());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
+                Integer.class, fixture.appointmentId())).isEqualTo(2);
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(currentTask)).isEqualTo("SUPERSEDED");
+        assertThat(taskStatus(legacyTask)).isEqualTo("SUPERSEDED");
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void auditedOwnerEmailAccessDoesNotSupersedeTheCurrentAssignmentNotice() {
+        UUID task = queueOwner(1);
+        assertThat(appointments.revealOwnerEmail(fixture.veterinarianId(), fixture.appointmentId(),
+                new RevealOwnerEmailRequestDTO("Contacto previo a la cita confirmada.")).email())
+                .isEqualTo(fixture.ownerEmail());
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class,
+                fixture.appointmentId())).isEqualTo(2L);
+
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(task)).isEqualTo("SENT");
+        assertThat(delivered).hasSize(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? " +
+                "and event_type='EMAIL_ACCESSED'", Integer.class, fixture.appointmentId())).isEqualTo(1);
+    }
+
+    @Test
     void cancelledAppointmentsDoNotProduceStaleAdministratorRequests() {
         UUID task = queueAdministrator();
         jdbc.update("update appointments set assignment_status='NEEDS_REASSIGNMENT' where id=?", fixture.appointmentId());
@@ -279,6 +322,11 @@ class AppointmentEmailDispatcherIntegrationTests {
         return queue("OWNER_REASSIGNED", fixture.ownerId(), fixture.ownerEmail(), Map.of(
                 "petName", "Luna", "veterinarianName", "Doctora Primera", "startsAt", START.toString(),
                 "availabilitySlotId", fixture.slotId().toString(), "assignmentVersion", assignmentVersion));
+    }
+
+    private RescheduleAppointmentRequestDTO rescheduling(UUID destinationId, long slotVersion, long appointmentVersion) {
+        return new RescheduleAppointmentRequestDTO(UUID.randomUUID(), destinationId, slotVersion, appointmentVersion,
+                "Reprogramación acordada.", "PHONE", NOW, "La propietaria confirmó el nuevo horario.");
     }
 
     private UUID queueAdministrator() {

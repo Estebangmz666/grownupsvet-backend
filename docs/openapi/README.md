@@ -1,6 +1,6 @@
-# OpenAPI generado — incremento 0.7.0
+# OpenAPI generado — incremento 0.8.0
 
-`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento 0.7.0 añade ocupación de disponibilidad, solicitud, confirmación, consulta e historial de citas, reasignación administrativa y acceso justificado al correo del propietario. Conserva Bearer JWT y los permisos opacos de uso restringido para restablecer o establecer contraseñas. Frontend, urgencias, atención clínica e integración COMVEZCOL quedan fuera de este incremento.
+`openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento 0.8.0 añade cancelación manual, reprogramación general e inasistencia administrativas sobre las solicitudes, agenda, reasignación excepcional e historial del 0.7.0. Conserva Bearer JWT y los permisos opacos de uso restringido para restablecer o establecer contraseñas. Frontend, urgencias, atención clínica, avisos generales/recordatorios P12 e integración COMVEZCOL quedan fuera de este incremento.
 
 La [guía de personal e invitaciones](../personal-e-invitaciones.md) concreta permisos, estados, URL placeholder, credenciales externas, archivos y cuotas. La [guía de disponibilidad veterinaria](../disponibilidad-veterinaria.md) documenta turnos, permisos y ocupación real por citas. La [guía de citas y agenda](../citas-y-agenda.md) define estados, permisos, corte, reasignación y contacto. La [guía de mascotas y recuperación](../mascotas-y-recuperacion.md) conserva el alcance anterior. Recuperación e invitaciones están deshabilitadas por defecto hasta configurar sus canales y secretos. El Sandbox de Mailtrap se configuró en desarrollo y Esteban confirmó los casos manuales de recuperación; esa evidencia no sustituye la revisión del contrato con los dos frontends.
 
@@ -31,6 +31,18 @@ Después de que ambos comandos de verificación terminen correctamente, actualiz
 ```powershell
 Copy-Item -LiteralPath target/generated-openapi/openapi.json -Destination docs/openapi/openapi.json
 ```
+
+## Incremento 0.8.0 — cambios administrativos P07
+
+`PATCH /api/v1/appointments/{appointmentId}/status` añade `CANCELLED` desde pendiente/confirmada antes del inicio y `NO_SHOW` desde confirmada al finalizar el turno, con motivo obligatorio y versión observada. `POST /api/v1/appointments/{appointmentId}/reschedulings` recibe ocho campos obligatorios de intención, destino, versiones, motivo y acuerdo previo. La reprogramación general solo ocurre antes del inicio original, hacia un turno publicado y libre con fecha local de mañana al día 60; conserva identidad, participantes y estado. Una solicitud vencida no puede eludir el corte reprogramándose.
+
+Las operaciones siguen exclusivas del administrador con `APPOINTMENT_MANAGE`; no se añaden permisos ni autogestión al propietario. `NO_SHOW` y `RESCHEDULED` aparecen en los enums de estado/eventos y en las respuestas reales. La reprogramación utiliza idempotencia persistida y actor en el fingerprint; los fallos conservan la reserva original. V16 conserva las migraciones previas y amplía checks de estados, eventos, constancia e intenciones.
+
+Los ejemplos nuevos incluyen cancelación, inasistencia, reprogramación, replay e historial administrativo. El validador independiente comprueba la operación nueva, campos/tipos/required del DTO, estados/eventos y respuestas HTTP. Los avisos existentes se invalidan por el último cambio real de horario/asignación, incluidos payloads antiguos; este incremento no añade nuevos mensajes P12.
+
+Para revisar el contrato con ambos consumidores: actualizar el manejo de `NO_SHOW` y eventos nuevos; gestionar `409` por versión, plazo, capacidad o intención; mostrar resultados de agenda/historial a propietarios y mantener acciones de cambio solo en gestión administrativa. Revisar los ejemplos generados y registrar observaciones/aceptación de los tres integrantes. Esa revisión compartida y la integración frontend permanecen pendientes aunque el contrato esté generado y validado.
+
+El 08/10/2026 la suite completa pasó **462 pruebas** y la validación independiente comprobó **37 respuestas HTTP**, OpenAPI 3.1.0 y las 58 operaciones/39 rutas del contrato 0.8.0. Después de emparejar los ejemplos de aplicación/replay se repitieron las 40 pruebas HTTP de citas satisfactoriamente. El snapshot coincide con la salida generada. El [informe del incremento P07](../verificacion-cambios-citas-2026-10-08.md) distingue esa evidencia local de publicación, revisión y aceptación.
 
 ## Incremento 0.7.0 — citas, ocupación y reasignación
 

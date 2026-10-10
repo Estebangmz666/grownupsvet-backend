@@ -85,11 +85,11 @@ public class AppointmentController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(service.get(UUID.fromString(jwt.getSubject()),appointmentId));
     }
 
-    @Operation(operationId="updateAppointmentStatus",summary="Confirmar o rechazar una solicitud", description="Solo administradores: REQUESTED a CONFIRMED o REJECTED con expectedVersion. Rechazar requiere motivo. Confirmar exige propietario, mascota, veterinario y turno elegibles y plazo de confirmación vigente. No admite cancelación manual ni estados clínicos.")
+    @Operation(operationId="updateAppointmentStatus",summary="Gestionar el estado administrativo de una cita", description="Solo administradores y con expectedVersion. REQUESTED puede confirmarse o rechazarse; confirmar exige participantes, turno y plazo elegibles. REQUESTED o CONFIRMED pueden cancelarse únicamente antes del inicio. Solo CONFIRMED admite NO_SHOW desde el fin del turno. Rechazo, cancelación e inasistencia requieren motivo no vacío. La cancelación humana es distinta del corte automático. Una repetición inmediata exige mismo actor, versión e intención. No permite estados clínicos ni reabrir citas terminales.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transición aplicada o repetición equivalente", content = @Content(schema = @Schema(implementation = AppointmentResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Cita inexistente", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "Versión, estado, plazo o requisitos de confirmación incompatibles", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class)))
+            @ApiResponse(responseCode = "409", description = "Versión, estado, plazo o participantes incompatibles con la transición", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class)))
     })
     @PatchMapping(path="/{appointmentId}/status",consumes=MediaType.APPLICATION_JSON_VALUE,produces=MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('"+UserPermission.Constants.APPOINTMENT_MANAGE+"')")
@@ -113,14 +113,28 @@ public class AppointmentController {
     @Operation(operationId="reassignAppointmentVeterinarian",summary="Resolver la falta de veterinario de una cita", description="Solo administradores: cita vigente con NEEDS_REASSIGNMENT a un turno libre de otro veterinario activo. Conserva identidad y estado funcional. Cambiar fecha u hora requiere constancia de acuerdo previo con el propietario. Una confirmada puede resolverse a un turno futuro del mismo día; una pendiente no puede eludir su corte. Operación idempotente mediante clientRequestId.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Asignación completada o repetición equivalente", content = @Content(schema = @Schema(implementation = AppointmentResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Cita o turno inexistente", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "Versión, estado, vigencia o capacidad incompatibles", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class)))
+            @ApiResponse(responseCode = "404", description = "Cita inexistente", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "409", description = "Turno inexistente/no disponible o versión, estado, vigencia o capacidad incompatibles", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class)))
     })
     @PostMapping(path="/{appointmentId}/veterinarian-reassignments",consumes=MediaType.APPLICATION_JSON_VALUE,produces=MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAuthority('"+UserPermission.Constants.APPOINTMENT_MANAGE+"')")
     public ResponseEntity<AppointmentResponseDTO> reassign(@AuthenticationPrincipal Jwt jwt,@PathVariable UUID appointmentId,
             @Valid @RequestBody ReassignAppointmentRequestDTO request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(service.reassign(UUID.fromString(jwt.getSubject()),appointmentId,request));
+    }
+
+    @Operation(operationId="rescheduleAppointment",summary="Reprogramar una cita con acuerdo previo", description="Solo administradores: REQUESTED o CONFIRMED con asignación ASSIGNED y participantes activos, antes del inicio original; una solicitud también debe conservar vigente su corte original. Destino publicado y libre desde mañana hasta 60 días en America/Bogota, del mismo veterinario o de otro activo. Conserva identidad, mascota, propietario y estado; exige motivo y constancia de acuerdo previo. El cambio y su historia son atómicos: un fallo conserva la reserva original. clientRequestId identifica una intención persistente del administrador: repetir la misma intención devuelve la cita actual, y reutilizar la clave con otros datos o actor produce 409. No crea nuevos avisos P12; invalida avisos existentes superados por el cambio.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reprogramación aplicada o repetición equivalente", content = @Content(schema = @Schema(implementation = AppointmentResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Campos, motivo o constancia del acuerdo inválidos", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Cita inexistente", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "409", description = "Turno inexistente/no disponible o versión, estado, plazo, participantes, ocupación o clave de operación incompatibles", content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE, schema = @Schema(implementation = ApiErrorResponseDTO.class)))
+    })
+    @PostMapping(path="/{appointmentId}/reschedulings",consumes=MediaType.APPLICATION_JSON_VALUE,produces=MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('"+UserPermission.Constants.APPOINTMENT_MANAGE+"')")
+    public ResponseEntity<AppointmentResponseDTO> reschedule(@AuthenticationPrincipal Jwt jwt,@PathVariable UUID appointmentId,
+            @Valid @RequestBody RescheduleAppointmentRequestDTO request) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(service.reschedule(UUID.fromString(jwt.getSubject()),appointmentId,request));
     }
 
     @Operation(operationId="revealAppointmentOwnerEmail",summary="Consultar el correo del propietario con motivo", description="Solo el veterinario actualmente asignado a una cita CONFIRMED cuyo intervalo no terminó. Cada consulta exige motivo de contacto por WhatsApp fallido y se audita antes de responder. No concede acceso permanente.")

@@ -264,7 +264,11 @@ class VeterinarianAvailabilityHttpIntegrationTests {
 
     @Test
     void generatesTheAvailabilityContractWithExpectedRoutesSecurityAndPrivacyBoundaries() throws Exception {
-        JsonNode specification = body(mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn());
+        JsonNode specification = body(mvc.perform(get("/v3/api-docs").with(request -> {
+            request.setServerPort(8080);
+            return request;
+        })).andExpect(status().isOk()).andReturn());
+        assertThat(specification.path("servers").get(0).path("url").asText()).isEqualTo("http://localhost:8080");
         JsonNode paths = specification.path("paths");
         assertThat(paths.propertyNames()).contains(BASE + "/{veterinarianId}/availability-slots",
                 BASE + "/{veterinarianId}/availability-slot-batches", OWNER_BASE);
@@ -336,7 +340,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
                 .isEqualTo(1);
         assertThat(schemas.path("CreateVeterinarianAvailabilitySlotBatchRequestDTO").path("properties")
                 .path("daysOfWeek").path("minItems").asInt()).isEqualTo(1);
-        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.7.0");
+        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.8.0");
         Path output = Path.of("target", "generated-openapi");
         Files.createDirectories(output);
         Files.writeString(output.resolve("openapi.json"), mapper.writerWithDefaultPrettyPrinter().writeValueAsString(specification));

@@ -2,6 +2,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.CreateAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.ReassignAppointmentRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RescheduleAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.UpdateAppointmentStatusRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.exception.AppointmentOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus;
@@ -163,6 +164,217 @@ class AppointmentTransactionIntegrationTests {
     }
 
     @Test
+    void cancellationAndConfirmationCommitOnlyOneEffectiveTransition() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        List<String> results = raceWithLockedRow("appointments", id,
+                () -> transitionResult(administrator.getId(), id, AppointmentStatus.CANCELLED, "Cancelación acordada."),
+                () -> transitionResult(secondAdministrator.getId(), id, AppointmentStatus.CONFIRMED, null));
+        assertThat(results).contains("CONCURRENT_UPDATE");
+        assertThat(results.stream().filter(value -> value.equals("CANCELLED") || value.equals("CONFIRMED"))).hasSize(1);
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?",
+                Integer.class, id)).isEqualTo(2);
+    }
+
+    @Test
+    void cancellationAndReschedulingCommitOnlyOneEffectiveChange() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        RescheduleAppointmentRequestDTO request = rescheduling(destination, 0L);
+        List<String> results = raceWithLockedRow("appointments", id,
+                () -> transitionResult(administrator.getId(), id, AppointmentStatus.CANCELLED, "Cancelación acordada."),
+                () -> reschedulingResult(secondAdministrator.getId(), id, request));
+        assertThat(results).contains("CONCURRENT_UPDATE");
+        assertThat(results.stream().filter(value -> value.equals("CANCELLED") || value.equals("RESCHEDULED"))).hasSize(1);
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?",
+                Integer.class, id)).isEqualTo(2);
+        boolean rescheduled = results.contains("RESCHEDULED");
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id))
+                .isEqualTo(rescheduled ? destination.getId() : slot.getId());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency " +
+                "where appointment_id=? and operation_type='RESCHEDULING'", Integer.class, id))
+                .isEqualTo(rescheduled ? 1 : 0);
+    }
+
+    @Test
+    void concurrentReschedulingReplaysCommitOneEventAssignmentAndIdempotencyRecord() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        RescheduleAppointmentRequestDTO request = rescheduling(destination, 0L);
+        var results = raceWithLockedAccount(administrator.getId(),
+                () -> appointments.reschedule(administrator.getId(), id, request),
+                () -> appointments.reschedule(administrator.getId(), id, request));
+        assertThat(results).allSatisfy(result -> {
+            assertThat(result.id()).isEqualTo(id);
+            assertThat(result.version()).isEqualTo(1L);
+            assertThat(result.status()).isEqualTo(AppointmentStatus.REQUESTED);
+        });
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? " +
+                "and event_type='RESCHEDULED'", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?",
+                Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=? " +
+                "and operation_type='RESCHEDULING'", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
+                Integer.class, id)).isZero();
+        assertFailure(() -> appointments.reschedule(secondAdministrator.getId(), id, request),
+                "APPOINTMENT_IDEMPOTENCY_CONFLICT");
+    }
+
+    @Test
+    void concurrentReschedulingToDifferentDestinationsPreservesOneCompleteResult() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot firstDestination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        VeterinarianAvailabilitySlot secondDestination = newSlot(replacement, slot.getStartsAt().plusSeconds(7200));
+        List<String> results = raceWithLockedRow("appointments", id,
+                () -> reschedulingResult(administrator.getId(), id, rescheduling(firstDestination, 0L)),
+                () -> reschedulingResult(secondAdministrator.getId(), id, rescheduling(secondDestination, 0L)));
+        assertThat(results).containsExactlyInAnyOrder("RESCHEDULED", "CONCURRENT_UPDATE");
+        UUID currentSlot = jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id);
+        assertThat(currentSlot).isIn(firstDestination.getId(), secondDestination.getId());
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?",
+                Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?",
+                Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test
+    void occupiedReschedulingDestinationPreservesOriginalReservationHistoryAndIdempotency() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        UUID occupyingAppointment = appointments.create(owner.getId(), request(destination)).appointment().id();
+        RescheduleAppointmentRequestDTO request = rescheduling(destination, 0L);
+
+        assertFailure(() -> appointments.reschedule(administrator.getId(), id, request), "APPOINTMENT_SLOT_OCCUPIED");
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id)).isEqualTo(slot.getId());
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?",
+                Integer.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?",
+                Integer.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select id from appointments where current_slot_id=? " +
+                "and status in ('REQUESTED','CONFIRMED')", UUID.class, destination.getId())).isEqualTo(occupyingAppointment);
+
+        appointments.updateStatus(administrator.getId(), occupyingAppointment,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.REJECTED, 0L, "Se liberó el destino acordado."));
+        assertThat(appointments.reschedule(administrator.getId(), id, request).version()).isEqualTo(1L);
+    }
+
+    @Test
+    void rollbackAfterChangingTheReservationRestoresTheOriginalHistoryAndAllowsTheSameRequestToCommit() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        RescheduleAppointmentRequestDTO request = rescheduling(destination, 0L);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        transaction.executeWithoutResult(status -> {
+            assertThat(appointments.reschedule(administrator.getId(), id, request).version()).isEqualTo(1L);
+            assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id))
+                    .isEqualTo(destination.getId());
+            assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency " +
+                    "where appointment_id=?", Integer.class, id)).isEqualTo(1);
+            status.setRollbackOnly();
+        });
+
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id))
+                .isEqualTo(slot.getId());
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?",
+                Integer.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? " +
+                "and status in ('REQUESTED','CONFIRMED')", Integer.class, destination.getId())).isZero();
+        assertThat(appointments.reschedule(administrator.getId(), id, request).version()).isEqualTo(1L);
+    }
+
+    @Test
+    void noShowIsTerminalAndItsNewHistoryIsImmutableInPostgreSql() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        appointments.updateStatus(administrator.getId(), id,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null));
+        clock.set(slot.getEndsAt());
+        UpdateAppointmentStatusRequestDTO request = new UpdateAppointmentStatusRequestDTO(
+                AppointmentStatus.NO_SHOW, 1L, "La propietaria y la mascota no asistieron.");
+        assertThat(appointments.updateStatus(administrator.getId(), id, request).status()).isEqualTo(AppointmentStatus.NO_SHOW);
+        assertThat(appointments.updateStatus(administrator.getId(), id, request).version()).isEqualTo(2L);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? " +
+                "and event_type='NO_SHOW' and previous_status='CONFIRMED' and new_status='NO_SHOW' " +
+                "and actor_type='HUMAN' and actor_id=?", Integer.class, id, administrator.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? " +
+                "and status in ('REQUESTED','CONFIRMED')", Integer.class, slot.getId())).isZero();
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "update appointment_events set reason='Alteración' where appointment_id=? and event_type='NO_SHOW'", id)))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "update appointments set status='UNKNOWN' where id=?", id))).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status," +
+                        "previous_slot_id,new_slot_id,actor_id,actor_type,occurred_at,reason) " +
+                        "values(?,?,3,'NO_SHOW','REQUESTED','NO_SHOW',?,?,?,'HUMAN',?,'Origen inválido')",
+                UUID.randomUUID(), id, slot.getId(), slot.getId(), administrator.getId(), Timestamp.from(clock.instant()))))
+                .isInstanceOf(DataAccessException.class);
+        assertFailure(() -> appointments.updateStatus(administrator.getId(), id,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 2L, null)),
+                "APPOINTMENT_TRANSITION_NOT_ALLOWED");
+    }
+
+    @Test
+    void databaseRequiresRecordedAgreementAndPreservedStatusForReschedulingHistory() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(3600));
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status," +
+                        "previous_slot_id,new_slot_id,actor_id,actor_type,occurred_at,reason) " +
+                        "values(?,?,1,'RESCHEDULED','REQUESTED','REQUESTED',?,?,?,'HUMAN',?,'Falta acuerdo')",
+                UUID.randomUUID(), id, slot.getId(), destination.getId(), administrator.getId(), Timestamp.from(clock.instant()))))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status," +
+                        "previous_slot_id,new_slot_id,actor_id,actor_type,occurred_at,reason," +
+                        "agreement_channel,agreement_contacted_at,agreement_note) " +
+                        "values(?,?,1,'RESCHEDULED','REQUESTED','CONFIRMED',?,?,?,'HUMAN',?,'Estado alterado','PHONE',?,'Acuerdo')",
+                UUID.randomUUID(), id, slot.getId(), destination.getId(), administrator.getId(),
+                Timestamp.from(clock.instant()), Timestamp.from(clock.instant()))))
+                .isInstanceOf(DataAccessException.class);
+        assertThat(appointments.reschedule(administrator.getId(), id, rescheduling(destination, 0L)).status())
+                .isEqualTo(AppointmentStatus.REQUESTED);
+        assertThatThrownBy(() -> inNewTransaction(() -> jdbc.update(
+                "delete from appointment_events where appointment_id=? and event_type='RESCHEDULED'", id)))
+                .isInstanceOf(DataAccessException.class);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? " +
+                "and event_type='RESCHEDULED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test
+    void reschedulingWaitingForTheDestinationCannotPassTheOriginalStartDeadline() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        appointments.updateStatus(administrator.getId(), id,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null));
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(86400));
+        assertReschedulingDeadlineAfterWaiting(id, destination, 1L, slot.getStartsAt(), "APPOINTMENT_ALREADY_STARTED");
+    }
+
+    @Test
+    void reschedulingWaitingForTheDestinationCannotEscapeTheOriginalConfirmationCutoff() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        VeterinarianAvailabilitySlot destination = newSlot(replacement, slot.getStartsAt().plusSeconds(86400));
+        Instant cutoff = jdbc.queryForObject("select confirmation_cutoff_at from appointments where id=?",
+                Timestamp.class, id).toInstant();
+        assertReschedulingDeadlineAfterWaiting(id, destination, 0L, cutoff, "APPOINTMENT_CONFIRMATION_CUTOFF_PASSED");
+    }
+
+    @Test
     void confirmationWaitingForCutoffDoesNotHoldTheSlotNeededByItsEventForeignKeys() throws Exception {
         UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
         clock.set(Instant.parse("2026-10-06T11:00:00Z"));
@@ -287,6 +499,11 @@ class AppointmentTransactionIntegrationTests {
                 "Reemplazo del veterinario no disponible.", "PHONE", clock.instant(), "Se acordó el destino con la propietaria.");
     }
 
+    private RescheduleAppointmentRequestDTO rescheduling(VeterinarianAvailabilitySlot destination, long version) {
+        return new RescheduleAppointmentRequestDTO(UUID.randomUUID(), destination.getId(), destination.getVersion(), version,
+                "Reprogramación acordada.", "PHONE", clock.instant(), "Se acordó el nuevo horario con la propietaria.");
+    }
+
     private void assertFailure(Runnable operation, String errorCode) {
         assertThatThrownBy(operation::run).isInstanceOfSatisfying(AppointmentOperationException.class,
                 failure -> assertThat(failure.getErrorCode()).isEqualTo(errorCode));
@@ -297,14 +514,52 @@ class AppointmentTransactionIntegrationTests {
         catch (AppointmentOperationException conflict) { return conflict.getErrorCode(); }
     }
 
+    private String reschedulingResult(UUID actor, UUID id, RescheduleAppointmentRequestDTO request) {
+        try { appointments.reschedule(actor, id, request); return "RESCHEDULED"; }
+        catch (AppointmentOperationException conflict) { return conflict.getErrorCode(); }
+    }
+
+    private void assertReschedulingDeadlineAfterWaiting(UUID id, VeterinarianAvailabilitySlot destination,
+            long version, Instant deadline, String errorCode) throws Exception {
+        RescheduleAppointmentRequestDTO request = rescheduling(destination, version);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<String> result;
+            try (Connection blocker = dataSource.getConnection()) {
+                blocker.setAutoCommit(false);
+                try {
+                    lockRow(blocker, "veterinarian_availability_slots", destination.getId());
+                    int backendId = backendId(blocker);
+                    result = executor.submit(() -> reschedulingResult(administrator.getId(), id, request));
+                    awaitBlockedRequests(backendId, 1);
+                    clock.set(deadline);
+                    blocker.commit();
+                } finally { blocker.rollback(); }
+            }
+            assertThat(result.get(20, TimeUnit.SECONDS)).isEqualTo(errorCode);
+        }
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, id))
+                .isEqualTo(slot.getId());
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isEqualTo(version);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? " +
+                "and event_type='RESCHEDULED'", Integer.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?",
+                Integer.class, id)).isZero();
+    }
+
     private <T> List<T> raceWithLockedAccount(UUID accountId, Callable<T> firstOperation, Callable<T> secondOperation) throws Exception {
+        return raceWithLockedRow("users", accountId, firstOperation, secondOperation);
+    }
+
+    private <T> List<T> raceWithLockedRow(String table, UUID rowId, Callable<T> firstOperation, Callable<T> secondOperation) throws Exception {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<T> first;
             Future<T> second;
             try (Connection blocker = dataSource.getConnection()) {
                 blocker.setAutoCommit(false);
                 try {
-                    lockRow(blocker, "users", accountId);
+                    lockRow(blocker, table, rowId);
                     int backendId = backendId(blocker);
                     first = executor.submit(firstOperation);
                     second = executor.submit(secondOperation);
@@ -317,7 +572,9 @@ class AppointmentTransactionIntegrationTests {
     }
 
     private void lockRow(Connection connection, String table, UUID id) throws Exception {
-        if (!List.of("users", "appointments").contains(table)) { throw new IllegalArgumentException("Unexpected table"); }
+        if (!List.of("users", "appointments", "veterinarian_availability_slots").contains(table)) {
+            throw new IllegalArgumentException("Unexpected table");
+        }
         try (var statement = connection.prepareStatement("select id from " + table + " where id=? for update")) {
             statement.setObject(1, id);
             try (var result = statement.executeQuery()) { assertThat(result.next()).isTrue(); }

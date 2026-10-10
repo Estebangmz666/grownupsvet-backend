@@ -1,6 +1,6 @@
 # GrownupsVet: usuarios, roles y foto de perfil
 
-Fecha inicial: 6 de septiembre de 2026. Actualizado el 13 de septiembre con la incorporación de superadministrador, personal e invitaciones. El estado técnico se fundamenta en el código local; las historias enlazadas representan alcance y no acreditan revisión por los compañeros.
+Fecha inicial: 6 de septiembre de 2026. Actualizado el 8 de octubre con disponibilidad, citas y cambios administrativos. El estado técnico se fundamenta en el código local; las historias enlazadas representan alcance y no acreditan revisión por los compañeros.
 
 ## Decisiones confirmadas y estado actual
 
@@ -17,13 +17,13 @@ Fecha inicial: 6 de septiembre de 2026. Actualizado el 13 de septiembre con la i
 | Rol | Responsabilidad prevista en el backlog | Límite de acceso |
 |---|---|---|
 | `OWNER` — Propietario | Su perfil, sus mascotas, solicitudes de cita y consulta de información clínica publicada de sus mascotas. | La autorización comprueba la propiedad del recurso. No puede acceder a perfiles o mascotas ajenos, administrar personal ni modificar información clínica. |
-| `VETERINARIAN` — Veterinario | Atención autorizada, registros clínicos, fórmulas y controles asociados. | Debe existir autorización sobre la atención o historia concreta. El alcance de lectura de antecedentes y agenda se concretará con sus contratos. Este rol no administra cuentas o roles. |
-| `ADMINISTRATOR` — Administrador | Habilitar/desactivar personal autorizado, gestionar disponibilidad y confirmar solicitudes de cita. | No puede modificar información clínica. Su acceso de lectura clínica todavía debe definirse; el nombre del rol no concede acceso ilimitado. |
+| `VETERINARIAN` — Veterinario | Consulta de citas actualmente asignadas y revelación puntual auditada del correo; atención, fórmulas y controles siguen previstos. | No gestiona cambios de cita ni cuentas. El acceso clínico deberá acordarse sobre recursos concretos. |
+| `ADMINISTRATOR` — Administrador | Personal, disponibilidad, confirmación/rechazo, cancelación, reprogramación e inasistencia de citas. | No puede modificar información clínica. Su acceso de lectura clínica todavía debe definirse; el nombre del rol no concede acceso ilimitado. |
 | `SUPER_ADMIN` — Superadministrador | Aprovisionar y administrar las cuentas de administradores. | Una cuenta por instalación, sin heredar gestión de veterinarios ni permisos clínicos. |
 
 Evidencia actual: [registro y perfil, SCRUM-6](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-6), [personal, SCRUM-10](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-10), [disponibilidad, SCRUM-11](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-11), [solicitud y confirmación, SCRUM-12](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-12), [atención clínica, SCRUM-14](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-14) y [fórmula, SCRUM-16](https://uqvirtual-team-yavszk8l.atlassian.net/browse/SCRUM-16). El alcance de consulta del propietario también se recoge en P10 del backlog general del proyecto.
 
-El catálogo de permisos es fijo en código. `SUPER_ADMIN` recibe `ADMINISTRATOR_MANAGE`; `ADMINISTRATOR`, `VETERINARIAN_MANAGE`; y `OWNER`, `VETERINARIAN_PROFILE_READ`, además de sus permisos previos. Todos reciben los dos permisos de foto propia. Las tareas administrativas de disponibilidad y confirmación continúan previstas; todavía no forman parte de las operaciones implementadas de personal.
+El catálogo de permisos es fijo en código. `SUPER_ADMIN` recibe `ADMINISTRATOR_MANAGE`; `ADMINISTRATOR`, `VETERINARIAN_MANAGE` y permisos de disponibilidad y `APPOINTMENT_MANAGE`; y `OWNER`, `VETERINARIAN_PROFILE_READ`, consulta de opciones y creación/consulta de sus citas, además de sus permisos de perfil y mascotas. `VETERINARIAN` consulta únicamente agenda propia/asignada y tiene acceso auditado al correo en las condiciones documentadas. Todos reciben los permisos de foto propia. Los cambios P07 reutilizan `APPOINTMENT_MANAGE`; no conceden autogestión al propietario ni herencia de agenda al superadministrador.
 
 Los roles son responsabilidades independientes. No se propone una jerarquía que haga al administrador heredar las funciones clínicas del veterinario. La cuenta de mantenimiento que usa PostgreSQL es independiente del rol `ADMINISTRATOR` de la aplicación.
 

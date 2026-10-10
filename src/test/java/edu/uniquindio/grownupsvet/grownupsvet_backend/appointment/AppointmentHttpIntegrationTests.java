@@ -4,6 +4,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.CreateAppo
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.security.UserPermissionResolver;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.service.JwtTokenService;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.AvailabilitySlotStatus;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.VeterinarianAvailabilitySlot;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.VeterinarianAvailabilitySlotRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.Pet;
@@ -205,8 +206,12 @@ class AppointmentHttpIntegrationTests {
 
     @Test
     void generatesAppointmentOpenApiAndRealHttpExamples() throws Exception {
-        JsonNode specification=mapper.readTree(mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+        JsonNode specification=mapper.readTree(mvc.perform(get("/v3/api-docs").with(request -> {
+            request.setServerPort(8080);
+            return request;
+        })).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray());
+        assertThat(specification.path("servers").get(0).path("url").asText()).isEqualTo("http://localhost:8080");
         Path output=Path.of("target","generated-openapi");
         Files.createDirectories(output);
         Files.writeString(output.resolve("openapi.json"),mapper.writerWithDefaultPrettyPrinter().writeValueAsString(specification));
@@ -323,7 +328,7 @@ class AppointmentHttpIntegrationTests {
         assertThat(appointments.expirePendingAppointments()).isEqualTo(1);
         mvc.perform(authenticated(patch(BASE + "/" + id + "/status"), administrator,
                 Map.of("status", "CANCELLED", "expectedVersion", 0, "reason", "DAILY_CONFIRMATION_CUTOFF")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_TRANSITION_NOT_ALLOWED"));
+                .andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, UUID.fromString(id))).isEqualTo(2);
     }
 
@@ -475,6 +480,458 @@ class AppointmentHttpIntegrationTests {
                 .andExpect(jsonPath("$.errorCode").value("APPOINTMENT_IDEMPOTENCY_CONFLICT"));
         assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='REASSIGNED'", Integer.class, UUID.fromString(id))).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_REASSIGNED'", Integer.class, UUID.fromString(id))).isEqualTo(1);
+    }
+
+    @Test
+    void administrativeCancellationReleasesTheSlotAndReplaysOnlyTheSameHumanIntent() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/status";
+        var cancellation = Map.of("status", "CANCELLED", "expectedVersion", 0, "reason", "El propietario pidió cancelar.");
+        var cancelled = mvc.perform(authenticated(patch(path), administrator, cancellation)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.ownerId").value(ownerOne.getId().toString()))
+                .andExpect(jsonPath("$.petId").value(petOne.getId().toString()))
+                .andExpect(jsonPath("$.version").value(1)).andReturn();
+        saveExample("appointment-cancelled.json", cancelled);
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "CANCELLED", "expectedVersion", 0, "reason", "  El propietario pidió cancelar.  ")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "CANCELLED", "expectedVersion", 0, "reason", "Otro motivo.")))
+                .andExpect(status().isConflict());
+        mvc.perform(authenticated(patch(path), account(UserRole.ADMINISTRATOR), cancellation)).andExpect(status().isConflict());
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "CONFIRMED", "expectedVersion", 1)))
+                .andExpect(status().isConflict());
+        mvc.perform(authenticated(post(BASE), ownerTwo, request(UUID.randomUUID(), petTwo, slotOne))).andExpect(status().isCreated());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='CANCELLED' and actor_type='HUMAN' and actor_id=?",
+                Integer.class, UUID.fromString(id), administrator.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select reason from appointment_events where appointment_id=? and event_type='CANCELLED'",
+                String.class, UUID.fromString(id))).isEqualTo("El propietario pidió cancelar.");
+        mvc.perform(authenticated(get(BASE + "/" + id + "/events"), ownerOne)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
+    void cancellationAllowsTheInstantBeforeTheStartButRejectsTheStartAndLater() throws Exception {
+        String id = createConfirmedAppointment();
+        String path = BASE + "/" + id + "/status";
+        var cancellation = Map.of("status", "CANCELLED", "expectedVersion", 1, "reason", "Cambio de planes.");
+        clock.set(slotOne.getStartsAt());
+        mvc.perform(authenticated(patch(path), administrator, cancellation)).andExpect(status().isConflict());
+        clock.set(slotOne.getStartsAt().plusSeconds(1));
+        mvc.perform(authenticated(patch(path), administrator, cancellation)).andExpect(status().isConflict());
+        clock.set(slotOne.getStartsAt().minusNanos(1));
+        mvc.perform(authenticated(patch(path), administrator, cancellation)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertThat(eventCount(id)).isEqualTo(3);
+    }
+
+    @Test
+    void terminalAdministrativeChangesDoNotRequireActiveParticipants() throws Exception {
+        String cancellationId = createConfirmedAppointment();
+        String noShowId = body(mvc.perform(authenticated(post(BASE), ownerTwo, request(UUID.randomUUID(), petTwo, slotTwo)))
+                .andExpect(status().isCreated()).andReturn()).path("id").asText();
+        confirm(noShowId);
+        disableVeterinarian(veterinarianOne);
+        disableVeterinarian(veterinarianTwo);
+        ownerOne.deactivate();
+        ownerTwo.deactivate();
+        users.saveAndFlush(ownerOne);
+        users.saveAndFlush(ownerTwo);
+        jdbc.update("update pets set active=false where id in (?,?)", petOne.getId(), petTwo.getId());
+        mvc.perform(authenticated(patch(BASE + "/" + cancellationId + "/status"), administrator,
+                        Map.of("status", "CANCELLED", "expectedVersion", appointmentVersion(cancellationId), "reason", "Cancelación administrativa.")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
+        clock.set(slotTwo.getEndsAt());
+        mvc.perform(authenticated(patch(BASE + "/" + noShowId + "/status"), administrator,
+                        Map.of("status", "NO_SHOW", "expectedVersion", appointmentVersion(noShowId), "reason", "No se presentó.")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("NO_SHOW"));
+    }
+
+    @Test
+    void noShowRequiresAConfirmedAppointmentAtOrAfterItsEndAndCannotReopenIt() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/status";
+        clock.set(slotOne.getEndsAt());
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "NO_SHOW", "expectedVersion", 0, "reason", "No se presentó.")))
+                .andExpect(status().isConflict());
+        clock.set(INITIAL_TIME);
+        confirm(id);
+        var noShow = Map.of("status", "NO_SHOW", "expectedVersion", 1, "reason", "No se presentó.");
+        clock.set(slotOne.getEndsAt().minusNanos(1));
+        mvc.perform(authenticated(patch(path), administrator, noShow)).andExpect(status().isConflict());
+        clock.set(slotOne.getEndsAt());
+        var missed = mvc.perform(authenticated(patch(path), administrator, noShow)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NO_SHOW")).andExpect(jsonPath("$.version").value(2)).andReturn();
+        saveExample("appointment-no-show.json", missed);
+        clock.set(slotOne.getEndsAt().plusSeconds(1));
+        mvc.perform(authenticated(patch(path), administrator, noShow)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+        mvc.perform(authenticated(patch(path), account(UserRole.ADMINISTRATOR), noShow)).andExpect(status().isConflict());
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "CONFIRMED", "expectedVersion", 2)))
+                .andExpect(status().isConflict());
+        String date = slotOne.getStartsAt().atZone(ZONE).toLocalDate().toString();
+        mvc.perform(authenticated(get(BASE).param("from", date).param("to", date).param("status", "NO_SHOW"), ownerOne))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(id));
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='NO_SHOW' and actor_id=?",
+                Integer.class, UUID.fromString(id), administrator.getId())).isEqualTo(1);
+        assertThat(eventCount(id)).isEqualTo(3);
+    }
+
+    @Test
+    void p07ManagementDeniesOwnersVeterinariansAndTheSuperAdministrator() throws Exception {
+        String id = createAppointment();
+        for (User actor : List.of(ownerOne, ownerTwo, veterinarianOne, veterinarianTwo, account(UserRole.SUPER_ADMIN))) {
+            for (String target : List.of("CANCELLED", "NO_SHOW")) {
+                mvc.perform(authenticated(patch(BASE + "/" + id + "/status"), actor,
+                                Map.of("status", target, "expectedVersion", 0, "reason", "Motivo válido.")))
+                        .andExpect(status().isForbidden());
+            }
+            mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), actor, rescheduling(slotTwo, 0)))
+                    .andExpect(status().isForbidden());
+        }
+        mvc.perform(post(BASE + "/" + id + "/reschedulings").contentType("application/json")
+                        .content(mapper.writeValueAsBytes(rescheduling(slotTwo, 0))))
+                .andExpect(status().isUnauthorized());
+        assertThat(appointmentVersion(id)).isZero();
+        assertThat(eventCount(id)).isEqualTo(1);
+    }
+
+    @Test
+    void p07StatusRejectsMissingBlankOrOversizedReasonsAndCoercedVersions() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/status";
+        for (String target : List.of("CANCELLED", "NO_SHOW")) {
+            mvc.perform(authenticated(patch(path), administrator, Map.of("status", target, "expectedVersion", 0)))
+                    .andExpect(status().isBadRequest());
+            for (String reason : List.of("", " \t\n ", "x".repeat(1001))) {
+                mvc.perform(authenticated(patch(path), administrator, Map.of("status", target, "expectedVersion", 0, "reason", reason)))
+                        .andExpect(status().isBadRequest());
+            }
+        }
+        for (Object invalidVersion : List.of(0.5, "0", true, -1)) {
+            mvc.perform(authenticated(patch(path), administrator,
+                            Map.of("status", "CANCELLED", "expectedVersion", invalidVersion, "reason", "Cancelación válida.")))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(authenticated(patch(path), administrator,
+                        Map.of("status", "REQUESTED", "expectedVersion", 0, "reason", "Transición inválida.")))
+                .andExpect(status().isConflict());
+        assertThat(appointmentVersion(id)).isZero();
+        assertThat(eventCount(id)).isEqualTo(1);
+    }
+
+    @Test
+    void reschedulingPreservesIdentityAndRequestedStateAndUpdatesItsCutoffAtomically() throws Exception {
+        String id = createAppointment();
+        var destination = slot(veterinarianTwo, slotOne.getStartsAt().plusSeconds(86400), administrator.getId());
+        var operation = rescheduling(destination, 0);
+        var result = mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, operation))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store, private"))
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.ownerId").value(ownerOne.getId().toString()))
+                .andExpect(jsonPath("$.petId").value(petOne.getId().toString()))
+                .andExpect(jsonPath("$.veterinarianId").value(veterinarianTwo.getId().toString()))
+                .andExpect(jsonPath("$.status").value("REQUESTED"))
+                .andExpect(jsonPath("$.assignmentStatus").value("ASSIGNED"))
+                .andExpect(jsonPath("$.startsAt").value(destination.getStartsAt().toString()))
+                .andExpect(jsonPath("$.version").value(1)).andReturn();
+        saveExample("appointment-rescheduled.json", result);
+        var replayResult = mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, operation))
+                .andExpect(status().isOk()).andReturn();
+        assertThat(body(replayResult)).isEqualTo(body(result));
+        saveExample("appointment-rescheduling-replay.json", replayResult);
+        assertThat(jdbc.queryForObject("select confirmation_cutoff_at from appointments where id=?", java.sql.Timestamp.class, UUID.fromString(id)).toInstant())
+                .isEqualTo(destination.getStartsAt().atZone(ZONE).toLocalDate().atTime(6, 0).atZone(ZONE).toInstant());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?", Integer.class, UUID.fromString(id))).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='RESCHEDULED' and actor_type='HUMAN' and actor_id=?",
+                Integer.class, UUID.fromString(id), administrator.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select agreement_channel from appointment_events where appointment_id=? and event_type='RESCHEDULED'",
+                String.class, UUID.fromString(id))).isEqualTo("PHONE");
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=? and operation_type='RESCHEDULING'",
+                Integer.class, UUID.fromString(id))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+        mvc.perform(authenticated(post(BASE), ownerTwo, request(UUID.randomUUID(), petTwo, slotOne))).andExpect(status().isCreated());
+        mvc.perform(authenticated(get(BASE + "/" + id), ownerTwo)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get(BASE + "/" + id + "/events"), ownerTwo)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get(BASE + "/" + id), veterinarianOne)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get(BASE + "/" + id), veterinarianTwo)).andExpect(status().isOk());
+        saveExample("appointment-administrative-event-page.json", mvc.perform(authenticated(get(BASE + "/" + id + "/events"), ownerOne))
+                .andExpect(status().isOk()).andReturn());
+    }
+
+    @Test
+    void confirmedAppointmentCanMoveToAnotherTurnOfTheSameVeterinarianAndKeepItsState() throws Exception {
+        String id = createConfirmedAppointment();
+        var destination = slot(veterinarianOne, slotOne.getStartsAt().plusSeconds(86400), administrator.getId());
+        mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, rescheduling(destination, 1)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.veterinarianId").value(veterinarianOne.getId().toString()))
+                .andExpect(jsonPath("$.version").value(2));
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, UUID.fromString(id)))
+                .isEqualTo(destination.getId());
+        assertThat(eventCount(id)).isEqualTo(3);
+    }
+
+    @Test
+    void reschedulingAcceptsEveryAgreedChannelAndRecordsAnExplicitNonUtcOffset() throws Exception {
+        String id = createAppointment();
+        long version = 0;
+        for (String channel : List.of("WHATSAPP", "OTHER")) {
+            var destination = slot(veterinarianTwo, slotOne.getStartsAt().plusSeconds(86400 * (version + 1)), administrator.getId());
+            var operation = rescheduling(destination, version);
+            operation.put("agreementChannel", channel);
+            operation.put("agreementContactedAt", INITIAL_TIME.atZone(ZONE).toOffsetDateTime().toString());
+            operation.put("agreementNote", "  El propietario confirmó el cambio.  ");
+            mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, operation)).andExpect(status().isOk());
+            version++;
+            assertThat(jdbc.queryForObject("select agreement_channel from appointment_events where appointment_id=? and appointment_version=?",
+                    String.class, UUID.fromString(id), version)).isEqualTo(channel);
+            assertThat(jdbc.queryForObject("select agreement_contacted_at from appointment_events where appointment_id=? and appointment_version=?",
+                    java.sql.Timestamp.class, UUID.fromString(id), version).toInstant()).isEqualTo(INITIAL_TIME);
+            assertThat(jdbc.queryForObject("select agreement_note from appointment_events where appointment_id=? and appointment_version=?",
+                    String.class, UUID.fromString(id), version)).isEqualTo("El propietario confirmó el cambio.");
+        }
+        assertThat(eventCount(id)).isEqualTo(3);
+    }
+
+    @Test
+    void reschedulingReplayIsPersistentAndRejectsAnotherActorOrChangedIntent() throws Exception {
+        String id = createAppointment();
+        var operation = rescheduling(slotTwo, 0);
+        String path = BASE + "/" + id + "/reschedulings";
+        mvc.perform(authenticated(post(path), administrator, operation)).andExpect(status().isOk());
+        mvc.perform(authenticated(post(path), administrator, operation))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        mvc.perform(authenticated(post(path), account(UserRole.ADMINISTRATOR), operation)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("APPOINTMENT_IDEMPOTENCY_CONFLICT"));
+        var changed = new HashMap<>(operation);
+        changed.put("reason", "Una intención distinta.");
+        mvc.perform(authenticated(post(path), administrator, changed)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("APPOINTMENT_IDEMPOTENCY_CONFLICT"));
+        changed = new HashMap<>(operation);
+        changed.put("agreementNote", "Otro acuerdo de horario.");
+        mvc.perform(authenticated(post(path), administrator, changed)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("APPOINTMENT_IDEMPOTENCY_CONFLICT"));
+        clock.set(slotTwo.getEndsAt().plusSeconds(1));
+        mvc.perform(authenticated(post(path), administrator, operation)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1));
+        assertThat(eventCount(id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isEqualTo(1);
+    }
+
+    @Test
+    void reschedulingReplayRevalidatesTheAdministratorSession() throws Exception {
+        String id = createAppointment();
+        var operation = rescheduling(slotTwo, 0);
+        String path = BASE + "/" + id + "/reschedulings";
+        mvc.perform(authenticated(post(path), administrator, operation)).andExpect(status().isOk());
+        String obsoletePermissions = tokenService.issue(administrator, List.of("PROFILE_READ_SELF")).accessToken();
+        mvc.perform(post(path).header("Authorization", "Bearer " + obsoletePermissions).contentType("application/json")
+                        .content(mapper.writeValueAsBytes(operation)))
+                .andExpect(status().isUnauthorized());
+        String token = tokenService.issue(administrator, permissions.resolve(administrator.getRole())).accessToken();
+        administrator.deactivate();
+        users.saveAndFlush(administrator);
+        mvc.perform(post(path).header("Authorization", "Bearer " + token).contentType("application/json")
+                        .content(mapper.writeValueAsBytes(operation)))
+                .andExpect(status().isUnauthorized());
+        assertThat(eventCount(id)).isEqualTo(2);
+        assertThat(appointmentVersion(id)).isEqualTo(1);
+    }
+
+    @Test
+    void reschedulingRequiresCompleteStrictAgreementAndVersionsWithoutPartialWrites() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/reschedulings";
+        var valid = rescheduling(slotTwo, 0);
+        for (String required : valid.keySet()) {
+            var missing = new HashMap<>(valid);
+            missing.remove(required);
+            mvc.perform(authenticated(post(path), administrator, missing)).andExpect(status().isBadRequest());
+            missing.put(required, null);
+            mvc.perform(authenticated(post(path), administrator, missing)).andExpect(status().isBadRequest());
+        }
+        for (Object invalidInstant : List.of(clock.instant().getEpochSecond(), "2026-10-04T19:00:00", true, clock.instant().plusSeconds(1).toString())) {
+            var invalid = new HashMap<>(valid);
+            invalid.put("agreementContactedAt", invalidInstant);
+            mvc.perform(authenticated(post(path), administrator, invalid)).andExpect(status().isBadRequest());
+        }
+        for (String field : List.of("reason", "agreementNote", "agreementChannel")) {
+            var invalid = new HashMap<>(valid);
+            invalid.put(field, " \t ");
+            mvc.perform(authenticated(post(path), administrator, invalid)).andExpect(status().isBadRequest());
+        }
+        for (String field : List.of("expectedVersion", "expectedAvailabilitySlotVersion")) {
+            for (Object invalidVersion : List.of(0.5, "0", true, -1)) {
+                var invalid = new HashMap<>(valid);
+                invalid.put(field, invalidVersion);
+                mvc.perform(authenticated(post(path), administrator, invalid)).andExpect(status().isBadRequest());
+            }
+        }
+        for (String field : List.of("clientRequestId", "availabilitySlotId")) {
+            var invalid = new HashMap<>(valid);
+            invalid.put(field, "not-a-uuid");
+            mvc.perform(authenticated(post(path), administrator, invalid)).andExpect(status().isBadRequest());
+        }
+        for (String immutableIdentity : List.of("ownerId", "petId")) {
+            var invalid = new HashMap<>(valid);
+            invalid.put(immutableIdentity, UUID.randomUUID());
+            mvc.perform(authenticated(post(path), administrator, invalid)).andExpect(status().isBadRequest());
+        }
+        var invalidChannel = new HashMap<>(valid);
+        invalidChannel.put("agreementChannel", "EMAIL");
+        mvc.perform(authenticated(post(path), administrator, invalidChannel)).andExpect(status().isBadRequest());
+        var longNote = new HashMap<>(valid);
+        longNote.put("agreementNote", "x".repeat(501));
+        mvc.perform(authenticated(post(path), administrator, longNote)).andExpect(status().isBadRequest());
+        assertOriginalReservation(id, 0, 1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    @Test
+    void reschedulingUsesTheLocalTomorrowThroughSixtyDaysWindow() throws Exception {
+        String id = createAppointment();
+        LocalDate today = LocalDate.now(clock.withZone(ZONE));
+        var todaySlot = slot(veterinarianTwo, today.atTime(23, 0).atZone(ZONE).toInstant(), administrator.getId());
+        var sixtyFirstDay = slot(veterinarianTwo, today.plusDays(61).atTime(8, 0).atZone(ZONE).toInstant(), administrator.getId());
+        String path = BASE + "/" + id + "/reschedulings";
+        for (var destination : List.of(todaySlot, sixtyFirstDay)) {
+            mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 0))).andExpect(status().isConflict());
+            assertOriginalReservation(id, 0, 1);
+        }
+        var tomorrowMorning = slot(veterinarianTwo, today.plusDays(1).atTime(8, 0).atZone(ZONE).toInstant(), administrator.getId());
+        assertThat(Duration.between(clock.instant(), tomorrowMorning.getStartsAt())).isLessThan(Duration.ofHours(24));
+        mvc.perform(authenticated(post(path), administrator, rescheduling(tomorrowMorning, 0))).andExpect(status().isOk());
+        var sixtiethDay = slot(veterinarianTwo, today.plusDays(60).atTime(8, 0).atZone(ZONE).toInstant(), administrator.getId());
+        mvc.perform(authenticated(post(path), administrator, rescheduling(sixtiethDay, 1))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.startsAt").value(sixtiethDay.getStartsAt().toString()));
+    }
+
+    @Test
+    void reschedulingCannotResurrectARequestAtItsOriginalCutoff() throws Exception {
+        String id = createAppointment();
+        var destination = slot(veterinarianTwo, slotOne.getStartsAt().plusSeconds(86400), administrator.getId());
+        Instant cutoff = slotOne.getStartsAt().atZone(ZONE).toLocalDate().atTime(6, 0).atZone(ZONE).toInstant();
+        clock.set(cutoff);
+        mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, rescheduling(destination, 0)))
+                .andExpect(status().isConflict());
+        assertOriginalReservation(id, 0, 1);
+        clock.set(cutoff.minusNanos(1));
+        mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, rescheduling(destination, 0)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REQUESTED"));
+    }
+
+    @Test
+    void confirmedReschedulingRejectsTheOriginalStartAndAllowsTheInstantBeforeIt() throws Exception {
+        String id = createConfirmedAppointment();
+        var destination = slot(veterinarianTwo, slotOne.getStartsAt().plusSeconds(86400), administrator.getId());
+        String path = BASE + "/" + id + "/reschedulings";
+        clock.set(slotOne.getStartsAt());
+        mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 1))).andExpect(status().isConflict());
+        assertOriginalReservation(id, 1, 2);
+        clock.set(slotOne.getStartsAt().minusNanos(1));
+        mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 1))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void occupiedReschedulingDestinationPreservesOriginHistoryAndIdempotency() throws Exception {
+        String id = createAppointment();
+        mvc.perform(authenticated(post(BASE), ownerTwo, request(UUID.randomUUID(), petTwo, slotTwo))).andExpect(status().isCreated());
+        var conflict = mvc.perform(authenticated(post(BASE + "/" + id + "/reschedulings"), administrator, rescheduling(slotTwo, 0)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_SLOT_OCCUPIED")).andReturn();
+        saveExample("appointment-rescheduling-conflict-error.json", conflict);
+        assertOriginalReservation(id, 0, 1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?", Integer.class, UUID.fromString(id))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    @Test
+    void unavailableDestinationsAndStaleVersionsNeverMoveTheOriginalReservation() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/reschedulings";
+        var stale = rescheduling(slotTwo, 0);
+        stale.put("expectedAvailabilitySlotVersion", slotTwo.getVersion() + 1);
+        mvc.perform(authenticated(post(path), administrator, stale)).andExpect(status().isConflict());
+        var outdatedAppointment = rescheduling(slotTwo, 1);
+        mvc.perform(authenticated(post(path), administrator, outdatedAppointment)).andExpect(status().isConflict());
+        slotTwo.changeStatus(AvailabilitySlotStatus.BLOCKED, administrator.getId(), clock.instant());
+        slots.saveAndFlush(slotTwo);
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 0))).andExpect(status().isConflict());
+        assertOriginalReservation(id, 0, 1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    @Test
+    void reschedulingRejectsInactiveParticipantsAndAppointmentsNeedingExceptionalReassignment() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/reschedulings";
+        ownerOne.deactivate();
+        users.saveAndFlush(ownerOne);
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 0))).andExpect(status().isConflict());
+        ownerOne.activate();
+        users.saveAndFlush(ownerOne);
+        jdbc.update("update pets set active=false where id=?", petOne.getId());
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 0))).andExpect(status().isConflict());
+        jdbc.update("update pets set active=true where id=?", petOne.getId());
+        disableVeterinarian(veterinarianTwo);
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 0))).andExpect(status().isConflict());
+        reactivateVeterinarian(veterinarianTwo);
+        disableVeterinarian(veterinarianOne);
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, appointmentVersion(id)))).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, UUID.fromString(id))).isEqualTo(slotOne.getId());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='RESCHEDULED'", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    @Test
+    void reschedulingRejectsTerminalAppointmentsAndTheUnchangedSlot() throws Exception {
+        String id = createAppointment();
+        String path = BASE + "/" + id + "/reschedulings";
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotOne, 0))).andExpect(status().isConflict());
+        mvc.perform(authenticated(patch(BASE + "/" + id + "/status"), administrator,
+                        Map.of("status", "CANCELLED", "expectedVersion", 0, "reason", "El propietario canceló.")))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(post(path), administrator, rescheduling(slotTwo, 1))).andExpect(status().isConflict());
+        assertOriginalReservation(id, 1, 2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, UUID.fromString(id))).isZero();
+    }
+
+    private Map<String, Object> rescheduling(VeterinarianAvailabilitySlot destination, long version) {
+        return new HashMap<>(Map.of("clientRequestId", UUID.randomUUID(), "availabilitySlotId", destination.getId(),
+                "expectedAvailabilitySlotVersion", destination.getVersion(), "expectedVersion", version,
+                "reason", "Cambio de horario acordado con el propietario.", "agreementChannel", "PHONE",
+                "agreementContactedAt", clock.instant().toString(), "agreementNote", "El propietario aceptó el turno de destino."));
+    }
+
+    private String createConfirmedAppointment() throws Exception {
+        String id = createAppointment();
+        confirm(id);
+        return id;
+    }
+
+    private void confirm(String id) throws Exception {
+        mvc.perform(authenticated(patch(BASE + "/" + id + "/status"), administrator,
+                        Map.of("status", "CONFIRMED", "expectedVersion", 0)))
+                .andExpect(status().isOk());
+    }
+
+    private long appointmentVersion(String id) {
+        return jdbc.queryForObject("select version from appointments where id=?", Long.class, UUID.fromString(id));
+    }
+
+    private int eventCount(String id) {
+        return jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, UUID.fromString(id));
+    }
+
+    private void assertOriginalReservation(String id, long version, int events) {
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, UUID.fromString(id))).isEqualTo(slotOne.getId());
+        assertThat(appointmentVersion(id)).isEqualTo(version);
+        assertThat(eventCount(id)).isEqualTo(events);
     }
 
     private String createAppointment() throws Exception {

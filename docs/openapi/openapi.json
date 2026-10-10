@@ -2,8 +2,8 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial y reasignación de citas veterinarias. Los correos de reasignación requieren configuración SMTP. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento.",
-    "version" : "0.7.0"
+    "description" : "Contrato generado desde código para acceso, perfiles, mascotas, recuperación, personal, disponibilidad con ocupación real y solicitudes, confirmación, agenda, historial, reasignación y cambios administrativos de citas veterinarias: cancelación manual, reprogramación con acuerdo previo e inasistencia. Los correos existentes de reasignación requieren configuración SMTP; este incremento no añade avisos generales ni recordatorios P12. La jornada de citas se configura mediante APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Frontend, urgencias y atención clínica quedan fuera de este incremento.",
+    "version" : "0.8.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
@@ -871,7 +871,7 @@
       "put" : {
         "tags" : [ "Disponibilidad veterinaria" ],
         "summary" : "Cambiar la hora de un turno",
-        "description" : "Solo permite cambiar turnos futuros. La protección frente a reservas reales se integrará con el módulo de citas. Conserva el UUID y registra auditoría.",
+        "description" : "Solo permite cambiar turnos futuros que nunca hayan sido referenciados por una cita, aunque esta sea terminal. Conserva el UUID y registra auditoría.",
         "operationId" : "rescheduleVeterinarianAvailabilitySlot",
         "parameters" : [ {
           "name" : "veterinarianId",
@@ -3395,7 +3395,7 @@
           "required" : false,
           "schema" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW" ]
           }
         }, {
           "name" : "page",
@@ -3614,7 +3614,7 @@
             }
           },
           "404" : {
-            "description" : "Cita o turno inexistente",
+            "description" : "Cita inexistente",
             "content" : {
               "application/problem+json" : {
                 "schema" : {
@@ -3624,7 +3624,7 @@
             }
           },
           "409" : {
-            "description" : "Versión, estado, vigencia o capacidad incompatibles",
+            "description" : "Turno inexistente/no disponible o versión, estado, vigencia o capacidad incompatibles",
             "content" : {
               "application/problem+json" : {
                 "schema" : {
@@ -3635,6 +3635,108 @@
           },
           "400" : {
             "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Sesión ausente, vencida o inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "El rol no tiene permiso para esta operación",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Fallo interno sin información sensible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/appointments/{appointmentId}/reschedulings" : {
+      "post" : {
+        "tags" : [ "Citas veterinarias" ],
+        "summary" : "Reprogramar una cita con acuerdo previo",
+        "description" : "Solo administradores: REQUESTED o CONFIRMED con asignación ASSIGNED y participantes activos, antes del inicio original; una solicitud también debe conservar vigente su corte original. Destino publicado y libre desde mañana hasta 60 días en America/Bogota, del mismo veterinario o de otro activo. Conserva identidad, mascota, propietario y estado; exige motivo y constancia de acuerdo previo. El cambio y su historia son atómicos: un fallo conserva la reserva original. clientRequestId identifica una intención persistente del administrador: repetir la misma intención devuelve la cita actual, y reutilizar la clave con otros datos o actor produce 409. No crea nuevos avisos P12; invalida avisos existentes superados por el cambio.",
+        "operationId" : "rescheduleAppointment",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RescheduleAppointmentRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Reprogramación aplicada o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AppointmentResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Campos, tipos, rango o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Cita inexistente",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Turno inexistente/no disponible o versión, estado, plazo, participantes, ocupación o clave de operación incompatibles",
             "content" : {
               "application/problem+json" : {
                 "schema" : {
@@ -4747,8 +4849,8 @@
     "/api/v1/appointments/{appointmentId}/status" : {
       "patch" : {
         "tags" : [ "Citas veterinarias" ],
-        "summary" : "Confirmar o rechazar una solicitud",
-        "description" : "Solo administradores: REQUESTED a CONFIRMED o REJECTED con expectedVersion. Rechazar requiere motivo. Confirmar exige propietario, mascota, veterinario y turno elegibles y plazo de confirmación vigente. No admite cancelación manual ni estados clínicos.",
+        "summary" : "Gestionar el estado administrativo de una cita",
+        "description" : "Solo administradores y con expectedVersion. REQUESTED puede confirmarse o rechazarse; confirmar exige participantes, turno y plazo elegibles. REQUESTED o CONFIRMED pueden cancelarse únicamente antes del inicio. Solo CONFIRMED admite NO_SHOW desde el fin del turno. Rechazo, cancelación e inasistencia requieren motivo no vacío. La cancelación humana es distinta del corte automático. Una repetición inmediata exige mismo actor, versión e intención. No permite estados clínicos ni reabrir citas terminales.",
         "operationId" : "updateAppointmentStatus",
         "parameters" : [ {
           "name" : "appointmentId",
@@ -4791,7 +4893,7 @@
             }
           },
           "409" : {
-            "description" : "Versión, estado, plazo o requisitos de confirmación incompatibles",
+            "description" : "Versión, estado, plazo o participantes incompatibles con la transición",
             "content" : {
               "application/problem+json" : {
                 "schema" : {
@@ -6823,7 +6925,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW" ]
           },
           "assignmentStatus" : {
             "type" : "string",
@@ -6904,6 +7006,53 @@
           }
         },
         "required" : [ "availabilitySlotId", "clientRequestId", "expectedAvailabilitySlotVersion", "expectedVersion", "reason" ]
+      },
+      "RescheduleAppointmentRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Reprogramación administrativa con constancia obligatoria del acuerdo previo con el propietario.",
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "availabilitySlotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedAvailabilitySlotVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 1
+          },
+          "agreementChannel" : {
+            "type" : "string",
+            "enum" : [ "PHONE", "WHATSAPP", "OTHER" ],
+            "minLength" : 1,
+            "pattern" : "PHONE|WHATSAPP|OTHER"
+          },
+          "agreementContactedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "Fecha textual ISO 8601 con offset explícito; no puede ser posterior a la operación."
+          },
+          "agreementNote" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 1
+          }
+        },
+        "required" : [ "agreementChannel", "agreementContactedAt", "agreementNote", "availabilitySlotId", "clientRequestId", "expectedAvailabilitySlotVersion", "expectedVersion", "reason" ]
       },
       "RevealOwnerEmailRequestDTO" : {
         "type" : "object",
@@ -7103,7 +7252,7 @@
         "properties" : {
           "status" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED" ]
+            "enum" : [ "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW" ]
           },
           "expectedVersion" : {
             "type" : "integer",
@@ -7112,6 +7261,7 @@
           },
           "reason" : {
             "type" : [ "string", "null" ],
+            "description" : "Motivo no vacío obligatorio al rechazar, cancelar o registrar inasistencia; opcional al confirmar.",
             "maxLength" : 1000,
             "minLength" : 0
           }
@@ -7558,15 +7708,15 @@
           },
           "eventType" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "DAILY_CUTOFF", "VETERINARIAN_DISABLED", "VETERINARIAN_RESTORED", "REASSIGNED", "EMAIL_ACCESSED" ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW", "RESCHEDULED", "DAILY_CUTOFF", "VETERINARIAN_DISABLED", "VETERINARIAN_RESTORED", "REASSIGNED", "EMAIL_ACCESSED" ]
           },
           "previousStatus" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", null ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW", null ]
           },
           "newStatus" : {
             "type" : [ "string", "null" ],
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", null ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW", null ]
           },
           "previousAssignmentStatus" : {
             "type" : [ "string", "null" ],

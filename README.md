@@ -1,274 +1,167 @@
 # GrownupsVet backend
 
-Proyecto Maven con Java 25, Spring Boot 4.1.1, PostgreSQL y springdoc 3.1.0.
+API REST académica para la gestión de usuarios, mascotas y citas veterinarias. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato funcional vigente es **0.9.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`.
 
-El incremento 0.9.0 completa los avisos de [citas](docs/citas-y-agenda.md): confirmación, rechazo, cancelación, cambios y recordatorio de 24 horas, con tareas persistidas y estado consultable. Conserva los cambios administrativos, ocupación, corte diario y reasignación del 0.8.0, sobre [personal, invitaciones, mascotas y recuperación](docs/personal-e-invitaciones.md). La entrega del 18 de octubre abarca los procesos de usuarios/mascotas y citas; clínica permanece fuera. El [plan de entrega y Google Cloud](docs/plan-implementacion-2026-10-09-procesos-1-2-google-cloud.md) distingue preparación, despliegue e integración. Para la demostración se conserva Mailtrap Sandbox: captura de mensajes no significa recepción en un buzón real.
+## Alcance funcional
 
-La URL del portal se configura con `FRONTEND_BASE_URL`; `CORS_ALLOWED_ORIGINS` permite declarar los orígenes exactos de ambos portales y `STAFF_ACTIVATION_URL` conserva la dirección completa del formulario de gestión. El backend puede arrancar antes de recibir las URLs: sin origen configurado no concede acceso CORS a otros sitios y no añade enlaces ficticios a avisos. Las invitaciones habilitadas requieren una dirección real. Las opciones de propietarios continúan desde mañana hasta 60 días; en la nube se configura el corte a las **06:00** de `America/Bogota`. Los JWT con cuenta, versión o permisos obsoletos requieren nuevo login.
-
-El [informe de verificación 0.9.0](docs/verificacion-procesos-1-2-preparacion-google-cloud-2026-10-09.md) registra pruebas, contrato y contenedor, y la [guía Google Cloud](docs/google-cloud.md) explica cuenta/proyecto, secretos y despliegue. La implementación local y esas comprobaciones no acreditan todavía infraestructura externa ni integración de los dos portales.
-
-La [guía de comprobación en Mailtrap](docs/verificacion-mailtrap.md) permite verificar recuperación, avisos de cambios y recordatorio desde el backend local. El despliegue cloud quedó aplazado por Esteban el 10/10/2026.
-
-La [verificación Mailtrap inicial del 10/10](docs/verificacion-mailtrap-2026-10-10.md) registra seis avisos aceptados por SMTP y seis entradas observadas con encabezados en el Sandbox, con reloj privado simulado para recordatorio/corte. El [ensayo posterior con reloj real](docs/verificacion-recordatorio-real-2026-10-10.md) comprueba el recordatorio en inicio menos 24 horas, tras reabrir el contexto Spring y desactivar al propietario. También se verificó el [transporte de recuperación V18](docs/verificacion-recuperacion-smtp-2026-10-10.md); lectura del contenido y restablecimiento completo siguen pendientes.
-
-El [respaldo y restauración local](docs/verificacion-respaldo-restauracion-local-2026-10-10.md) recuperó el esquema de prueba completo y el acceso HTTP a la cuenta/mascota ficticias. Su alcance es PostgreSQL local; el entorno cloud conserva su validación pendiente.
-
-El [guion de demostración de los dos procesos](docs/guion-demostracion-procesos-1-2.md) propone un recorrido breve desde Swagger con datos ficticios, roles, propiedad, versiones e historial. Sus resultados esperados deben registrarse al ejecutar la demostración; el guion no acredita capturas de Mailtrap, interfaces o despliegue.
-
-El [generador de datos de demostración](docs/datos-demostracion.md) crea un recorrido reproducible por la API local con personal existente y credenciales suministradas por el operador. La [verificación del helper](docs/verificacion-datos-demostracion-2026-10-10.md) registra 510 pruebas satisfactorias y sus límites; los datos de desarrollo todavía deben prepararse al ejecutar el ensayo.
-
-## Modelo inicial
-
-`user.model.User` representa la cuenta de acceso, compartida por los roles. El primer incremento funcional implementa el registro de propietarios y guarda sus datos personales en `user.model.OwnerProfile`: nombre completo, fecha de nacimiento y teléfono internacional. Las reglas aceptadas están recogidas en las [bases del contrato](docs/contrato-api-bases-propuestas.md).
-
-El alcance inicial permite al propietario consultar su perfil, editar únicamente el teléfono y desactivar su propia cuenta. La foto es opcional y todos los roles pueden gestionar solamente la suya; se almacena procesada en PostgreSQL en una tabla separada. Correo, nombre completo y fecha de nacimiento no tienen edición por el propietario. El perfil profesional del veterinario se administra mediante operaciones exclusivas del administrador; los propietarios consultan la ficha profesional de veterinarios activos, incluidas foto y diplomas publicados. El cambio de correo y un posible flujo de soporte o PQR quedan aplazados. La contraseña pertenece a los flujos de autenticación, activación y recuperación, separados de la edición del perfil.
-
-| Campo | Persistencia | Regla |
-|---|---|---|
-| `id` | UUID | Generado por JPA al persistir. |
-| `email` | Texto, máximo 254 caracteres | Único; se almacena en minúsculas y sin espacios alrededor. |
-| `passwordHash` | Texto, máximo 255 caracteres | Codificado por un servicio. Es nulo hasta que una cuenta invitada establece su contraseña; obligatorio para cuentas activas. |
-| `role` | Texto | Un rol por cuenta: `OWNER`, `VETERINARIAN`, `ADMINISTRATOR` o `SUPER_ADMIN`. |
-| `status` | Texto | `PENDING_ACTIVATION`, `ACTIVE` o `DISABLED`. El booleano `active` de la API existente se deriva de este estado. |
-
-La migración `V1__create_users.sql` crea `users`; V2 crea `owner_profiles`; V3 añade `revoked_access_tokens`; V4 crea `user_profile_photos`; V5 añade `pets`; V6 añade recuperación y versiones de autenticación; V7 introduce estados y superadministrador; V8 añade perfiles de personal, títulos y diplomas; V9 persiste invitaciones y tareas de correo; V10–V11 crean disponibilidad/auditoría y sus restricciones; V12–V15 crean citas, ocupación, asignaciones, eventos, avisos, validaciones históricas y adquisición segura del trabajo de correo; V16 incorpora cambios administrativos; V17 amplía avisos y programación; V18 añade correo durable de recuperación. Las migraciones aplicadas se conservan sin edición. Los datos exclusivos de propietarios no se imponen a cuentas profesionales ni se inventan para cuentas históricas. Se conservan los nombres originales del paquete generado: `edu.uniquindio.grownupsvet.grownupsvet_backend`.
-
-Esteban confirmó un solo rol por cuenta para la primera versión. La [arquitectura de usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md) describe las responsabilidades de los cuatro roles. El login emite las autoridades vigentes del rol; cada petición protegida vuelve a consultar cuenta, rol, permisos y revocación en PostgreSQL.
-
-La entidad no implementa autenticación ni sustituye un DTO de respuesta. El hash se excluye de JSON y del texto de diagnóstico. El servicio de login aplica la misma normalización del correo, exige una cuenta activa y verifica el hash Argon2id sin transformar la contraseña recibida. La comprobación de credenciales y la seguridad HTTP corresponden a servicios y a Spring Security.
-
-## Registro de propietarios implementado
-
-`POST /api/v1/auth/registrations` recibe `application/json` y no requiere una sesión. `UserSignupController` valida `UserSignupRequestDTO`; `UserSignupService` crea una cuenta activa con rol `OWNER` y su perfil en una sola transacción. El cliente no puede elegir `role`, `active` ni enviar otras propiedades ajenas al DTO.
-
-Ejemplo con datos ficticios:
-
-```json
-{
-  "email": "persona@example.com",
-  "fullName": "María del Carmen Gómez",
-  "dateOfBirth": "1955-05-20",
-  "phoneNumber": "+573001234567",
-  "password": "mis mascotas caminan por el jardín"
-}
-```
-
-La respuesta es `201 Created`, con `UserSignupResponseDTO`:
-
-```json
-{
-  "id": "7d667530-867b-4c78-a458-0904fb82d574",
-  "email": "persona@example.com"
-}
-```
-
-El identificador público es una cadena UUID y el correo se devuelve normalizado en minúsculas. El alta no emite token ni realiza una redirección HTTP. El frontend muestra el éxito y conduce a `/login`; después del primer acceso puede conducir al paso de primera mascota mediante la API de mascotas; las pantallas y el seguimiento del onboarding siguen pendientes. Las mascotas y la foto no forman parte de esta petición.
-
-| Campo obligatorio | Validación implementada |
+| Proceso | Implementado en el backend |
 |---|---|
-| `email` | Texto no vacío, formato de correo y máximo 254 caracteres; unicidad sobre el correo normalizado. |
-| `fullName` | Máximo 150 puntos de código Unicode en el texto recibido, incluidos sus espacios; al menos dos componentes con una letra cada uno. Admite letras y marcas internacionales, espacios, apóstrofos, guiones y puntos de iniciales; rechaza dígitos y controles. Retira espacios exteriores al guardar. Comprueba composición mínima, no identidad ni apellido legal. |
-| `dateOfBirth` | Fecha sin hora, no futura, con edad de 0 a 130 años cumplidos según un `Clock` en `America/Bogota`. |
-| `phoneNumber` | Texto E.164 canónico, `+` y hasta 15 dígitos, sin espacios ni extensiones. Google libphonenumber valida metadatos de números internacionales fijos y móviles; no prueba titularidad ni WhatsApp. |
-| `password` | Entre 15 y 128 puntos de código Unicode, preservando espacios y sin mezcla obligatoria de caracteres. Rechaza contenido formado solo por espacios y coincidencias completas con una lista local de contraseñas comunes. |
+| **P1 · Registro y gestión de usuarios y mascotas** | Registro de propietarios, login y cierre de sesión, recuperación de contraseña, perfil y foto propios, mascotas, administración de personal e invitaciones, perfiles profesionales, títulos y diplomas. |
+| **P2 · Gestión de citas veterinarias** | Disponibilidad, solicitud y consulta de citas, confirmación/rechazo, cancelación, reprogramación, reasignación, inasistencia, corte diario, historial y avisos durables con recordatorio de 24 horas. |
+| **P3 · Atención veterinaria y gestión clínica** | **Pendiente de contrato e implementación**. No se incluyen historias clínicas, atención, fórmulas ni controles clínicos. |
 
-La contraseña se codifica con Argon2id mediante `PasswordEncoder`, sin recortarla ni transformarla. El prefijo `{argon2id}` identifica el algoritmo en el hash almacenado. La lista local de 10.000 contraseñas de SecLists tiene procedencia, licencia y checksum en [password-blocklist/README.md](src/main/resources/password-blocklist/README.md); es una base limitada de contraseñas comunes, no una colección exhaustiva de filtraciones. Su comparación ignora mayúsculas únicamente para consultar la lista y no modifica el secreto codificado.
+La implementación de una operación no significa que esté habilitada en todos los entornos. Recuperación, invitaciones y correo dependen de su configuración; la integración y evaluación de los frontends se verifican por separado.
 
-La detección de correo duplicado combina una comprobación previa y la restricción única `uk_users_email` de PostgreSQL. Si dos peticiones intentan registrar el mismo correo simultáneamente, el servicio traduce específicamente esa restricción a `EmailAlreadyRegisteredException`. Otras fallas de integridad conservan su naturaleza de error interno y la transacción evita cuentas o perfiles parciales.
+Las citas usan `America/Bogota`, turnos de 30 minutos y opciones para propietarios desde mañana hasta 60 días. Los cambios administrativos requieren las versiones y condiciones del contrato. El propietario no dispone de cancelación o reprogramación autónomas. Las reglas completas están en [citas y agenda](docs/citas-y-agenda.md) y [disponibilidad veterinaria](docs/disponibilidad-veterinaria.md).
 
-Springdoc genera el contrato desde controladores, DTOs y anotaciones en `/v3/api-docs` y `/v3/api-docs.yaml`; Swagger UI está disponible en `/swagger-ui/index.html`. Registro, login, recuperación, activación por invitación y documentación tienen sus accesos públicos específicos; las rutas de recursos exigen un JWT Bearer válido. Este contrato incremental conserva las operaciones de SCRUM-67/SCRUM-23 y añade el alcance de personal documentado en su guía.
+### Roles y autorización
 
-## Login y JWT implementados
+Cada cuenta tiene un solo rol. Los roles tienen responsabilidades independientes y la autorización también comprueba el recurso solicitado.
 
-`POST /api/v1/auth/sessions` recibe `application/json` con `email` y `password`, ambos obligatorios. El correo debe tener formato válido y la contraseña admite como máximo 128 puntos de código Unicode. La contraseña se conserva exactamente como fue recibida, se marca como escritura únicamente y no aparece en la serialización JSON ni en `toString()`.
+| Rol | Responsabilidad implementada |
+|---|---|
+| `OWNER` | Gestionar su perfil, foto y mascotas; consultar veterinarios/opciones de turno y crear/consultar sus citas y avisos. |
+| `VETERINARIAN` | Consultar su disponibilidad y citas asignadas; acceder al correo del propietario mediante una operación puntual auditada; gestionar su propia foto. |
+| `ADMINISTRATOR` | Gestionar veterinarios, perfiles profesionales, disponibilidad y cambios/estados de citas; gestionar su propia foto. |
+| `SUPER_ADMIN` | Crear y administrar cuentas de administradores; gestionar su propia foto. No hereda la gestión de veterinarios ni de citas. |
 
-Ejemplo de petición:
+La autenticación usa JWT Bearer RS256 de 24 horas, sin refresh token. Cada petición protegida comprueba cuenta, estado, rol, permisos y revocación en PostgreSQL. Las contraseñas se almacenan con Argon2id. Véase [usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md).
 
-```json
-{
-  "email": "persona@example.com",
-  "password": "mis mascotas caminan por el jardín"
-}
-```
+## Entorno académico desplegado
 
-Una autenticación correcta devuelve `200 OK`, `Cache-Control: no-store` y:
+Corte documentado: **15 de octubre de 2026**.
 
-```json
-{
-  "accessToken": "eyJ...",
-  "tokenType": "Bearer",
-  "expiresIn": 86400,
-  "user": {
-    "id": "7d667530-867b-4c78-a458-0904fb82d574",
-    "email": "persona@example.com",
-    "role": "OWNER",
-    "permissions": [
-      "PROFILE_READ_SELF",
-      "PROFILE_UPDATE_SELF",
-      "PROFILE_DEACTIVATE_SELF",
-      "PROFILE_PHOTO_READ_SELF",
-      "PROFILE_PHOTO_UPDATE_SELF",
-      "PET_CREATE_SELF",
-      "PET_READ_SELF",
-      "PET_UPDATE_SELF",
-      "VETERINARIAN_PROFILE_READ",
-      "VETERINARIAN_AVAILABILITY_READ_AVAILABLE"
-    ]
-  }
-}
-```
+| Recurso | Dirección |
+|---|---|
+| API en Cloud Run | [grownupsvet-backend-w5glrcsyda-uc.a.run.app](https://grownupsvet-backend-w5glrcsyda-uc.a.run.app) |
+| Swagger UI | [Abrir documentación interactiva](https://grownupsvet-backend-w5glrcsyda-uc.a.run.app/swagger-ui/index.html) |
+| OpenAPI JSON | [Consultar contrato](https://grownupsvet-backend-w5glrcsyda-uc.a.run.app/v3/api-docs) |
 
-El token se firma con `RS256`, dura 24 horas y contiene `sub`, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss`, `aud` y `authenticationVersion`. El backend valida firma, vencimiento con 30 segundos de tolerancia, emisor `grownupsvet-backend` y audiencia `grownupsvet-clients`. Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. No hay refresh token. Un correo inexistente, contraseña incorrecta o cuenta inactiva produce el mismo `401 INVALID_CREDENTIALS` para no revelar la causa.
+El backend está desplegado en **Google Cloud Run**, región `us-central1`, conectado mediante TLS a **PostgreSQL 18 de Render Free**. Se verificaron salud, contrato y acceso por roles. El entorno tiene **7 cuentas ficticias activas** —1 superadministrador, 2 administradores, 2 veterinarios y 2 propietarios— y **4 mascotas de demostración**. Las credenciales se entregan por un archivo privado independiente.
 
-La política de creación de contraseñas se aplica al registro, no se vuelve a exigir en cada login. Cada petición protegida comprueba que la cuenta continúa activa y que su rol y permisos siguen vigentes. `DELETE /api/v1/auth/sessions/current` revoca en PostgreSQL el token presentado; un token revocado deja de aceptarse inmediatamente.
+**El entorno desplegado incluye adaptaciones locales de despliegue que todavía no están versionadas en este repositorio.** Este README registra su estado observado; clonar el código publicado no reproduce por sí solo la configuración Cloud Run/Render. La ejecución de pruebas, el despliegue y la publicación de código tienen evidencias distintas.
 
-## Perfil propio, foto y cierre de sesión implementados
+Condiciones actuales del entorno:
 
-| Operación | Roles | Resultado acordado |
-|---|---|---|
-| `GET /api/v1/users/me` | `OWNER` | `200 OK` con los datos seguros de la cuenta y el perfil del propietario; nunca devuelve `passwordHash`. |
-| `PATCH /api/v1/users/me` | `OWNER` | Modifica únicamente `phoneNumber` y devuelve `200 OK` con el perfil actualizado. |
-| `DELETE /api/v1/users/me` | `OWNER` | Desactivación lógica (`active = false`) y `204 No Content`. No elimina físicamente la cuenta. |
-| `GET /api/v1/users/me/profile/photo` | Todos los roles | Devuelve los bytes JPEG/PNG de la foto propia o `404 PROFILE_PHOTO_NOT_FOUND`. |
-| `PUT /api/v1/users/me/profile/photo` | Todos los roles | Crea o reemplaza la foto propia y devuelve `204 No Content`. |
-| `DELETE /api/v1/users/me/profile/photo` | Todos los roles | Elimina la foto propia de forma idempotente y devuelve `204 No Content`. |
-| `DELETE /api/v1/auth/sessions/current` | Todos los roles autenticados | Revoca el JWT presentado en PostgreSQL y devuelve `204 No Content`. |
+- Los frontends y sus URLs de activación siguen pendientes de integración. No hay orígenes externos habilitados en CORS; Swagger utiliza el origen de la propia API.
+- Las invitaciones de personal están deshabilitadas. Crear personal nuevo o reenviar invitaciones requiere configurar y verificar el formulario real; las cuentas precargadas permiten evaluar los cuatro roles.
+- El correo usa **Mailtrap Sandbox**. Una tarea `SENT` acredita aceptación SMTP, no entrega ni lectura en un buzón real. Se verificó la aceptación SMTP de una solicitud de recuperación en nube.
+- La base gratuita de Render vence el **14 de noviembre de 2026** y no dispone de backups configurados. Conservar datos exige exportarlos y comprobar su restauración antes del vencimiento; recrear una base no conserva su contenido.
+- Las comprobaciones de demostración en nube no sustituyen la regresión completa, las pruebas de carga ni la evaluación de los portales en ese entorno.
 
-La carga de foto usa el campo multipart `file`. El servidor valida el contenido real, admite JPEG/PNG de hasta 2 MiB, limita dimensiones, corrige orientación EXIF, reduce hasta 512 × 512 y vuelve a codificar sin metadatos. La lectura devuelve `Cache-Control: private, no-store`; `profilePhotoUrl` contiene la ruta relativa protegida o `null`.
+## Contrato y documentación de la API
 
-En la versión académica, los frontends pueden conservar el JWT en `localStorage`. Deben eliminarlo al cerrar sesión o detectar su vencimiento y enviarlo únicamente mediante `Authorization: Bearer`; nunca en la URL. Esta decisión simplifica los clientes, pero no sustituye la protección frente a XSS. La limitación general de login sigue pendiente. La recuperación sí incluye límites propios por correo e IP y por desafío.
+Con el backend local en su puerto predeterminado:
 
-## Respuesta de error
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`.
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`.
+- OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`.
+- Salud: `/actuator/health/liveness` y `/actuator/health/readiness`.
 
-`shared.dto.error.ApiErrorResponseDTO` extiende `ProblemDetail` de Spring. Documenta los campos estándar de RFC 9457 y añade:
+El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.9.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
 
-- `errorCode`: código funcional estable para los frontends.
-- `fieldErrors`: lista de `FieldValidationErrorResponseDTO`, con `field`, `code` y `message`. Es `[]` cuando no hay errores asociados a campos.
+Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores utilizan `application/problem+json`, con `errorCode` y `fieldErrors` para los clientes. Registro, autenticación y operaciones públicas tienen sus condiciones específicas en OpenAPI; la existencia de una ruta no concede acceso a datos ajenos.
 
-`shared.exception.GlobalExceptionHandler` usa `@RestControllerAdvice` y extiende `ResponseEntityExceptionHandler`: transforma las excepciones MVC y de negocio al formato `application/problem+json`, conservando el estado HTTP y encabezados de protocolo como `Allow`. El controlador se concentra en la petición y la respuesta correcta; las excepciones de negocio se traducen en este punto central.
+| Guía | Contenido |
+|---|---|
+| [Bases del contrato](docs/contrato-api-bases-propuestas.md) | Decisiones de registro, perfil, sesión y validaciones. |
+| [Mascotas y recuperación](docs/mascotas-y-recuperacion.md) | Propiedad de recursos, actualización, recuperación y correo durable. |
+| [Personal e invitaciones](docs/personal-e-invitaciones.md) | Roles, estados, activación, documentos y cuotas. |
+| [Disponibilidad veterinaria](docs/disponibilidad-veterinaria.md) | Turnos, lotes, permisos, ocupación e historial. |
+| [Citas y agenda](docs/citas-y-agenda.md) | Estados, plazos, versiones, cambios, avisos y recordatorios. |
+| [Guion de demostración](docs/guion-demostracion-procesos-1-2.md) | Recorrido propuesto de P1/P2 desde Swagger. |
+| [Datos de demostración](docs/datos-demostracion.md) | Helper reproducible para la API local con personal y credenciales aportados por el operador. |
 
-| Situación | HTTP | `errorCode` |
-|---|---|---|
-| Campos que incumplen validaciones | `400` | `VALIDATION_FAILED`, con errores por campo. |
-| JSON ilegible, tipo incorrecto o propiedad desconocida | `400` | `MALFORMED_JSON`, `TYPE_MISMATCH` o `UNKNOWN_PROPERTY`, según la causa. |
-| Correo ya registrado | `409` | `EMAIL_ALREADY_REGISTERED`. |
-| Credenciales incorrectas o cuenta inactiva | `401` | `INVALID_CREDENTIALS`. |
-| Token inválido, vencido, revocado o con datos de cuenta obsoletos | `401` | `AUTHENTICATION_REQUIRED`. |
-| Foto inexistente | `404` | `PROFILE_PHOTO_NOT_FOUND`. |
-| Foto demasiado grande | `413` | `PROFILE_PHOTO_TOO_LARGE`. |
-| Formato o contenido de foto inválido | `415` / `400` | `UNSUPPORTED_PROFILE_PHOTO_TYPE` / `INVALID_PROFILE_PHOTO`. |
-| Método o tipo de contenido no admitido | `405` / `415` | `METHOD_NOT_ALLOWED` / `UNSUPPORTED_MEDIA_TYPE`. |
-| Fallo inesperado | `500` | `INTERNAL_ERROR`, con un mensaje genérico. |
+Estas guías conservan decisiones y verificaciones fechadas de cada incremento. Sus pendientes históricos deben interpretarse junto con el corte de entorno indicado arriba.
 
-`shared.security.ApiSecurityErrorHandler` adapta también los rechazos producidos antes del controlador en los filtros de Spring Security: `401 AUTHENTICATION_REQUIRED` para un Bearer ausente o inválido y `403 ACCESS_DENIED`, sin página HTML de login. Ambos manejadores usan `ApiErrorResponseFactory` para conservar el mismo contrato.
+## Ejecución local en Windows
 
-La fábrica añade un `instance` aleatorio con formato `urn:uuid:...` para identificar la incidencia sin reflejar la URL ni sus parámetros. El handler no devuelve valores rechazados, SQL, contraseñas, hashes ni mensajes internos de excepciones. Ante un `500`, su diagnóstico registra ese identificador, el tipo de excepción y ubicaciones de código, sin copiar el mensaje de la excepción ni los datos enviados. Los frontends pueden usar `errorCode` y `fieldErrors[].code` para decidir su presentación accesible.
+Ejecutar los comandos desde la carpeta `grownupsvet-backend`.
 
-## Ejecución local y perfiles
+### Requisitos
 
-El [diagnóstico de configuración local](docs/ejecucion-local.md) permite comprobar la preparación del proceso actual sin arrancar la aplicación ni cambiar sus variables. Señala faltantes, versión Java, puerto y conexión TCP; no sustituye una conexión autenticada a PostgreSQL ni una captura en Mailtrap.
+1. **JDK 25**, con `JAVA_HOME` apuntando a su raíz y `java`/`javac` disponibles. Configurar el mismo JDK en el IDE y su ejecutor Maven.
+2. **PostgreSQL 18** funcionando; el destino local predeterminado es `localhost:5432`.
+3. Bases separadas `grownupsvet_dev` y **`grownupsvet_test`, exclusiva para pruebas**, con un usuario autorizado para crear los objetos de Flyway. Las pruebas también crean y eliminan esquemas propios.
+4. Variables de entorno de base de datos y firma JWT disponibles en el proceso que arrancará la aplicación. Usar Maven Wrapper; no hace falta instalar Maven por separado.
 
-Instalar un JDK 25 y configurar `JAVA_HOME` con la carpeta raíz de esa instalación. `java -version`, `javac -version` y `.\mvnw.cmd -version` permiten comprobar las versiones utilizadas. En IntelliJ, seleccionar ese JDK como SDK del proyecto, hacer que el módulo lo herede y comprobar el JDK del ejecutor de Maven y de la configuración Run.
-
-El desarrollo utiliza PostgreSQL instalado localmente. Antes de ejecutar el backend o las pruebas, iniciar PostgreSQL y crear desde DBeaver las bases `grownupsvet_dev` y `grownupsvet_test`, inicialmente sin tablas del proyecto. Ambas pueden estar en el mismo servidor, en `localhost:5432`.
-
-Si las bases todavía no existen, conectar DBeaver a una base existente del servidor, como `postgres`, con una cuenta que tenga permiso para crear bases. Activar Auto-commit y ejecutar cada sentencia por separado:
+Si las bases no existen, crearlas con una cuenta autorizada; ejecutar cada sentencia por separado y fuera de una transacción:
 
 ```sql
 CREATE DATABASE grownupsvet_dev;
 CREATE DATABASE grownupsvet_test;
 ```
 
-El usuario configurado para la aplicación debe poder conectarse y crear los objetos de las migraciones en esas bases.
+### Configuración
 
-La configuración separa las credenciales compartidas del destino de cada perfil:
-
-| Archivo | Configuración |
+| Variable | Uso local |
 |---|---|
-| `src/main/resources/application.yaml` | Nombre de la aplicación, credenciales mediante `DB_USERNAME` y `DB_PASSWORD`, validación de Hibernate y perfil predeterminado `dev`. |
-| `src/main/resources/application-dev.yaml` | Conexión a `jdbc:postgresql://localhost:5432/grownupsvet_dev`. |
-| `src/test/resources/application-test.yaml` | Conexión a `jdbc:postgresql://localhost:5432/grownupsvet_test`. Solo está disponible al ejecutar las pruebas y no se empaqueta en la aplicación. |
+| `DB_USERNAME`, `DB_PASSWORD` | Credenciales del PostgreSQL local. |
+| `JWT_KEYSTORE_PATH`, `JWT_KEYSTORE_PASSWORD` | Ruta y contraseña de un almacén PKCS12 externo al repositorio, con una clave privada RSA válida de al menos 2048 bits. |
+| `JWT_KEY_ALIAS` | Alias de la clave; el valor predeterminado es `grownupsvet-jwt-signing-2026-09`. |
+| `JWT_KEY_PASSWORD` | Solo si la clave tiene una contraseña distinta de la del almacén. |
+| `APPOINTMENT_WORKDAY_START_TIME` | **Obligatoria en `dev`**. Para esta entrega: `06:00`, en `America/Bogota`. |
+| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Necesarias para demostrar envío de avisos con Mailtrap Sandbox. `dev` tiene defaults de host Sandbox y puerto 2525. |
+| `PASSWORD_RECOVERY_ENABLED` | Por defecto `false`; habilitarla requiere `PASSWORD_RECOVERY_HMAC_SECRET`, `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY` y el canal de correo configurado. |
+| `STAFF_INVITATIONS_ENABLED` | Por defecto `false`; habilitarla requiere `STAFF_INVITATION_ENCRYPTION_KEY`, correo y `STAFF_ACTIVATION_URL` del formulario real. |
 
-Configurar `DB_USERNAME` y `DB_PASSWORD` como variables de entorno de Windows con las credenciales del PostgreSQL local. Si se crean o cambian mientras IntelliJ o una terminal están abiertos, cerrarlos y abrirlos nuevamente para que reciban los valores actualizados. No guardar contraseñas en los YAML ni en el repositorio.
+`FRONTEND_BASE_URL` configura enlaces del portal; `CORS_ALLOWED_ORIGINS` declara orígenes exactos, sin comodines. Sin origen configurado no se habilita acceso desde sitios externos. Las invitaciones conservan una URL de activación independiente.
 
-El proceso también necesita el almacén PKCS#12 que contiene la clave privada de firma JWT. Debe permanecer fuera del repositorio. Para la clave local creada para este proyecto, configurar en la misma terminal o en la configuración de ejecución de IntelliJ:
+No guardar credenciales, JWT, claves privadas ni archivos PKCS12 en Git. Configurar los valores privados por el mecanismo local habitual; si se cambian variables de Windows, abrir nuevamente la terminal o el IDE para que las reciba.
+
+Comprobar las herramientas y la preparación del proceso:
 
 ```powershell
-$env:JWT_KEYSTORE_PATH = "C:\Users\ASUS\.grownupsvet\keys\jwt-signing.p12"
-$jwtSecurePassword = Read-Host "Contraseña del almacén JWT" -AsSecureString
-$jwtPasswordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($jwtSecurePassword)
-try {
-    $env:JWT_KEYSTORE_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($jwtPasswordPointer)
-} finally {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($jwtPasswordPointer)
-    Remove-Variable jwtSecurePassword, jwtPasswordPointer
-}
-$env:JWT_KEY_ALIAS = "grownupsvet-jwt-signing-2026-09"
+java -version
+javac -version
+.\mvnw.cmd -version
+$env:APPOINTMENT_WORKDAY_START_TIME = "06:00"
+.\scripts\check-local-configuration.ps1
 ```
 
-`JWT_KEY_PASSWORD` solo se configura si la entrada privada usa una contraseña distinta; de lo contrario hereda `JWT_KEYSTORE_PASSWORD`. El emisor, audiencia, duración y tolerancia tienen valores predeterminados seguros para este contrato y pueden sobrescribirse con `JWT_ISSUER`, `JWT_AUDIENCE` y propiedades Spring cuando exista una necesidad de despliegue. Si falta la ruta, contraseña, alias o una clave RSA válida de al menos 2048 bits, la aplicación falla al arrancar en vez de operar sin firma.
+El diagnóstico no arranca servicios ni valida credenciales PostgreSQL, firma JWT o entrega SMTP. La [guía de ejecución local](docs/ejecucion-local.md) explica sus resultados y límites.
 
-Desde esta carpeta, iniciar el backend con:
+### Arranque
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-También se puede ejecutar `GrownupsvetBackendApplication` desde IntelliJ. En ambos casos, si no se activa otro perfil explícitamente, Spring utiliza `dev` y se conecta a `grownupsvet_dev`.
+El perfil predeterminado `dev` conecta a `grownupsvet_dev`. Flyway aplica las migraciones pendientes V1–V18 y Hibernate valida el esquema; las migraciones ya aplicadas se conservan sin editar. Comprobar el arranque y readiness antes de utilizar Swagger.
 
-Flyway aplica las migraciones pendientes al cargar el contexto de Spring y registra cada versión en `flyway_schema_history`. V1–V6 corresponden a acceso, perfiles, mascotas y recuperación; V7–V9 incorporan estados, personal e invitaciones; V10–V11 incorporan disponibilidad; V12–V16 incorporan citas, ocupación, historia, cambios y recuperación segura de avisos; V17 amplía avisos/recordatorios y V18 la entrega de recuperación. Hibernate usa `ddl-auto: validate` para comprobar la correspondencia con las entidades. Los arranques posteriores conservan el esquema y no repiten las migraciones ya aplicadas.
+Una sobrescritura `SPRING_DATASOURCE_URL` puede cambiar el destino del perfil; revisarla antes de arrancar o probar. La variable antigua `DB_URL` no se utiliza.
 
-La variable antigua `DB_URL` ya no se utiliza. Una variable `SPRING_DATASOURCE_URL`, un argumento de ejecución u otra sobrescritura explícita en IntelliJ puede tener prioridad sobre la URL del perfil; revisar esas opciones si la aplicación apunta a una base distinta de la prevista.
+## Pruebas y evidencias
 
-## Verificación
-
-El [anexo de casos académicos de los dos procesos](docs/evidencia-casos-academicos-procesos-1-2-2026-10-10.md) relaciona CP-001–CP-012 con métodos y resultados ejecutados. Conserva los límites de cada escenario y mantiene los casos clínicos previstos fuera del alcance.
-
-Para las pruebas de DTO, tipos JSON y protección del hash, sin base de datos:
-
-```powershell
-.\mvnw.cmd "-Dtest=UserLoginRequestDTOHttpTests,ApiErrorResponseDTOTests,UserTests" test
-```
-
-Para ejecutar toda la suite, comprobar que PostgreSQL esté funcionando, que `grownupsvet_test` exista y que las variables de credenciales estén disponibles. Ejecutar:
-
-```powershell
-.\mvnw.cmd test
-```
-
-`GrownupsvetBackendApplicationTests` activa automáticamente el perfil `test` mediante `@ActiveProfiles("test")`. No hace falta cambiar las variables de entorno entre el desarrollo y estas pruebas. Flyway prepara `grownupsvet_test` al cargar ese contexto, con su propia tabla `users` y su propio historial `flyway_schema_history`.
-
-El test de aplicación comprueba el arranque, la persistencia real de una cuenta y el rechazo de correos duplicados después de normalizarlos. Los datos de cada prueba de persistencia se revierten al finalizar su transacción. Las tablas y el historial de migraciones permanecen en la base de pruebas; encontrar `users` sin filas después de ejecutar la suite es compatible con una prueba correcta.
-
-`UserSignupHttpIntegrationTests` usa el perfil `test`, con filtros de seguridad reales y sin una transacción envolvente de prueba. Comprueba registro, hash Argon2id de hasta 128 caracteres Unicode, conservación de espacios de la contraseña, datos inválidos, propiedades de privilegios rechazadas, errores MVC y de seguridad, correo duplicado simultáneo y rollback completo cuando falla el perfil. `UserLoginHttpIntegrationTests` comprueba credenciales, estado activo, respuesta, claims, acceso Bearer y rechazo de una firma alterada. Las pruebas generan un par RSA efímero; nunca leen la clave privada local.
-
-Verificación del 13 de septiembre de 2026: `mvnw.cmd verify` terminó con **334 pruebas, sin fallos, errores ni omisiones**, validó las nueve migraciones y generó el JAR. El OpenAPI 0.5.0 contiene 42 operaciones y 18 respuestas HTTP pasaron la validación independiente de esquemas. Se comprobó además el validador PDF desde el JAR empaquetado. La ejecución usa `grownupsvet_test`; no sustituye una prueba manual de arranque contra `grownupsvet_dev` con las credenciales externas configuradas.
-
-Verificación final del 23 de septiembre de 2026: `mvnw.cmd verify` terminó con **396 pruebas, sin fallos, errores ni omisiones**, validó las once migraciones y generó el JAR. Incluye validación JSON estricta, concurrencia real entre conexiones, rollback del lote y límites temporales exactos. El OpenAPI 0.6.0 contiene **50 operaciones en 32 rutas** y **25 respuestas HTTP** pasaron la validación independiente de OpenAPI 3.1 y JSON Schema, junto con casos negativos de campos obligatorios, enteros y enums. La [evidencia de revisión](docs/verificacion-personal-disponibilidad-2026-09-23.md) detalla las correcciones. La ejecución usa `grownupsvet_test`; no incluye ocupación por reservas, pantallas frontend ni revisión compartida del contrato.
-
-Las pruebas exportan el contrato desde `/v3/api-docs` a `target/generated-openapi/openapi.json`. El [snapshot y procedimiento de regeneración](docs/openapi/README.md) incluyen una comprobación independiente de OpenAPI 3.1 y respuestas HTTP de los distintos módulos contra sus esquemas. Código y anotaciones son la fuente editable.
-
-No guardar credenciales de la base, contraseñas del almacén ni archivos de clave en el repositorio. Las cuentas ficticias persistentes para desarrollo siguen pendientes; las pruebas crean y eliminan sus propios usuarios.
-
-## Construcción del ejecutable
-
-Con PostgreSQL y las credenciales disponibles, ejecutar desde esta carpeta:
+Con PostgreSQL disponible, `grownupsvet_test` exclusiva para pruebas y las credenciales locales configuradas:
 
 ```powershell
 .\mvnw.cmd verify
 ```
 
-Este comando ejecuta las pruebas, incluidas las que usan `grownupsvet_test`, y genera `target/grownupsvet-backend-0.0.1-SNAPSHOT.jar`. El perfil de pruebas no se incluye en ese JAR. Para arrancar el ejecutable con el perfil predeterminado `dev`, detener primero cualquier otra instancia del backend que esté utilizando el puerto 8080 y ejecutar:
+`verify` ejecuta la suite y genera `target/grownupsvet-backend-0.0.1-SNAPSHOT.jar`. Las pruebas de integración usan el perfil `test`, PostgreSQL real y claves RSA efímeras; no necesitan leer el PKCS12 privado local. No dirigirlas a la base desplegada ni a una base con datos que deban conservarse.
+
+Para iniciar el JAR con la configuración local ya preparada y el puerto libre:
 
 ```powershell
 java -jar .\target\grownupsvet-backend-0.0.1-SNAPSHOT.jar
 ```
 
-La configuración externa de base de datos y firma JWT también debe estar disponible para este proceso. Comprobar en el registro la URL de `grownupsvet_dev`, el resultado de Flyway y la línea `Started GrownupsvetBackendApplication` para verificar el arranque.
+### Registro académico de calidad
 
-## Organización y convenciones
+[TestRail R1](https://grownupsvet.testrail.io/index.php?/runs/view/1) conserva **84 casos: 54 Passed y 30 Blocked**, con corte del **14/10/2026** y exportación verificada el **15/10/2026**. Consultar cada caso, sus precondiciones y adjuntos; el acceso requiere una cuenta autorizada.
 
-El proyecto sigue una organización MVC por dominios: controladores para peticiones y respuestas, DTOs para los datos de la API, servicios para reglas de negocio y transacciones, y repositorios para persistencia. El dominio `user` registra propietarios; `authentication` verifica credenciales y emite/valida JWT; `staff` gestiona personal, perfiles, diplomas, bootstrap e invitaciones; `availability` gestiona turnos e historial; `shared` contiene configuración y manejo uniforme de errores.
+Los 30 bloqueados corresponden a 23 controles de interfaz/interacción, 5 de clínica P3, 1 de preferencias visuales y 1 de integración continua. No equivalen a casos aprobados ni se resuelven únicamente desplegando la API. CI sigue pendiente en SCRUM-87 y preferencias en SCRUM-88.
 
-El apartado «Respuesta de error» describe el manejo implementado. Las [bases del contrato](docs/contrato-api-bases-propuestas.md) delimitan el incremento completo de acceso, perfil y sesión. La autorización se aplica por acción y recurso: un claim o rol no concede acceso a datos ajenos, y el backend contrasta el estado vigente de la cuenta en cada petición protegida.
+La regresión histórica local del 14/10 registró **541 pruebas JUnit satisfactorias en 51 informes**, con ampliaciones locales de pruebas aún no publicadas. Ese número no se atribuye a un clon del código versionado ni a una nueva ejecución en Cloud Run. Los casos de TestRail, las pruebas JUnit y las aserciones de Postman son unidades distintas y no se suman.
+
+Evidencias versionadas para ampliar la revisión:
+
+- [Verificación del incremento 0.9.0](docs/verificacion-procesos-1-2-preparacion-google-cloud-2026-10-09.md): suite y contrato de publicación, contenedor y límites del corte histórico.
+- [Casos académicos de P1/P2](docs/evidencia-casos-academicos-procesos-1-2-2026-10-10.md): relación CP-001–CP-012 con pruebas; clínica prevista por separado.
+- [Verificación en Mailtrap](docs/verificacion-mailtrap.md) y [recordatorio con reloj real](docs/verificacion-recordatorio-real-2026-10-10.md): procedimientos y evidencias locales fechadas.
+- [Respaldo y restauración local](docs/verificacion-respaldo-restauracion-local-2026-10-10.md): alcance PostgreSQL local; no acredita respaldo/restauración del entorno Render.
+
+## Organización del código
+
+El proyecto se organiza por dominios: `authentication`, `user`, `pet`, `staff`, `availability`, `appointment` y `shared`, dentro de `edu.uniquindio.grownupsvet.grownupsvet_backend`. Los controladores reciben/devuelven DTOs, los servicios aplican reglas y transacciones, y los repositorios persisten los datos. La seguridad y los errores comunes se centralizan en `shared`.

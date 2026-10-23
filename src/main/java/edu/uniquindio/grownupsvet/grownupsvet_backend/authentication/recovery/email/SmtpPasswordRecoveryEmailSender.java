@@ -1,6 +1,8 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.email;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.configuration.PasswordRecoveryProperties;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.email.TransactionalEmailContent;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.email.TransactionalEmailTemplates;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,51 +26,25 @@ public class SmtpPasswordRecoveryEmailSender implements PasswordRecoveryEmailSen
 
     @Override
     public void sendRecoveryCode(String email, String displayName, String code) {
-        String body = """
-                %s
-
-                Usa este código de 6 dígitos para recuperar tu contraseña de GrownupsVet:
-
-                %s
-
-                El código caduca en 10 minutos. No lo compartas con nadie.
-                Si no solicitaste recuperar tu contraseña, puedes ignorar este correo.
-
-                Equipo de GrownupsVet
-                """.formatted(greeting(displayName), code);
-        send(email, "Código para recuperar tu contraseña de GrownupsVet", body);
+        send(email, TransactionalEmailTemplates.passwordRecoveryCode(displayName, code));
     }
 
     @Override
     public void sendPasswordResetNotification(String email, String displayName) {
-        String body = """
-                %s
-
-                Tu contraseña de GrownupsVet fue restablecida.
-                Tus sesiones anteriores se cerraron. Puedes iniciar sesión con tu nueva contraseña.
-
-                Si no realizaste este cambio, recupera el acceso desde la aplicación y contacta al equipo de GrownupsVet.
-
-                Equipo de GrownupsVet
-                """.formatted(greeting(displayName));
-        send(email, "Tu contraseña de GrownupsVet fue restablecida", body);
+        send(email, TransactionalEmailTemplates.passwordResetNotification(displayName));
     }
 
-    private void send(String email, String subject, String body) {
+    private void send(String email, TransactionalEmailContent content) {
         MimeMessage message = mailSender.createMimeMessage();
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
             helper.setFrom(properties.senderAddress());
             helper.setTo(email);
-            helper.setSubject(subject);
-            helper.setText(body, false);
+            helper.setSubject(content.subject());
+            helper.setText(content.plainText(), content.html());
         } catch (MessagingException exception) {
             throw new MailPreparationException("Could not prepare password recovery email", exception);
         }
         mailSender.send(message);
-    }
-
-    private String greeting(String displayName) {
-        return displayName == null || displayName.isBlank() ? "Hola," : "Hola " + displayName.strip() + ",";
     }
 }

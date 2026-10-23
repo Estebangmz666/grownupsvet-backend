@@ -585,9 +585,21 @@ class AppointmentEmailDispatcherIntegrationTests {
 
     private void successfulSmtp() {
         doAnswer(invocation -> {
-            delivered.add((String) ((MimeMessage) invocation.getArgument(0)).getContent());
+            delivered.add(plainText((MimeMessage) invocation.getArgument(0)));
             return null;
         }).when(mailSender).send(any(MimeMessage.class));
+    }
+
+    private String plainText(jakarta.mail.Part part) throws Exception {
+        Object content = part.getContent();
+        if (content instanceof String text && part.isMimeType("text/plain")) { return text; }
+        if (content instanceof jakarta.mail.Multipart multipart) {
+            for (int index = 0; index < multipart.getCount(); index++) {
+                String text = plainText(multipart.getBodyPart(index));
+                if (text != null) { return text; }
+            }
+        }
+        return null;
     }
 
     private User account(UserRole role) {

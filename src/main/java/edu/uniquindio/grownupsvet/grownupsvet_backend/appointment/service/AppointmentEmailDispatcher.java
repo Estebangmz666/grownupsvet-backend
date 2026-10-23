@@ -3,6 +3,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration.FrontendConfigurationProperties;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.email.TransactionalEmailTemplates;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,16 +132,16 @@ public class AppointmentEmailDispatcher {
                 markFailure(task, "EMAIL_CONFIGURATION_MISSING"); return;
             }
             MimeMessage message = sender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(properties.getSenderAddress());
             helper.setTo(task.recipientEmail());
             // Recheck immediately before SMTP; a business change during message creation
             // must not send the now-obsolete notice. SMTP itself is outside a transaction.
             notice = currentNotice(task);
             if (notice == null) { finishSuperseded(task); return; }
-            helper.setSubject(notice.subject());
-            String link = frontend.baseUrl().isBlank() ? "" : "\nPuedes consultar los detalles en: " + frontend.baseUrl();
-            helper.setText(notice.body() + link, false);
+            var content = TransactionalEmailTemplates.appointmentNotice(notice.subject(), notice.body(), frontend.baseUrl());
+            helper.setSubject(content.subject());
+            helper.setText(content.plainText(), content.html());
             sender.send(message);
             jdbc.update("update appointment_email_tasks set status='SENT',sent_at=?,last_error_code=null,lease_token=null " +
                             "where id=? and status='SENDING' and lease_token=?",

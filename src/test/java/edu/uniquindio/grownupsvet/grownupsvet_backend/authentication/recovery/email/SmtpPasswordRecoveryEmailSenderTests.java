@@ -2,6 +2,8 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.e
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.configuration.PasswordRecoveryProperties;
 import jakarta.mail.Message;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -10,6 +12,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.MailSendException;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -28,12 +32,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SmtpPasswordRecoveryEmailSenderTests {
     @Test
-    void deliversTheRecoveryCodeAsUtf8PlainTextThroughLocalSmtp() throws Exception {
+    void deliversTheRecoveryCodeAsUtf8PlainTextAndHtmlThroughLocalSmtp() throws Exception {
         try (LocalSmtpServer smtpServer = new LocalSmtpServer()) {
             createSender(smtpServer).sendRecoveryCode("recipient@example.test", "María Pérez", "004218");
 
@@ -42,10 +50,11 @@ class SmtpPasswordRecoveryEmailSenderTests {
             assertThat(((InternetAddress) message.getRecipients(Message.RecipientType.TO)[0]).getAddress())
                     .isEqualTo("recipient@example.test");
             assertThat(message.getSubject()).isEqualTo("Código para recuperar tu contraseña de GrownupsVet");
-            assertThat(message.isMimeType("text/plain")).isTrue();
-            assertThat(message.getContentType()).containsIgnoringCase("charset=UTF-8");
-            assertThat((String) message.getContent()).contains("Hola María Pérez,", "004218", "10 minutos",
+            assertAlternativeParts(message);
+            assertThat(text(message, "text/plain")).contains("Hola María Pérez,", "004218", "10 minutos",
                     "No lo compartas", "puedes ignorar este correo");
+            assertThat(text(message, "text/html")).contains("María Pérez", "004218", "GrownupsVet");
+            assertThat(message.getSubject()).doesNotContain("004218");
         }
     }
 
@@ -56,8 +65,10 @@ class SmtpPasswordRecoveryEmailSenderTests {
         try (LocalSmtpServer smtpServer = new LocalSmtpServer()) {
             createSender(smtpServer).sendRecoveryCode("recipient@example.test", displayName, "004218");
 
-            assertThat((String) smtpServer.receivedMessage().getContent()).startsWith("Hola,")
+            MimeMessage message = smtpServer.receivedMessage();
+            assertThat(text(message, "text/plain")).startsWith("Hola,")
                     .doesNotContain("Hola null", "Hola ,");
+            assertThat(text(message, "text/html")).contains("Hola,").doesNotContain("Hola null", "Hola ,");
         }
     }
 
@@ -68,11 +79,68 @@ class SmtpPasswordRecoveryEmailSenderTests {
 
             MimeMessage message = smtpServer.receivedMessage();
             assertThat(message.getSubject()).isEqualTo("Tu contraseña de GrownupsVet fue restablecida");
-            assertThat(message.isMimeType("text/plain")).isTrue();
-            assertThat((String) message.getContent()).contains("Hola María Pérez,", "fue restablecida",
+            assertAlternativeParts(message);
+            assertThat(text(message, "text/plain")).contains("Hola María Pérez,", "fue restablecida",
                     "sesiones anteriores se cerraron", "Si no realizaste este cambio")
-                    .doesNotContain("004218", "Usa este código");
+                    .doesNotContain("004218", "Usa este código", "resetToken", "token=");
+            assertThat(text(message, "text/html")).contains("María Pérez", "fue restablecida")
+                    .doesNotContain("004218", "Usa este código", "resetToken", "token=");
         }
+    }
+
+    @Test
+    void treatsDynamicDisplayNamesAsTextInBothWireAlternatives() throws Exception {
+        String displayName = "María <script>alert(\"x\")</script> & Pérez";
+        try (LocalSmtpServer smtpServer = new LocalSmtpServer()) {
+            createSender(smtpServer).sendRecoveryCode("recipient@example.test", displayName, "004218");
+            MimeMessage message = smtpServer.receivedMessage();
+            assertThat(text(message, "text/plain")).contains(displayName, "004218");
+            assertThat(text(message, "text/html")).contains("&lt;script&gt;", "&amp;", "004218")
+                    .doesNotContain("<script>", "</script>");
+        }
+    }
+
+    @Test
+    void propagatesTransportFailuresWithoutAnAdditionalSend() {
+        JavaMailSender sender = mock(JavaMailSender.class);
+        when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
+        doThrow(new MailSendException("Controlled transport failure")).when(sender).send(any(MimeMessage.class));
+        PasswordRecoveryProperties properties = mock(PasswordRecoveryProperties.class);
+        when(properties.senderAddress()).thenReturn("recovery@example.test");
+        assertThatThrownBy(() -> new SmtpPasswordRecoveryEmailSender(sender, properties)
+                .sendRecoveryCode("recipient@example.test", "María Pérez", "004218"))
+                .isInstanceOf(MailSendException.class);
+        verify(sender).send(any(MimeMessage.class));
+    }
+
+    private static void assertAlternativeParts(MimeMessage message) throws Exception {
+        Multipart alternatives = (Multipart) requiredPart(message, "multipart/alternative").getContent();
+        assertThat(alternatives.getCount()).isEqualTo(2);
+        assertThat(alternatives.getBodyPart(0).isMimeType("text/plain")).isTrue();
+        assertThat(alternatives.getBodyPart(1).isMimeType("text/html")).isTrue();
+        assertThat(alternatives.getBodyPart(0).getContentType()).containsIgnoringCase("charset=UTF-8");
+        assertThat(alternatives.getBodyPart(1).getContentType()).containsIgnoringCase("charset=UTF-8");
+    }
+
+    private static String text(Part part, String mediaType) throws Exception {
+        return (String) requiredPart(part, mediaType).getContent();
+    }
+
+    private static Part requiredPart(Part part, String mediaType) throws Exception {
+        Part result = findPart(part, mediaType);
+        assertThat(result).as("MIME part %s", mediaType).isNotNull();
+        return result;
+    }
+
+    private static Part findPart(Part part, String mediaType) throws Exception {
+        if (part.isMimeType(mediaType)) return part;
+        if (part.getContent() instanceof Multipart multipart) {
+            for (int index = 0; index < multipart.getCount(); index++) {
+                Part found = findPart(multipart.getBodyPart(index), mediaType);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private PasswordRecoveryEmailSender createSender(LocalSmtpServer smtpServer) {

@@ -1,7 +1,9 @@
 # Plan de fortalecimiento y preparación de auditoría de GrownupsVet
 
-**Fecha:** 26 de octubre de 2026, America/Bogota.  
-**Estado:** aprobado explícitamente por Esteban el 26/10/2026; ejecución y evidencias en el expediente parcial.  
+**Fecha:** 26 de octubre de 2026, America/Bogota.
+
+**Estado:** aprobado explícitamente por Esteban el 26/10/2026; ejecución y evidencias en el expediente parcial.
+
 **Ventana de auditoría comunicada:** del 26 de octubre al 3 de noviembre de 2026, sin horario confirmado.
 
 La aprobación habilitó los incrementos descritos y sus actualizaciones de seguimiento. Este archivo conserva la planificación original; los resultados, límites y bloqueos de ejecución se registran por separado en el expediente. El usuario precisó posteriormente una política de **5 intentos por correo y peer cada 15 minutos**, con 60 por peer/minuto y clave HMAC aleatoria independiente de 32 bytes. La activación requiere evidencia remota; su autorización no demuestra que Secret Manager o el despliegue hayan quedado completados.

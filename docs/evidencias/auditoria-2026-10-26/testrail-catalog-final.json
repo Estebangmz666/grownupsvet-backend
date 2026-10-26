@@ -1,0 +1,51 @@
+{
+  "cutoff_date": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "Partial audit catalog definitions only; execution evidence belongs to the individual runs.",
+  "original_count": 84,
+  "before_count": 99,
+  "after_count": 101,
+  "after_sections": 29,
+  "previous_99_ids_and_fields_preserved": true,
+  "security_cases": [
+    {
+      "case_id": "C100",
+      "title": "AUD-SEG-01 Limitar el sexto intento de acceso y rechazar la suplantación del origen",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/100",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C101",
+      "title": "AUD-SEG-02 Mostrar la espera de acceso sin perder campos ni repetir contraseñas automáticamente",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/101",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    }
+  ],
+  "initial_catalog_report": "catalog-verification.json",
+  "original_cases_updated": 10,
+  "new_remote_cases": 15,
+  "new_login_security_cases": 2,
+  "total_new_cases": 17,
+  "results_created_by_catalog_import": 0,
+  "before_sha256": "586488091bc3766d83c479548b9ea3751a07f122f7353fd42d8ef4e5e9e38d1f",
+  "after_sha256": "b4a3623419d8b7c2358cf32174080953bb661489639212a4e70596519677c145",
+  "verified": true
+}

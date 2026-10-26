@@ -1,0 +1,82 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "checkedAtUtc": "2026-10-26T18:43:30.059Z",
+  "scope": "Partial audit; no global project approval or combined coverage percentage.",
+  "verifiedFromLiveUi": true,
+  "catalog": {
+    "cases": 101,
+    "sections": 29,
+    "updatedOriginalCases": 10,
+    "newCases": 17,
+    "formatOnlyRepairs": 17
+  },
+  "runs": [
+    {
+      "id": 1,
+      "url": "https://grownupsvet.testrail.io/index.php?/runs/view/1",
+      "passed": 54,
+      "blocked": 30,
+      "untested": 17,
+      "retest": 0,
+      "failed": 0,
+      "scope": "Historical results preserved; includeAll added seventeen untested cases."
+    },
+    {
+      "id": 2,
+      "url": "https://grownupsvet.testrail.io/index.php?/runs/view/2",
+      "passed": 3,
+      "blocked": 0,
+      "untested": 25,
+      "retest": 0,
+      "failed": 0,
+      "fixedCaseCount": 28,
+      "passedCases": [
+        {
+          "caseId": 84,
+          "testId": 112,
+          "scope": "CI rejects deliberate defective PRs; not application E2E."
+        },
+        {
+          "caseId": 64,
+          "testId": 109,
+          "scope": "Real API JWT signature/claims and own profile."
+        },
+        {
+          "caseId": 65,
+          "testId": 110,
+          "scope": "Real API anonymous/tampered JWT rejected."
+        }
+      ],
+      "partialCase": {
+        "caseId": 67,
+        "testId": 111,
+        "scope": "HTTP logout checks pass; conditional SQL revocation-record check remains unverified."
+      }
+    },
+    {
+      "id": 3,
+      "url": "https://grownupsvet.testrail.io/index.php?/runs/view/3",
+      "passed": 1,
+      "blocked": 0,
+      "untested": 1,
+      "retest": 0,
+      "failed": 0,
+      "fixedCaseCount": 2,
+      "passedCases": [
+        {
+          "caseId": 100,
+          "testId": 130,
+          "scope": "Direct production API eight requests/thirty-three assertions."
+        }
+      ],
+      "partialCase": {
+        "caseId": 101,
+        "testId": 131,
+        "scope": "Spanish wait displayed after six manual actions; exact field-value retention and browser traffic/no-auto-retry remain unverified."
+      }
+    }
+  ],
+  "noResultsCreatedByCatalogImports": true,
+  "noHistoricResultsOverwritten": true
+}

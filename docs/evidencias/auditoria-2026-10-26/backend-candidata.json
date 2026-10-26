@@ -1,0 +1,42 @@
+{
+  "cutoffDate": "2026-10-26",
+  "checkedAtUtc": "2026-10-26T17:30:39.428288+00:00",
+  "sourceGit": "960c8898acbb22a227eac9424260a12936556227",
+  "revision": "grownupsvet-backend-audit-960c8898",
+  "imageDigest": "us-central1-docker.pkg.dev/project-4f1c67ce-5621-40e0-96c/grownupsvet/backend@sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "status": "PASSED",
+  "runtimeConfigurationPreserved": true,
+  "otherEnvironmentAndSecretReferencesPreserved": true,
+  "serviceScalingPreserved": true,
+  "candidateTrafficPercent": 0,
+  "previousRevisionTrafficPercent": 100,
+  "contractVersion": "0.11.0",
+  "contractPaths": 47,
+  "contractRawSha256": "82a84c97a4ad3b3139125854546a1ff61d66e1835146aba1cdb4cbdf25c646b1",
+  "contractMatchesMergedSourceExceptServers": true,
+  "loginRateLimitEnabled": false,
+  "identifierOriginMaximumConfigured": 5,
+  "hmacSecretLinked": false,
+  "checks": [
+    {
+      "case": "liveness",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "case": "readiness",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "case": "/api/v1/pets",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "case": "/actuator/prometheus",
+      "status": 401,
+      "passed": true
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Base de datos aislada para la auditoría
 
-**Corte: 26 de octubre de 2026, America/Bogota. Alcance parcial del incremento de fortalecimiento en construcción.** Este kit y su prueba local no constituyen una auditoría final del proyecto. El esquema evaluado incluye V1–V22 de la base del incremento y V23 de limitación de login incorporada al checkout de trabajo; su publicación se acredita por separado.
+**Corte: 26 de octubre de 2026, America/Bogota. Alcance parcial del incremento de fortalecimiento.** Este kit y su prueba local no constituyen una auditoría final del proyecto. El esquema evaluado incluye V1–V23, publicadas en el [commit 960c8898](https://github.com/Estebangmz666/grownupsvet-backend/commit/960c8898acbb22a227eac9424260a12936556227). La reproducción local de este kit y el despliegue productivo tienen evidencias separadas en el [expediente del corte](expediente-auditoria-2026-10-26.md).
 
 El kit de `scripts/audit-database` reconstruye **dos bases nuevas de PostgreSQL 18 local** desde las fuentes Flyway del checkout identificado. Una sirve para inspección mediante vistas de lectura; la otra permite ensayar escrituras y restricciones. Nunca utiliza `DB_URL`, Render, `grownupsvet_dev` ni `grownupsvet_test` como destino. No arranca Spring, procesos de correo ni SMTP.
 

@@ -39,5 +39,17 @@
       "url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40360116077/job/121702954430"
     }
   ],
-  "expected_rejection_verified": true
+  "expected_rejection_verified": true,
+  "cleanup": {
+    "checked_at_utc": "2026-10-26T17:31:11.780852+00:00",
+    "pull_request_closed": true,
+    "merged": false,
+    "closed_at_utc": "2026-10-26T16:38:24Z",
+    "head_sha": "6e49688ea9a68601e57b8d82561789f51d9aa0a5",
+    "expected_head_matches": true,
+    "control_branch_absent": true,
+    "control_file_absent_from_main": true,
+    "note": "The earlier blocked-state snapshot is retained above; subsequent legitimate PR3 merge is separate."
+  },
+  "cleanup_verified": true
 }

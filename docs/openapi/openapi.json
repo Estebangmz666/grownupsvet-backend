@@ -3,7 +3,7 @@
   "info" : {
     "title" : "GrownupsVet API",
     "description" : "Contrato generado desde Java para usuarios, mascotas, acceso, recuperación durable, personal, disponibilidad, citas y atención clínica P3. Los borradores pertenecen a citas confirmadas y solo el veterinario asignado puede modificarlos. La finalización publica la atención inmutable y completa la cita en una transacción. Incluye historia propia/asignada, fórmula y controles, avisos durables de citas y recordatorios clínicos por correo con inicio y fin; SENT acredita aceptación SMTP, no recepción en buzón. La jornada y los horarios clínicos usan America/Bogota. Adendas, urgencias e inventario quedan fuera del alcance aprobado.",
-    "version" : "0.10.0"
+    "version" : "0.11.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
@@ -3440,7 +3440,7 @@
       "post" : {
         "tags" : [ "Sesiones" ],
         "summary" : "Iniciar sesión",
-        "description" : "Verifica correo y contraseña y emite un JWT RS256 por 24 horas. No emite refresh token.",
+        "description" : "Verifica correo y contraseña y emite un JWT RS256 por 24 horas. No emite refresh token. Cuando la admisión está habilitada, admite hasta 10 intentos por correo normalizado y peer de transporte en 15 minutos, y 60 por peer en un minuto, antes de verificar credenciales. Los límites son configurables; incluyen accesos correctos y fallidos y no deshabilitan la cuenta. PEER puede agrupar usuarios tras un proxy/NAT y no identifica la IP humana. 429 es genérico para cuentas conocidas, desconocidas o inactivas; Retry-After indica segundos.",
         "operationId" : "createUserSession",
         "requestBody" : {
           "content" : {
@@ -3504,6 +3504,27 @@
           },
           "415" : {
             "description" : "La petición debe ser application/json",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "429" : {
+            "description" : "Admisión temporal agotada; no revela existencia ni estado de cuenta",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Segundos mínimos antes de reintentar",
+                "style" : "simple",
+                "schema" : {
+                  "type" : "integer",
+                  "format" : "int64",
+                  "minimum" : 1
+                }
+              }
+            },
             "content" : {
               "application/problem+json" : {
                 "schema" : {

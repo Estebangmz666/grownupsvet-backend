@@ -77,6 +77,14 @@ grownupsvet:
       dispatch-delay: 15000
       max-delivery-attempts: 5
   security:
+    login-rate-limit:
+      enabled: ${LOGIN_RATE_LIMIT_ENABLED:false}
+      hmac-secret: ${LOGIN_RATE_LIMIT_HMAC_SECRET:}
+      origin-mode: PEER
+      identifier-origin-maximum: ${LOGIN_IDENTIFIER_ORIGIN_MAXIMUM:10}
+      identifier-origin-window: ${LOGIN_IDENTIFIER_ORIGIN_WINDOW:PT15M}
+      origin-maximum: ${LOGIN_ORIGIN_MAXIMUM:60}
+      origin-window: ${LOGIN_ORIGIN_WINDOW:PT1M}
     password-recovery:
       enabled: ${PASSWORD_RECOVERY_ENABLED:false}
       hmac-secret: ${PASSWORD_RECOVERY_HMAC_SECRET:}

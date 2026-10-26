@@ -3,6 +3,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.exception;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.ApiErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.FieldValidationErrorResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.exception.InvalidUserCredentialsException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.ratelimit.exception.LoginAttemptRateLimitException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.exception.PasswordRecoveryException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.exception.InvalidPetRequestException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.exception.PetNotFoundException;
@@ -177,6 +178,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         headers.set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         return problemResponse(apiErrorResponseFactory.create(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED",
                 "Inicia sesión para acceder a este recurso."), headers);
+    }
+
+    @ExceptionHandler(LoginAttemptRateLimitException.class)
+    public ResponseEntity<Object> handleLoginRateLimit(LoginAttemptRateLimitException exception) {
+        HttpHeaders headers = privateNoStoreHeaders();
+        headers.set(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()));
+        return problemResponse(apiErrorResponseFactory.create(HttpStatus.TOO_MANY_REQUESTS, "LOGIN_RATE_LIMITED",
+                "Hay demasiados intentos de acceso. Espera un momento e inténtalo de nuevo."), headers);
     }
 
     @ExceptionHandler(InvalidUserCredentialsException.class)

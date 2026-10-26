@@ -1,0 +1,60 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "scope": "Partial audit: P1/P2 web and P3 API; login admission implementation verified locally.",
+  "baseRemoteCommit": "736805879fcb6ffe968242d0647439fbe0ddf3f6",
+  "publicationVerified": false,
+  "deploymentVerified": false,
+  "productionActivationVerified": false,
+  "tests": {
+    "suites": 63,
+    "tests": 722,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "contract": {
+    "openapi": "3.1.0",
+    "version": "0.11.0",
+    "paths": 47,
+    "operations": 68,
+    "schemas": 69,
+    "httpExamplesValidated": 51,
+    "sha256": "2109adcd1c915f6c9b714d9a8aa1a15a591064eafe7a20c89ddf3056eda89412"
+  },
+  "gates": {
+    "testReports": "PASSED",
+    "openapiExamples": "PASSED",
+    "snapshotMatchesGenerated": "PASSED",
+    "controlledFailuresRejected": "PASSED"
+  },
+  "migration": {
+    "newVersion": 23,
+    "previousMigrationsUnchanged": true
+  },
+  "rateLimit": {
+    "defaultEnabled": false,
+    "originMode": "PEER",
+    "identifierOriginMaximum": 10,
+    "identifierOriginWindowSeconds": 900,
+    "originMaximum": 60,
+    "originWindowSeconds": 60,
+    "perHumanIpClaimed": false,
+    "externalSmtpUsed": false,
+    "productionDatabaseUsed": false
+  },
+  "ciArtifactRetentionDays": 30,
+  "limits": [
+    "Remote CI, deployed image and production activation require separate verification.",
+    "A transport peer may aggregate proxies or NAT users; distributed attack resistance is limited.",
+    "Local test success does not certify final project acceptance or M1-M9."
+  ],
+  "initialFullRun": {
+    "tests": 722,
+    "failures": 3,
+    "resolvedCauses": [
+      "Test command supplied SPRING_DATASOURCE_URL and contaminated two production-configuration assertions; final run removed application environment overrides.",
+      "Demo helper supported-contract allowlist omitted additive contract 0.11.0; its compatibility was updated and verified by the real HTTP helper test."
+    ]
+  }
+}

@@ -4,8 +4,10 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.dto.UserLog
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.dto.UserLoginResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.service.UserAuthenticationService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.service.UserSessionRevocationService;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.ratelimit.service.LoginAttemptRateLimitService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.dto.error.ApiErrorResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,15 +36,23 @@ public class UserSessionController {
 
     private final UserAuthenticationService authenticationService;
     private final UserSessionRevocationService sessionRevocationService;
+    private final LoginAttemptRateLimitService loginAttemptRateLimitService;
 
     public UserSessionController(UserAuthenticationService authenticationService,
-                                 UserSessionRevocationService sessionRevocationService) {
+                                 UserSessionRevocationService sessionRevocationService,
+                                 LoginAttemptRateLimitService loginAttemptRateLimitService) {
         this.authenticationService = authenticationService;
         this.sessionRevocationService = sessionRevocationService;
+        this.loginAttemptRateLimitService = loginAttemptRateLimitService;
     }
 
     @Operation(operationId = "createUserSession", summary = "Iniciar sesión",
-            description = "Verifica correo y contraseña y emite un JWT RS256 por 24 horas. No emite refresh token.")
+            description = "Verifica correo y contraseña y emite un JWT RS256 por 24 horas. No emite refresh token. "
+                    + "Cuando la admisión está habilitada, admite hasta 10 intentos por correo normalizado y peer "
+                    + "de transporte en 15 minutos, y 60 por peer en un minuto, antes de verificar credenciales. "
+                    + "Los límites son configurables; incluyen accesos correctos y fallidos y no deshabilitan la cuenta. "
+                    + "PEER puede agrupar usuarios tras un proxy/NAT y no identifica la IP humana. "
+                    + "429 es genérico para cuentas conocidas, desconocidas o inactivas; Retry-After indica segundos.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Sesión creada",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -61,12 +72,19 @@ public class UserSessionController {
             @ApiResponse(responseCode = "415", description = "La petición debe ser application/json",
                     content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "429", description = "Admisión temporal agotada; no revela existencia ni estado de cuenta",
+                    headers = @Header(name = "Retry-After", description = "Segundos mínimos antes de reintentar",
+                            schema = @Schema(type = "integer", format = "int64", minimum = "1")),
+                    content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponseDTO.class))),
             @ApiResponse(responseCode = "500", description = "Fallo interno sin detalles sensibles",
                     content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponseDTO.class)))
     })
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<UserLoginResponseDTO> createSession(@Valid @RequestBody UserLoginRequestDTO request) {
+    public ResponseEntity<UserLoginResponseDTO> createSession(@Valid @RequestBody UserLoginRequestDTO request,
+                                                             HttpServletRequest servletRequest) {
+        loginAttemptRateLimitService.admit(request.email(), servletRequest.getRemoteAddr());
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(authenticationService.authenticate(request));
     }

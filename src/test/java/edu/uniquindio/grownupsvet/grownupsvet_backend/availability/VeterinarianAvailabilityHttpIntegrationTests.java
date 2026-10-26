@@ -353,7 +353,7 @@ class VeterinarianAvailabilityHttpIntegrationTests {
                 .isEqualTo(1);
         assertThat(schemas.path("CreateVeterinarianAvailabilitySlotBatchRequestDTO").path("properties")
                 .path("daysOfWeek").path("minItems").asInt()).isEqualTo(1);
-        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.10.0");
+        assertThat(specification.path("info").path("version").asText()).isEqualTo("0.11.0");
         Path output = Path.of("target", "generated-openapi");
         Files.createDirectories(output);
         Files.writeString(output.resolve("openapi.json"), mapper.writerWithDefaultPrettyPrinter().writeValueAsString(specification));

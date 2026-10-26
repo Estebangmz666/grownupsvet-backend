@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "Evaluación parcial de P1/P2 web y P3 API publicado/verificado; no es una entrega final completa. La auditoría integral espera la versión final.",
+  "change": "I7 helper de publicación conservadora de imagen",
+  "testCommand": "scripts/tests/DeployGoogleCloud.Tests.ps1",
+  "result": "PASS",
+  "functionalScenarios": 13,
+  "cloudActionsExecuted": false,
+  "iamChanges": false,
+  "productionDeploymentPerformed": false,
+  "assertions": [
+    "ValidateOnly y la omisión de Execute no usan gcloud ni HTTP",
+    "ImageOnly rechaza parámetros de configuración y exige digest, contrato esperado y ruta de evidencia al ejecutar",
+    "ConfigurationTemplate no puede ejecutar cambios remotos",
+    "La plantilla offline conserva monitoring junto a prod/external-postgres y exige referencias numéricas para monitoring y HMAC de login",
+    "Los dobles funcionales verifican configuración idéntica antes/después, imagen y contrato esperados y revisión lista con tráfico completo",
+    "Valores literales de entorno y hash de monitoring no aparecen en la evidencia saneada",
+    "Contrato inaccesible, máximo incompatible, secreto literal y monitoring incompleto bloquean antes de actualizar",
+    "Una divergencia posterior de memoria o de versión de contrato falla la verificación",
+    "Service maxScale=1 acepta y preserva revision maxScale=20; sin cap de servicio revision20 se rechaza; service2/revision1 se rechaza conservadoramente"
+  ],
+  "limitations": [
+    "Los comandos y HTTP de las pruebas se sustituyen por dobles en memoria; no acreditan funcionamiento de gcloud ni Cloud Run reales",
+    "El helper no crea ni activa secretos, monitoring o admisión; ImageOnly preserva la configuración vigente",
+    "La verificación de configuración no evita cambios remotos simultáneos ni certifica las propiedades de cada valor previo",
+    "No cambia tráfico ni aplica rollback automático; un servicio fijado a una revisión anterior requiere revisión separada",
+    "Métricas, SMTP y aceptación funcional conservan sus verificaciones propias"
+  ],
+  "sources": [
+    "https://docs.cloud.google.com/sdk/gcloud/reference/run/services/update",
+    "https://docs.cloud.google.com/run/docs/configuring/max-instances",
+    "https://docs.cloud.google.com/run/docs/configuring/services/secrets"
+  ]
+}

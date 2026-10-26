@@ -1,0 +1,17 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "status": "BACKUP_VERIFIED",
+  "createdAtBogota": "2026-10-26T11:56:04.5072397-05:00",
+  "bytes": 140200,
+  "sha256": "27bc7712f57182149be8c330e5e3ea430af21c98db765d8a7430f1862bd60b93",
+  "catalogEntries": 226,
+  "tlsMode": "verify-full",
+  "tlsProtocol": "TLSv1.3",
+  "restoreVerified": false,
+  "dumpKeptPrivate": true,
+  "sourceMutationPerformed": false,
+  "helperIntegrityVerified": true,
+  "sourceIdentityVerified": true,
+  "initialAttempt": "LOCAL_INPUT_GUARD_REJECTED_FUNCTION_CALL_WITHOUT_EXPLICIT_CONNECTION_PARAMETER"
+}

@@ -1,4 +1,6 @@
-# OpenAPI generado — incremento 0.10.0
+# OpenAPI generado — incremento 0.11.0
+
+El incremento de auditoría 0.11.0 añade al login existente la respuesta `429 LOGIN_RATE_LIMITED`, `Retry-After` con segundos positivos y [admisión persistente por peer](../login-admission.md). El contrato se genera desde Java y conserva las rutas de P1–P3. Su implementación y evidencia local se distinguen de la activación/despliegue. Las secciones siguientes conservan los cortes históricos de cada incremento.
 
 `openapi.json` se genera desde los controladores, DTOs y anotaciones del backend con springdoc. La fuente editable es Java; no editar manualmente este JSON. El incremento **0.10.0** inicia P3 con borradores clínicos ligados a citas confirmadas, control de versión, idempotencia y continuidad auditada al reasignar. Conserva los avisos P12, Bearer JWT y los permisos opacos de recuperación/activación. Frontend, urgencias, adendas e integración COMVEZCOL quedan fuera. La preparación de nube no acredita despliegue ni aceptación del proceso integrado.
 

@@ -1,0 +1,4396 @@
+{
+    "tables": [
+        {
+            "name": "administrator_profiles",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "full_name",
+                    "type": "character varying(150)",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "created_by",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_by",
+                    "type": "uuid",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "appointment_assignments",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "slot_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "assigned_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "actor_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "actor_type",
+                    "type": "character varying(8)",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(1000)",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "appointment_email_access_audits",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "accessed_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(500)",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "appointment_email_tasks",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "event_key",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "recipient_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "recipient_email",
+                    "type": "character varying(254)",
+                    "nullable": true
+                },
+                {
+                    "name": "task_type",
+                    "type": "character varying(32)",
+                    "nullable": false
+                },
+                {
+                    "name": "payload",
+                    "type": "jsonb",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "attempt_count",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "next_attempt_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "last_error_code",
+                    "type": "character varying(64)",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "sent_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "lease_token",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "scheduled_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "appointment_events",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "event_type",
+                    "type": "character varying(32)",
+                    "nullable": false
+                },
+                {
+                    "name": "previous_status",
+                    "type": "character varying(16)",
+                    "nullable": true
+                },
+                {
+                    "name": "new_status",
+                    "type": "character varying(16)",
+                    "nullable": true
+                },
+                {
+                    "name": "previous_assignment_status",
+                    "type": "character varying(24)",
+                    "nullable": true
+                },
+                {
+                    "name": "new_assignment_status",
+                    "type": "character varying(24)",
+                    "nullable": true
+                },
+                {
+                    "name": "previous_slot_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "new_slot_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "actor_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "actor_type",
+                    "type": "character varying(8)",
+                    "nullable": false
+                },
+                {
+                    "name": "occurred_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(1000)",
+                    "nullable": true
+                },
+                {
+                    "name": "agreement_channel",
+                    "type": "character varying(24)",
+                    "nullable": true
+                },
+                {
+                    "name": "agreement_contacted_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "agreement_note",
+                    "type": "character varying(500)",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "appointment_operation_idempotency",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "operation_type",
+                    "type": "character varying(24)",
+                    "nullable": false
+                },
+                {
+                    "name": "client_request_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "request_fingerprint",
+                    "type": "character(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "resulting_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "appointments",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "owner_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "pet_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "current_slot_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "assignment_status",
+                    "type": "character varying(24)",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(1000)",
+                    "nullable": false
+                },
+                {
+                    "name": "starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "confirmation_cutoff_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "client_request_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "request_fingerprint",
+                    "type": "character(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "clinical_controls",
+            "columns": [
+                {
+                    "name": "encounter_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "position",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "scheduled_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(1000)",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "clinical_encounter_events",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "encounter_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "encounter_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "event_type",
+                    "type": "character varying(32)",
+                    "nullable": false
+                },
+                {
+                    "name": "actor_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "previous_veterinarian_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "occurred_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "clinical_encounter_operations",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "encounter_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "actor_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "operation_type",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "client_request_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "request_fingerprint",
+                    "type": "character(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "resulting_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "clinical_encounters",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "appointment_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "pet_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "owner_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "created_by",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(4000)",
+                    "nullable": true
+                },
+                {
+                    "name": "anamnesis",
+                    "type": "character varying(4000)",
+                    "nullable": true
+                },
+                {
+                    "name": "physical_examination",
+                    "type": "character varying(4000)",
+                    "nullable": true
+                },
+                {
+                    "name": "diagnosis",
+                    "type": "character varying(4000)",
+                    "nullable": true
+                },
+                {
+                    "name": "care_plan",
+                    "type": "character varying(4000)",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "finalized_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "clinical_prescriptions",
+            "columns": [
+                {
+                    "name": "encounter_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "position",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "medication_name",
+                    "type": "character varying(200)",
+                    "nullable": false
+                },
+                {
+                    "name": "dose",
+                    "type": "numeric(18,6)",
+                    "nullable": false
+                },
+                {
+                    "name": "dose_unit",
+                    "type": "character varying(50)",
+                    "nullable": false
+                },
+                {
+                    "name": "administration_route",
+                    "type": "character varying(100)",
+                    "nullable": false
+                },
+                {
+                    "name": "interval_hours",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "instructions",
+                    "type": "character varying(2000)",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "clinical_reminder_email_tasks",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "schedule_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "scheduled_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "recipient_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "attempt_count",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "next_attempt_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "lease_token",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "lease_until",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "last_error_code",
+                    "type": "character varying(64)",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "sent_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "clinical_reminder_schedules",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "encounter_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "source_type",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "prescription_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "control_id",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "interval_hours",
+                    "type": "integer",
+                    "nullable": true
+                },
+                {
+                    "name": "next_due_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "next_occurrence_index",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "missed_count",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "last_missed_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "flyway_schema_history",
+            "columns": [
+                {
+                    "name": "installed_rank",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "version",
+                    "type": "character varying(50)",
+                    "nullable": true
+                },
+                {
+                    "name": "description",
+                    "type": "character varying(200)",
+                    "nullable": false
+                },
+                {
+                    "name": "type",
+                    "type": "character varying(20)",
+                    "nullable": false
+                },
+                {
+                    "name": "script",
+                    "type": "character varying(1000)",
+                    "nullable": false
+                },
+                {
+                    "name": "checksum",
+                    "type": "integer",
+                    "nullable": true
+                },
+                {
+                    "name": "installed_by",
+                    "type": "character varying(100)",
+                    "nullable": false
+                },
+                {
+                    "name": "installed_on",
+                    "type": "timestamp without time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "execution_time",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "success",
+                    "type": "boolean",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "login_attempt_rate_limits",
+            "columns": [
+                {
+                    "name": "bucket_key",
+                    "type": "character varying(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "window_started_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "used_count",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "owner_profiles",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "full_name",
+                    "type": "character varying(150)",
+                    "nullable": false
+                },
+                {
+                    "name": "date_of_birth",
+                    "type": "date",
+                    "nullable": false
+                },
+                {
+                    "name": "phone_number",
+                    "type": "character varying(16)",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "password_recovery_challenges",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "challenge_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "email_at_request",
+                    "type": "character varying(254)",
+                    "nullable": false
+                },
+                {
+                    "name": "authentication_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "code_digest",
+                    "type": "bytea",
+                    "nullable": true
+                },
+                {
+                    "name": "code_expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "failed_attempts",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "reset_token_hash",
+                    "type": "character varying(64)",
+                    "nullable": true
+                },
+                {
+                    "name": "reset_expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "password_recovery_email_tasks",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "challenge_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "authentication_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "task_type",
+                    "type": "character varying(24)",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "encrypted_payload",
+                    "type": "bytea",
+                    "nullable": true
+                },
+                {
+                    "name": "payload_nonce",
+                    "type": "bytea",
+                    "nullable": true
+                },
+                {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "attempt_count",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "next_attempt_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "lease_token",
+                    "type": "uuid",
+                    "nullable": true
+                },
+                {
+                    "name": "lease_expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "last_error_code",
+                    "type": "character varying(64)",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "sent_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "password_recovery_rate_limits",
+            "columns": [
+                {
+                    "name": "bucket_key",
+                    "type": "character varying(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "window_started_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "used_count",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "last_accepted_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "pets",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "owner_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "name",
+                    "type": "character varying(100)",
+                    "nullable": false
+                },
+                {
+                    "name": "species",
+                    "type": "character varying(8)",
+                    "nullable": false
+                },
+                {
+                    "name": "breed",
+                    "type": "character varying(100)",
+                    "nullable": true
+                },
+                {
+                    "name": "sex",
+                    "type": "character varying(8)",
+                    "nullable": true
+                },
+                {
+                    "name": "date_of_birth",
+                    "type": "date",
+                    "nullable": true
+                },
+                {
+                    "name": "date_of_birth_estimated",
+                    "type": "boolean",
+                    "nullable": false
+                },
+                {
+                    "name": "active",
+                    "type": "boolean",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "revoked_access_tokens",
+            "columns": [
+                {
+                    "name": "issuer",
+                    "type": "character varying(200)",
+                    "nullable": false
+                },
+                {
+                    "name": "jwt_id",
+                    "type": "character varying(100)",
+                    "nullable": false
+                },
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "revoked_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "staff_invitation_email_tasks",
+            "columns": [
+                {
+                    "name": "invitation_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "encrypted_token",
+                    "type": "bytea",
+                    "nullable": true
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "attempts",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "next_attempt_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "last_failure_code",
+                    "type": "character varying(40)",
+                    "nullable": true
+                },
+                {
+                    "name": "completed_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "staff_invitations",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "invited_by",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "token_hash",
+                    "type": "character varying(64)",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "expires_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "consumed_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "user_profile_photos",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "content",
+                    "type": "bytea",
+                    "nullable": false
+                },
+                {
+                    "name": "content_type",
+                    "type": "character varying(32)",
+                    "nullable": false
+                },
+                {
+                    "name": "size_bytes",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "width",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "height",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "users",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "email",
+                    "type": "character varying(254)",
+                    "nullable": false
+                },
+                {
+                    "name": "password_hash",
+                    "type": "character varying(255)",
+                    "nullable": true
+                },
+                {
+                    "name": "role",
+                    "type": "character varying(32)",
+                    "nullable": false
+                },
+                {
+                    "name": "authentication_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "optimistic_lock_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(32)",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "veterinarian_availability_events",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "slot_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "slot_version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "actor_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "occurred_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "event_type",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "previous_starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "previous_ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": true
+                },
+                {
+                    "name": "previous_status",
+                    "type": "character varying(16)",
+                    "nullable": true
+                },
+                {
+                    "name": "new_starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "new_ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "new_status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "reason",
+                    "type": "character varying(500)",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "name": "veterinarian_availability_slots",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "starts_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "ends_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "status",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "version",
+                    "type": "bigint",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "created_by",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_by",
+                    "type": "uuid",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "veterinarian_diplomas",
+            "columns": [
+                {
+                    "name": "qualification_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "content",
+                    "type": "bytea",
+                    "nullable": false
+                },
+                {
+                    "name": "size_bytes",
+                    "type": "integer",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "veterinarian_profiles",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "full_name",
+                    "type": "character varying(150)",
+                    "nullable": false
+                },
+                {
+                    "name": "professional_phone_number",
+                    "type": "character varying(16)",
+                    "nullable": false
+                },
+                {
+                    "name": "professional_registration_number",
+                    "type": "character varying(50)",
+                    "nullable": false
+                },
+                {
+                    "name": "biography",
+                    "type": "character varying(2000)",
+                    "nullable": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "created_by",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_by",
+                    "type": "uuid",
+                    "nullable": false
+                }
+            ]
+        },
+        {
+            "name": "veterinarian_qualifications",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "veterinarian_id",
+                    "type": "uuid",
+                    "nullable": false
+                },
+                {
+                    "name": "type",
+                    "type": "character varying(20)",
+                    "nullable": false
+                },
+                {
+                    "name": "title",
+                    "type": "character varying(200)",
+                    "nullable": false
+                },
+                {
+                    "name": "institution",
+                    "type": "character varying(200)",
+                    "nullable": false
+                },
+                {
+                    "name": "graduation_year",
+                    "type": "integer",
+                    "nullable": true
+                },
+                {
+                    "name": "base_degree",
+                    "type": "boolean",
+                    "nullable": false
+                },
+                {
+                    "name": "diploma_published",
+                    "type": "boolean",
+                    "nullable": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                },
+                {
+                    "name": "updated_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false
+                }
+            ]
+        }
+    ],
+    "constraints": [
+        {
+            "name": "administrator_profiles_created_at_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "administrator_profiles_created_by_fkey",
+            "type": "f",
+            "table": "administrator_profiles",
+            "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+            "name": "administrator_profiles_created_by_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL created_by"
+        },
+        {
+            "name": "administrator_profiles_full_name_check",
+            "type": "c",
+            "table": "administrator_profiles",
+            "definition": "CHECK ((btrim((full_name)::text) <> ''::text))"
+        },
+        {
+            "name": "administrator_profiles_full_name_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL full_name"
+        },
+        {
+            "name": "administrator_profiles_pkey",
+            "type": "p",
+            "table": "administrator_profiles",
+            "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+            "name": "administrator_profiles_updated_at_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "administrator_profiles_updated_by_fkey",
+            "type": "f",
+            "table": "administrator_profiles",
+            "definition": "FOREIGN KEY (updated_by) REFERENCES users(id)"
+        },
+        {
+            "name": "administrator_profiles_updated_by_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL updated_by"
+        },
+        {
+            "name": "administrator_profiles_user_id_fkey",
+            "type": "f",
+            "table": "administrator_profiles",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+        },
+        {
+            "name": "administrator_profiles_user_id_not_null",
+            "type": "n",
+            "table": "administrator_profiles",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_administrator_timestamps",
+            "type": "c",
+            "table": "administrator_profiles",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "appointment_assignments_actor_id_fkey",
+            "type": "f",
+            "table": "appointment_assignments",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+        },
+        {
+            "name": "appointment_assignments_actor_type_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL actor_type"
+        },
+        {
+            "name": "appointment_assignments_appointment_id_fkey",
+            "type": "f",
+            "table": "appointment_assignments",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "appointment_assignments_appointment_id_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "appointment_assignments_assigned_at_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL assigned_at"
+        },
+        {
+            "name": "appointment_assignments_ends_at_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL ends_at"
+        },
+        {
+            "name": "appointment_assignments_id_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointment_assignments_pkey",
+            "type": "p",
+            "table": "appointment_assignments",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointment_assignments_slot_id_fkey",
+            "type": "f",
+            "table": "appointment_assignments",
+            "definition": "FOREIGN KEY (slot_id) REFERENCES veterinarian_availability_slots(id)"
+        },
+        {
+            "name": "appointment_assignments_slot_id_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL slot_id"
+        },
+        {
+            "name": "appointment_assignments_starts_at_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL starts_at"
+        },
+        {
+            "name": "appointment_assignments_veterinarian_id_fkey",
+            "type": "f",
+            "table": "appointment_assignments",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "appointment_assignments_veterinarian_id_not_null",
+            "type": "n",
+            "table": "appointment_assignments",
+            "definition": "NOT NULL veterinarian_id"
+        },
+        {
+            "name": "ck_appointment_assignment_actor",
+            "type": "c",
+            "table": "appointment_assignments",
+            "definition": "CHECK (((((actor_type)::text = 'SYSTEM'::text) AND (actor_id IS NULL)) OR (((actor_type)::text = 'HUMAN'::text) AND (actor_id IS NOT NULL))))"
+        },
+        {
+            "name": "ck_appointment_assignment_duration",
+            "type": "c",
+            "table": "appointment_assignments",
+            "definition": "CHECK ((ends_at = (starts_at + '00:30:00'::interval)))"
+        },
+        {
+            "name": "appointment_email_access_audits_accessed_at_not_null",
+            "type": "n",
+            "table": "appointment_email_access_audits",
+            "definition": "NOT NULL accessed_at"
+        },
+        {
+            "name": "appointment_email_access_audits_appointment_id_fkey",
+            "type": "f",
+            "table": "appointment_email_access_audits",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "appointment_email_access_audits_appointment_id_not_null",
+            "type": "n",
+            "table": "appointment_email_access_audits",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "appointment_email_access_audits_id_not_null",
+            "type": "n",
+            "table": "appointment_email_access_audits",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointment_email_access_audits_pkey",
+            "type": "p",
+            "table": "appointment_email_access_audits",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointment_email_access_audits_reason_not_null",
+            "type": "n",
+            "table": "appointment_email_access_audits",
+            "definition": "NOT NULL reason"
+        },
+        {
+            "name": "appointment_email_access_audits_veterinarian_id_fkey",
+            "type": "f",
+            "table": "appointment_email_access_audits",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES users(id)"
+        },
+        {
+            "name": "appointment_email_access_audits_veterinarian_id_not_null",
+            "type": "n",
+            "table": "appointment_email_access_audits",
+            "definition": "NOT NULL veterinarian_id"
+        },
+        {
+            "name": "ck_appointment_email_access_reason",
+            "type": "c",
+            "table": "appointment_email_access_audits",
+            "definition": "CHECK ((btrim((reason)::text) <> ''::text))"
+        },
+        {
+            "name": "appointment_email_tasks_appointment_id_fkey",
+            "type": "f",
+            "table": "appointment_email_tasks",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "appointment_email_tasks_appointment_id_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "appointment_email_tasks_attempt_count_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL attempt_count"
+        },
+        {
+            "name": "appointment_email_tasks_created_at_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "appointment_email_tasks_event_key_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL event_key"
+        },
+        {
+            "name": "appointment_email_tasks_id_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointment_email_tasks_next_attempt_at_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL next_attempt_at"
+        },
+        {
+            "name": "appointment_email_tasks_payload_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL payload"
+        },
+        {
+            "name": "appointment_email_tasks_pkey",
+            "type": "p",
+            "table": "appointment_email_tasks",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointment_email_tasks_recipient_id_fkey",
+            "type": "f",
+            "table": "appointment_email_tasks",
+            "definition": "FOREIGN KEY (recipient_id) REFERENCES users(id)"
+        },
+        {
+            "name": "appointment_email_tasks_scheduled_at_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL scheduled_at"
+        },
+        {
+            "name": "appointment_email_tasks_status_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "appointment_email_tasks_task_type_not_null",
+            "type": "n",
+            "table": "appointment_email_tasks",
+            "definition": "NOT NULL task_type"
+        },
+        {
+            "name": "ck_appointment_email_task_attempts",
+            "type": "c",
+            "table": "appointment_email_tasks",
+            "definition": "CHECK ((attempt_count >= 0))"
+        },
+        {
+            "name": "ck_appointment_email_task_lease",
+            "type": "c",
+            "table": "appointment_email_tasks",
+            "definition": "CHECK (((((status)::text = 'SENDING'::text) AND (lease_token IS NOT NULL)) OR (((status)::text <> 'SENDING'::text) AND (lease_token IS NULL))))"
+        },
+        {
+            "name": "ck_appointment_email_task_status",
+            "type": "c",
+            "table": "appointment_email_tasks",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying, 'SUPERSEDED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_appointment_email_task_type",
+            "type": "c",
+            "table": "appointment_email_tasks",
+            "definition": "CHECK (((task_type)::text = ANY ((ARRAY['ADMIN_REASSIGNMENT'::character varying, 'OWNER_REASSIGNED'::character varying, 'OWNER_CONFIRMED'::character varying, 'OWNER_REJECTED'::character varying, 'OWNER_CANCELLED'::character varying, 'OWNER_RESCHEDULED'::character varying, 'OWNER_REMINDER'::character varying])::text[])))"
+        },
+        {
+            "name": "uk_appointment_email_event_recipient",
+            "type": "u",
+            "table": "appointment_email_tasks",
+            "definition": "UNIQUE (event_key, recipient_id, task_type)"
+        },
+        {
+            "name": "appointment_events_actor_id_fkey",
+            "type": "f",
+            "table": "appointment_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+        },
+        {
+            "name": "appointment_events_actor_type_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL actor_type"
+        },
+        {
+            "name": "appointment_events_appointment_id_fkey",
+            "type": "f",
+            "table": "appointment_events",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "appointment_events_appointment_id_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "appointment_events_appointment_version_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL appointment_version"
+        },
+        {
+            "name": "appointment_events_event_type_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL event_type"
+        },
+        {
+            "name": "appointment_events_id_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointment_events_new_slot_id_fkey",
+            "type": "f",
+            "table": "appointment_events",
+            "definition": "FOREIGN KEY (new_slot_id) REFERENCES veterinarian_availability_slots(id)"
+        },
+        {
+            "name": "appointment_events_occurred_at_not_null",
+            "type": "n",
+            "table": "appointment_events",
+            "definition": "NOT NULL occurred_at"
+        },
+        {
+            "name": "appointment_events_pkey",
+            "type": "p",
+            "table": "appointment_events",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointment_events_previous_slot_id_fkey",
+            "type": "f",
+            "table": "appointment_events",
+            "definition": "FOREIGN KEY (previous_slot_id) REFERENCES veterinarian_availability_slots(id)"
+        },
+        {
+            "name": "ck_appointment_administrative_event",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK ((((event_type)::text <> ALL ((ARRAY['CANCELLED'::character varying, 'NO_SHOW'::character varying, 'RESCHEDULED'::character varying])::text[])) OR (((actor_type)::text = 'HUMAN'::text) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (previous_status IS NOT NULL) AND (new_status IS NOT NULL) AND ((((event_type)::text = 'CANCELLED'::text) AND ((previous_status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying])::text[])) AND ((new_status)::text = 'CANCELLED'::text)) OR (((event_type)::text = 'NO_SHOW'::text) AND ((previous_status)::text = 'CONFIRMED'::text) AND ((new_status)::text = 'NO_SHOW'::text)) OR (((event_type)::text = 'RESCHEDULED'::text) AND ((previous_status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying])::text[])) AND ((new_status)::text = (previous_status)::text) AND (previous_slot_id IS NOT NULL) AND (new_slot_id IS NOT NULL) AND (previous_slot_id <> new_slot_id))))))"
+        },
+        {
+            "name": "ck_appointment_clinical_completion",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK ((((event_type)::text <> 'COMPLETED'::text) OR (((actor_type)::text = 'HUMAN'::text) AND (actor_id IS NOT NULL) AND (previous_status IS NOT NULL) AND ((previous_status)::text = 'CONFIRMED'::text) AND (new_status IS NOT NULL) AND ((new_status)::text = 'COMPLETED'::text) AND (previous_assignment_status IS NOT NULL) AND ((previous_assignment_status)::text = 'ASSIGNED'::text) AND (new_assignment_status IS NOT NULL) AND ((new_assignment_status)::text = 'ASSIGNED'::text))))"
+        },
+        {
+            "name": "ck_appointment_event_actor",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK (((((actor_type)::text = 'SYSTEM'::text) AND (actor_id IS NULL)) OR (((actor_type)::text = 'HUMAN'::text) AND (actor_id IS NOT NULL))))"
+        },
+        {
+            "name": "ck_appointment_event_agreement",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK (((((event_type)::text <> 'RESCHEDULED'::text) AND (agreement_channel IS NULL) AND (agreement_contacted_at IS NULL) AND (agreement_note IS NULL)) OR ((agreement_channel IS NOT NULL) AND ((agreement_channel)::text = ANY ((ARRAY['PHONE'::character varying, 'WHATSAPP'::character varying, 'OTHER'::character varying])::text[])) AND (agreement_contacted_at IS NOT NULL) AND (agreement_note IS NOT NULL) AND (btrim((agreement_note)::text) <> ''::text))))"
+        },
+        {
+            "name": "ck_appointment_event_status",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK ((((previous_status IS NULL) OR ((previous_status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying, 'NO_SHOW'::character varying, 'COMPLETED'::character varying])::text[]))) AND ((new_status IS NULL) OR ((new_status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying, 'NO_SHOW'::character varying, 'COMPLETED'::character varying])::text[])))))"
+        },
+        {
+            "name": "ck_appointment_event_type",
+            "type": "c",
+            "table": "appointment_events",
+            "definition": "CHECK (((event_type)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying, 'NO_SHOW'::character varying, 'RESCHEDULED'::character varying, 'DAILY_CUTOFF'::character varying, 'VETERINARIAN_DISABLED'::character varying, 'VETERINARIAN_RESTORED'::character varying, 'REASSIGNED'::character varying, 'EMAIL_ACCESSED'::character varying, 'COMPLETED'::character varying])::text[])))"
+        },
+        {
+            "name": "uk_appointment_event_version",
+            "type": "u",
+            "table": "appointment_events",
+            "definition": "UNIQUE (appointment_id, appointment_version)"
+        },
+        {
+            "name": "appointment_operation_idempotency_appointment_id_fkey",
+            "type": "f",
+            "table": "appointment_operation_idempotency",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "appointment_operation_idempotency_appointment_id_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "appointment_operation_idempotency_client_request_id_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL client_request_id"
+        },
+        {
+            "name": "appointment_operation_idempotency_created_at_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "appointment_operation_idempotency_id_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointment_operation_idempotency_operation_type_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL operation_type"
+        },
+        {
+            "name": "appointment_operation_idempotency_pkey",
+            "type": "p",
+            "table": "appointment_operation_idempotency",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointment_operation_idempotency_request_fingerprint_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL request_fingerprint"
+        },
+        {
+            "name": "appointment_operation_idempotency_resulting_version_not_null",
+            "type": "n",
+            "table": "appointment_operation_idempotency",
+            "definition": "NOT NULL resulting_version"
+        },
+        {
+            "name": "ck_appointment_operation_type",
+            "type": "c",
+            "table": "appointment_operation_idempotency",
+            "definition": "CHECK (((operation_type)::text = ANY ((ARRAY['REASSIGNMENT'::character varying, 'RESCHEDULING'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_appointment_operation_version",
+            "type": "c",
+            "table": "appointment_operation_idempotency",
+            "definition": "CHECK ((resulting_version > 0))"
+        },
+        {
+            "name": "uk_appointment_operation_request",
+            "type": "u",
+            "table": "appointment_operation_idempotency",
+            "definition": "UNIQUE (appointment_id, operation_type, client_request_id)"
+        },
+        {
+            "name": "appointments_assignment_status_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL assignment_status"
+        },
+        {
+            "name": "appointments_client_request_id_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL client_request_id"
+        },
+        {
+            "name": "appointments_confirmation_cutoff_at_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL confirmation_cutoff_at"
+        },
+        {
+            "name": "appointments_created_at_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "appointments_current_slot_id_fkey",
+            "type": "f",
+            "table": "appointments",
+            "definition": "FOREIGN KEY (current_slot_id) REFERENCES veterinarian_availability_slots(id)"
+        },
+        {
+            "name": "appointments_current_slot_id_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL current_slot_id"
+        },
+        {
+            "name": "appointments_ends_at_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL ends_at"
+        },
+        {
+            "name": "appointments_id_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "appointments_owner_id_fkey",
+            "type": "f",
+            "table": "appointments",
+            "definition": "FOREIGN KEY (owner_id) REFERENCES users(id)"
+        },
+        {
+            "name": "appointments_owner_id_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL owner_id"
+        },
+        {
+            "name": "appointments_pet_id_fkey",
+            "type": "f",
+            "table": "appointments",
+            "definition": "FOREIGN KEY (pet_id) REFERENCES pets(id)"
+        },
+        {
+            "name": "appointments_pet_id_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL pet_id"
+        },
+        {
+            "name": "appointments_pkey",
+            "type": "p",
+            "table": "appointments",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "appointments_reason_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL reason"
+        },
+        {
+            "name": "appointments_request_fingerprint_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL request_fingerprint"
+        },
+        {
+            "name": "appointments_starts_at_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL starts_at"
+        },
+        {
+            "name": "appointments_status_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "appointments_updated_at_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "appointments_version_not_null",
+            "type": "n",
+            "table": "appointments",
+            "definition": "NOT NULL version"
+        },
+        {
+            "name": "ck_appointment_assignment_status",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK (((assignment_status)::text = ANY ((ARRAY['ASSIGNED'::character varying, 'NEEDS_REASSIGNMENT'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_appointment_duration",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK ((ends_at = (starts_at + '00:30:00'::interval)))"
+        },
+        {
+            "name": "ck_appointment_reason",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK ((btrim((reason)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_appointment_status",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'CONFIRMED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying, 'NO_SHOW'::character varying, 'COMPLETED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_appointment_timestamps",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "ck_appointment_version",
+            "type": "c",
+            "table": "appointments",
+            "definition": "CHECK ((version >= 0))"
+        },
+        {
+            "name": "tr_clinical_completion_appointment",
+            "type": "t",
+            "table": "appointments",
+            "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+        },
+        {
+            "name": "uk_appointment_owner_request",
+            "type": "u",
+            "table": "appointments",
+            "definition": "UNIQUE (owner_id, client_request_id)"
+        },
+        {
+            "name": "ck_clinical_control_position",
+            "type": "c",
+            "table": "clinical_controls",
+            "definition": "CHECK (((\"position\" >= 0) AND (\"position\" <= 49)))"
+        },
+        {
+            "name": "ck_clinical_control_reason",
+            "type": "c",
+            "table": "clinical_controls",
+            "definition": "CHECK ((btrim((reason)::text) <> ''::text))"
+        },
+        {
+            "name": "clinical_controls_encounter_id_fkey",
+            "type": "f",
+            "table": "clinical_controls",
+            "definition": "FOREIGN KEY (encounter_id) REFERENCES clinical_encounters(id)"
+        },
+        {
+            "name": "clinical_controls_encounter_id_not_null",
+            "type": "n",
+            "table": "clinical_controls",
+            "definition": "NOT NULL encounter_id"
+        },
+        {
+            "name": "clinical_controls_id_not_null",
+            "type": "n",
+            "table": "clinical_controls",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_controls_pkey",
+            "type": "p",
+            "table": "clinical_controls",
+            "definition": "PRIMARY KEY (encounter_id, id)"
+        },
+        {
+            "name": "clinical_controls_position_not_null",
+            "type": "n",
+            "table": "clinical_controls",
+            "definition": "NOT NULL \"position\""
+        },
+        {
+            "name": "clinical_controls_reason_not_null",
+            "type": "n",
+            "table": "clinical_controls",
+            "definition": "NOT NULL reason"
+        },
+        {
+            "name": "clinical_controls_scheduled_at_not_null",
+            "type": "n",
+            "table": "clinical_controls",
+            "definition": "NOT NULL scheduled_at"
+        },
+        {
+            "name": "uk_clinical_control_position",
+            "type": "u",
+            "table": "clinical_controls",
+            "definition": "UNIQUE (encounter_id, \"position\")"
+        },
+        {
+            "name": "ck_clinical_encounter_event_actor",
+            "type": "c",
+            "table": "clinical_encounter_events",
+            "definition": "CHECK ((actor_id = veterinarian_id))"
+        },
+        {
+            "name": "ck_clinical_encounter_event_shape",
+            "type": "c",
+            "table": "clinical_encounter_events",
+            "definition": "CHECK (((((event_type)::text = 'CREATED'::text) AND (encounter_version = 0) AND (previous_veterinarian_id IS NULL)) OR (((event_type)::text = ANY ((ARRAY['UPDATED'::character varying, 'TREATMENT_UPDATED'::character varying, 'FINALIZED'::character varying])::text[])) AND (encounter_version > 0) AND (previous_veterinarian_id IS NOT NULL))))"
+        },
+        {
+            "name": "ck_clinical_encounter_event_type",
+            "type": "c",
+            "table": "clinical_encounter_events",
+            "definition": "CHECK (((event_type)::text = ANY ((ARRAY['CREATED'::character varying, 'UPDATED'::character varying, 'TREATMENT_UPDATED'::character varying, 'FINALIZED'::character varying])::text[])))"
+        },
+        {
+            "name": "clinical_encounter_events_actor_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounter_events_actor_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL actor_id"
+        },
+        {
+            "name": "clinical_encounter_events_encounter_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_events",
+            "definition": "FOREIGN KEY (encounter_id) REFERENCES clinical_encounters(id)"
+        },
+        {
+            "name": "clinical_encounter_events_encounter_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL encounter_id"
+        },
+        {
+            "name": "clinical_encounter_events_encounter_version_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL encounter_version"
+        },
+        {
+            "name": "clinical_encounter_events_event_type_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL event_type"
+        },
+        {
+            "name": "clinical_encounter_events_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_encounter_events_occurred_at_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL occurred_at"
+        },
+        {
+            "name": "clinical_encounter_events_pkey",
+            "type": "p",
+            "table": "clinical_encounter_events",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "clinical_encounter_events_previous_veterinarian_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_events",
+            "definition": "FOREIGN KEY (previous_veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounter_events_veterinarian_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_events",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounter_events_veterinarian_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_events",
+            "definition": "NOT NULL veterinarian_id"
+        },
+        {
+            "name": "uk_clinical_encounter_event_version",
+            "type": "u",
+            "table": "clinical_encounter_events",
+            "definition": "UNIQUE (encounter_id, encounter_version)"
+        },
+        {
+            "name": "ck_clinical_encounter_operation_type",
+            "type": "c",
+            "table": "clinical_encounter_operations",
+            "definition": "CHECK (((operation_type)::text = ANY ((ARRAY['CREATE'::character varying, 'UPDATE'::character varying, 'TREATMENT'::character varying, 'FINALIZE'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_clinical_encounter_operation_version",
+            "type": "c",
+            "table": "clinical_encounter_operations",
+            "definition": "CHECK ((resulting_version >= 0))"
+        },
+        {
+            "name": "clinical_encounter_operations_actor_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_operations",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounter_operations_actor_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL actor_id"
+        },
+        {
+            "name": "clinical_encounter_operations_client_request_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL client_request_id"
+        },
+        {
+            "name": "clinical_encounter_operations_created_at_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "clinical_encounter_operations_encounter_id_fkey",
+            "type": "f",
+            "table": "clinical_encounter_operations",
+            "definition": "FOREIGN KEY (encounter_id) REFERENCES clinical_encounters(id)"
+        },
+        {
+            "name": "clinical_encounter_operations_encounter_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL encounter_id"
+        },
+        {
+            "name": "clinical_encounter_operations_id_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_encounter_operations_operation_type_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL operation_type"
+        },
+        {
+            "name": "clinical_encounter_operations_pkey",
+            "type": "p",
+            "table": "clinical_encounter_operations",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "clinical_encounter_operations_request_fingerprint_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL request_fingerprint"
+        },
+        {
+            "name": "clinical_encounter_operations_resulting_version_not_null",
+            "type": "n",
+            "table": "clinical_encounter_operations",
+            "definition": "NOT NULL resulting_version"
+        },
+        {
+            "name": "uk_clinical_encounter_operation_request",
+            "type": "u",
+            "table": "clinical_encounter_operations",
+            "definition": "UNIQUE (actor_id, operation_type, client_request_id)"
+        },
+        {
+            "name": "ck_clinical_encounter_anamnesis",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((anamnesis IS NULL) OR (btrim((anamnesis)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_encounter_diagnosis",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((diagnosis IS NULL) OR (btrim((diagnosis)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_encounter_examination",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((physical_examination IS NULL) OR (btrim((physical_examination)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_encounter_finalization",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((((status)::text = 'DRAFT'::text) AND (finalized_at IS NULL)) OR (((status)::text = 'FINALIZED'::text) AND (finalized_at IS NOT NULL) AND (finalized_at >= created_at) AND (reason IS NOT NULL) AND (anamnesis IS NOT NULL) AND (physical_examination IS NOT NULL) AND (diagnosis IS NOT NULL) AND (care_plan IS NOT NULL))))"
+        },
+        {
+            "name": "ck_clinical_encounter_plan",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((care_plan IS NULL) OR (btrim((care_plan)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_encounter_reason",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((reason IS NULL) OR (btrim((reason)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_encounter_status",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'FINALIZED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_clinical_encounter_timestamps",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "ck_clinical_encounter_version",
+            "type": "c",
+            "table": "clinical_encounters",
+            "definition": "CHECK ((version >= 0))"
+        },
+        {
+            "name": "clinical_encounters_appointment_id_fkey",
+            "type": "f",
+            "table": "clinical_encounters",
+            "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id)"
+        },
+        {
+            "name": "clinical_encounters_appointment_id_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL appointment_id"
+        },
+        {
+            "name": "clinical_encounters_created_at_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "clinical_encounters_created_by_fkey",
+            "type": "f",
+            "table": "clinical_encounters",
+            "definition": "FOREIGN KEY (created_by) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounters_created_by_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL created_by"
+        },
+        {
+            "name": "clinical_encounters_id_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_encounters_owner_id_fkey",
+            "type": "f",
+            "table": "clinical_encounters",
+            "definition": "FOREIGN KEY (owner_id) REFERENCES owner_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounters_owner_id_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL owner_id"
+        },
+        {
+            "name": "clinical_encounters_pet_id_fkey",
+            "type": "f",
+            "table": "clinical_encounters",
+            "definition": "FOREIGN KEY (pet_id) REFERENCES pets(id)"
+        },
+        {
+            "name": "clinical_encounters_pet_id_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL pet_id"
+        },
+        {
+            "name": "clinical_encounters_pkey",
+            "type": "p",
+            "table": "clinical_encounters",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "clinical_encounters_status_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "clinical_encounters_updated_at_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "clinical_encounters_version_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL version"
+        },
+        {
+            "name": "clinical_encounters_veterinarian_id_fkey",
+            "type": "f",
+            "table": "clinical_encounters",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "clinical_encounters_veterinarian_id_not_null",
+            "type": "n",
+            "table": "clinical_encounters",
+            "definition": "NOT NULL veterinarian_id"
+        },
+        {
+            "name": "tr_clinical_completion_encounter",
+            "type": "t",
+            "table": "clinical_encounters",
+            "definition": "TRIGGER DEFERRABLE INITIALLY DEFERRED"
+        },
+        {
+            "name": "uk_clinical_encounter_appointment",
+            "type": "u",
+            "table": "clinical_encounters",
+            "definition": "UNIQUE (appointment_id)"
+        },
+        {
+            "name": "ck_clinical_prescription_dose",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK ((dose > (0)::numeric))"
+        },
+        {
+            "name": "ck_clinical_prescription_instructions",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK (((instructions IS NULL) OR (btrim((instructions)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_clinical_prescription_interval",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK (((interval_hours >= 1) AND (interval_hours <= 168)))"
+        },
+        {
+            "name": "ck_clinical_prescription_name",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK ((btrim((medication_name)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_clinical_prescription_position",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK (((\"position\" >= 0) AND (\"position\" <= 49)))"
+        },
+        {
+            "name": "ck_clinical_prescription_route",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK ((btrim((administration_route)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_clinical_prescription_unit",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK ((btrim((dose_unit)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_clinical_prescription_window",
+            "type": "c",
+            "table": "clinical_prescriptions",
+            "definition": "CHECK (((ends_at > starts_at) AND (ends_at <= (starts_at + '8784:00:00'::interval))))"
+        },
+        {
+            "name": "clinical_prescriptions_administration_route_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL administration_route"
+        },
+        {
+            "name": "clinical_prescriptions_dose_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL dose"
+        },
+        {
+            "name": "clinical_prescriptions_dose_unit_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL dose_unit"
+        },
+        {
+            "name": "clinical_prescriptions_encounter_id_fkey",
+            "type": "f",
+            "table": "clinical_prescriptions",
+            "definition": "FOREIGN KEY (encounter_id) REFERENCES clinical_encounters(id)"
+        },
+        {
+            "name": "clinical_prescriptions_encounter_id_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL encounter_id"
+        },
+        {
+            "name": "clinical_prescriptions_ends_at_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL ends_at"
+        },
+        {
+            "name": "clinical_prescriptions_id_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_prescriptions_interval_hours_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL interval_hours"
+        },
+        {
+            "name": "clinical_prescriptions_medication_name_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL medication_name"
+        },
+        {
+            "name": "clinical_prescriptions_pkey",
+            "type": "p",
+            "table": "clinical_prescriptions",
+            "definition": "PRIMARY KEY (encounter_id, id)"
+        },
+        {
+            "name": "clinical_prescriptions_position_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL \"position\""
+        },
+        {
+            "name": "clinical_prescriptions_starts_at_not_null",
+            "type": "n",
+            "table": "clinical_prescriptions",
+            "definition": "NOT NULL starts_at"
+        },
+        {
+            "name": "uk_clinical_prescription_position",
+            "type": "u",
+            "table": "clinical_prescriptions",
+            "definition": "UNIQUE (encounter_id, \"position\")"
+        },
+        {
+            "name": "ck_clinical_reminder_task_attempts",
+            "type": "c",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "CHECK ((attempt_count >= 0))"
+        },
+        {
+            "name": "ck_clinical_reminder_task_lease",
+            "type": "c",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "CHECK (((((status)::text = 'SENDING'::text) AND (lease_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR (((status)::text <> 'SENDING'::text) AND (lease_token IS NULL) AND (lease_until IS NULL))))"
+        },
+        {
+            "name": "ck_clinical_reminder_task_state",
+            "type": "c",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying, 'SUPERSEDED'::character varying, 'EXPIRED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_clinical_reminder_task_window",
+            "type": "c",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "CHECK ((expires_at > scheduled_at))"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_attempt_count_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL attempt_count"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_created_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_expires_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL expires_at"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_id_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_next_attempt_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL next_attempt_at"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_pkey",
+            "type": "p",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_recipient_id_fkey",
+            "type": "f",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "FOREIGN KEY (recipient_id) REFERENCES users(id)"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_recipient_id_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL recipient_id"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_schedule_id_fkey",
+            "type": "f",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "FOREIGN KEY (schedule_id) REFERENCES clinical_reminder_schedules(id)"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_schedule_id_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL schedule_id"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_scheduled_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL scheduled_at"
+        },
+        {
+            "name": "clinical_reminder_email_tasks_status_not_null",
+            "type": "n",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "uk_clinical_reminder_occurrence",
+            "type": "u",
+            "table": "clinical_reminder_email_tasks",
+            "definition": "UNIQUE (schedule_id, scheduled_at)"
+        },
+        {
+            "name": "ck_clinical_reminder_cursor",
+            "type": "c",
+            "table": "clinical_reminder_schedules",
+            "definition": "CHECK (((next_occurrence_index >= 0) AND (missed_count >= 0)))"
+        },
+        {
+            "name": "ck_clinical_reminder_source",
+            "type": "c",
+            "table": "clinical_reminder_schedules",
+            "definition": "CHECK (((((source_type)::text = 'PRESCRIPTION'::text) AND (prescription_id IS NOT NULL) AND (control_id IS NULL) AND (interval_hours IS NOT NULL) AND ((interval_hours >= 1) AND (interval_hours <= 168))) OR (((source_type)::text = 'CONTROL'::text) AND (control_id IS NOT NULL) AND (prescription_id IS NULL) AND (interval_hours IS NULL))))"
+        },
+        {
+            "name": "ck_clinical_reminder_state",
+            "type": "c",
+            "table": "clinical_reminder_schedules",
+            "definition": "CHECK (((((status)::text = 'ACTIVE'::text) AND (next_due_at IS NOT NULL) AND (next_due_at >= starts_at) AND (next_due_at < ends_at)) OR (((status)::text = ANY ((ARRAY['FINISHED'::character varying, 'SUPERSEDED'::character varying])::text[])) AND (next_due_at IS NULL))))"
+        },
+        {
+            "name": "ck_clinical_reminder_window",
+            "type": "c",
+            "table": "clinical_reminder_schedules",
+            "definition": "CHECK ((ends_at > starts_at))"
+        },
+        {
+            "name": "clinical_reminder_schedules_created_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "clinical_reminder_schedules_encounter_id_control_id_fkey",
+            "type": "f",
+            "table": "clinical_reminder_schedules",
+            "definition": "FOREIGN KEY (encounter_id, control_id) REFERENCES clinical_controls(encounter_id, id)"
+        },
+        {
+            "name": "clinical_reminder_schedules_encounter_id_fkey",
+            "type": "f",
+            "table": "clinical_reminder_schedules",
+            "definition": "FOREIGN KEY (encounter_id) REFERENCES clinical_encounters(id)"
+        },
+        {
+            "name": "clinical_reminder_schedules_encounter_id_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL encounter_id"
+        },
+        {
+            "name": "clinical_reminder_schedules_encounter_id_prescription_id_fkey",
+            "type": "f",
+            "table": "clinical_reminder_schedules",
+            "definition": "FOREIGN KEY (encounter_id, prescription_id) REFERENCES clinical_prescriptions(encounter_id, id)"
+        },
+        {
+            "name": "clinical_reminder_schedules_ends_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL ends_at"
+        },
+        {
+            "name": "clinical_reminder_schedules_id_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "clinical_reminder_schedules_missed_count_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL missed_count"
+        },
+        {
+            "name": "clinical_reminder_schedules_next_occurrence_index_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL next_occurrence_index"
+        },
+        {
+            "name": "clinical_reminder_schedules_pkey",
+            "type": "p",
+            "table": "clinical_reminder_schedules",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "clinical_reminder_schedules_source_type_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL source_type"
+        },
+        {
+            "name": "clinical_reminder_schedules_starts_at_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL starts_at"
+        },
+        {
+            "name": "clinical_reminder_schedules_status_not_null",
+            "type": "n",
+            "table": "clinical_reminder_schedules",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "uk_clinical_reminder_control",
+            "type": "u",
+            "table": "clinical_reminder_schedules",
+            "definition": "UNIQUE (encounter_id, control_id)"
+        },
+        {
+            "name": "uk_clinical_reminder_prescription",
+            "type": "u",
+            "table": "clinical_reminder_schedules",
+            "definition": "UNIQUE (encounter_id, prescription_id)"
+        },
+        {
+            "name": "flyway_schema_history_description_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL description"
+        },
+        {
+            "name": "flyway_schema_history_execution_time_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL execution_time"
+        },
+        {
+            "name": "flyway_schema_history_installed_by_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL installed_by"
+        },
+        {
+            "name": "flyway_schema_history_installed_on_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL installed_on"
+        },
+        {
+            "name": "flyway_schema_history_installed_rank_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL installed_rank"
+        },
+        {
+            "name": "flyway_schema_history_pk",
+            "type": "p",
+            "table": "flyway_schema_history",
+            "definition": "PRIMARY KEY (installed_rank)"
+        },
+        {
+            "name": "flyway_schema_history_script_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL script"
+        },
+        {
+            "name": "flyway_schema_history_success_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL success"
+        },
+        {
+            "name": "flyway_schema_history_type_not_null",
+            "type": "n",
+            "table": "flyway_schema_history",
+            "definition": "NOT NULL type"
+        },
+        {
+            "name": "ck_login_rate_limit_count",
+            "type": "c",
+            "table": "login_attempt_rate_limits",
+            "definition": "CHECK ((used_count >= 0))"
+        },
+        {
+            "name": "ck_login_rate_limit_key",
+            "type": "c",
+            "table": "login_attempt_rate_limits",
+            "definition": "CHECK (((bucket_key)::text ~ '^[0-9a-f]{64}$'::text))"
+        },
+        {
+            "name": "ck_login_rate_limit_window",
+            "type": "c",
+            "table": "login_attempt_rate_limits",
+            "definition": "CHECK ((expires_at > window_started_at))"
+        },
+        {
+            "name": "login_attempt_rate_limits_bucket_key_not_null",
+            "type": "n",
+            "table": "login_attempt_rate_limits",
+            "definition": "NOT NULL bucket_key"
+        },
+        {
+            "name": "login_attempt_rate_limits_expires_at_not_null",
+            "type": "n",
+            "table": "login_attempt_rate_limits",
+            "definition": "NOT NULL expires_at"
+        },
+        {
+            "name": "login_attempt_rate_limits_pkey",
+            "type": "p",
+            "table": "login_attempt_rate_limits",
+            "definition": "PRIMARY KEY (bucket_key)"
+        },
+        {
+            "name": "login_attempt_rate_limits_used_count_not_null",
+            "type": "n",
+            "table": "login_attempt_rate_limits",
+            "definition": "NOT NULL used_count"
+        },
+        {
+            "name": "login_attempt_rate_limits_window_started_at_not_null",
+            "type": "n",
+            "table": "login_attempt_rate_limits",
+            "definition": "NOT NULL window_started_at"
+        },
+        {
+            "name": "ck_owner_profiles_full_name_not_blank",
+            "type": "c",
+            "table": "owner_profiles",
+            "definition": "CHECK ((btrim((full_name)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_owner_profiles_phone_number_international",
+            "type": "c",
+            "table": "owner_profiles",
+            "definition": "CHECK (((phone_number)::text ~ '^\\+[1-9][0-9]{1,14}$'::text))"
+        },
+        {
+            "name": "owner_profiles_date_of_birth_not_null",
+            "type": "n",
+            "table": "owner_profiles",
+            "definition": "NOT NULL date_of_birth"
+        },
+        {
+            "name": "owner_profiles_full_name_not_null",
+            "type": "n",
+            "table": "owner_profiles",
+            "definition": "NOT NULL full_name"
+        },
+        {
+            "name": "owner_profiles_phone_number_not_null",
+            "type": "n",
+            "table": "owner_profiles",
+            "definition": "NOT NULL phone_number"
+        },
+        {
+            "name": "owner_profiles_pkey",
+            "type": "p",
+            "table": "owner_profiles",
+            "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+            "name": "owner_profiles_user_id_fkey",
+            "type": "f",
+            "table": "owner_profiles",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+        },
+        {
+            "name": "owner_profiles_user_id_not_null",
+            "type": "n",
+            "table": "owner_profiles",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_password_recovery_attempts",
+            "type": "c",
+            "table": "password_recovery_challenges",
+            "definition": "CHECK (((failed_attempts >= 0) AND (failed_attempts <= 5)))"
+        },
+        {
+            "name": "ck_password_recovery_code_digest",
+            "type": "c",
+            "table": "password_recovery_challenges",
+            "definition": "CHECK (((code_digest IS NULL) OR (octet_length(code_digest) = 32)))"
+        },
+        {
+            "name": "ck_password_recovery_reset_pair",
+            "type": "c",
+            "table": "password_recovery_challenges",
+            "definition": "CHECK (((reset_token_hash IS NULL) = (reset_expires_at IS NULL)))"
+        },
+        {
+            "name": "password_recovery_challenges_authentication_version_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL authentication_version"
+        },
+        {
+            "name": "password_recovery_challenges_challenge_id_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL challenge_id"
+        },
+        {
+            "name": "password_recovery_challenges_code_expires_at_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL code_expires_at"
+        },
+        {
+            "name": "password_recovery_challenges_email_at_request_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL email_at_request"
+        },
+        {
+            "name": "password_recovery_challenges_failed_attempts_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL failed_attempts"
+        },
+        {
+            "name": "password_recovery_challenges_pkey",
+            "type": "p",
+            "table": "password_recovery_challenges",
+            "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+            "name": "password_recovery_challenges_reset_token_hash_key",
+            "type": "u",
+            "table": "password_recovery_challenges",
+            "definition": "UNIQUE (reset_token_hash)"
+        },
+        {
+            "name": "password_recovery_challenges_updated_at_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "password_recovery_challenges_user_id_fkey",
+            "type": "f",
+            "table": "password_recovery_challenges",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+            "name": "password_recovery_challenges_user_id_not_null",
+            "type": "n",
+            "table": "password_recovery_challenges",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_password_recovery_email_attempts",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK ((attempt_count >= 0))"
+        },
+        {
+            "name": "ck_password_recovery_email_expiry",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK (((((task_type)::text = 'RECOVERY_CODE'::text) AND (expires_at IS NOT NULL)) OR (((task_type)::text = 'RESET_NOTIFICATION'::text) AND (expires_at IS NULL))))"
+        },
+        {
+            "name": "ck_password_recovery_email_lease",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK (((((status)::text = 'SENDING'::text) AND (lease_token IS NOT NULL) AND (lease_expires_at IS NOT NULL)) OR (((status)::text <> 'SENDING'::text) AND (lease_token IS NULL) AND (lease_expires_at IS NULL))))"
+        },
+        {
+            "name": "ck_password_recovery_email_payload",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK (((((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENDING'::character varying])::text[])) AND (encrypted_payload IS NOT NULL) AND (octet_length(encrypted_payload) >= 16) AND (payload_nonce IS NOT NULL) AND (octet_length(payload_nonce) = 12)) OR (((status)::text = ANY ((ARRAY['SENT'::character varying, 'FAILED'::character varying, 'SUPERSEDED'::character varying])::text[])) AND (encrypted_payload IS NULL) AND (payload_nonce IS NULL))))"
+        },
+        {
+            "name": "ck_password_recovery_email_status",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying, 'SUPERSEDED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_password_recovery_email_type",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK (((task_type)::text = ANY ((ARRAY['RECOVERY_CODE'::character varying, 'RESET_NOTIFICATION'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_password_recovery_email_version",
+            "type": "c",
+            "table": "password_recovery_email_tasks",
+            "definition": "CHECK ((authentication_version >= 0))"
+        },
+        {
+            "name": "password_recovery_email_tasks_attempt_count_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL attempt_count"
+        },
+        {
+            "name": "password_recovery_email_tasks_authentication_version_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL authentication_version"
+        },
+        {
+            "name": "password_recovery_email_tasks_challenge_id_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL challenge_id"
+        },
+        {
+            "name": "password_recovery_email_tasks_created_at_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "password_recovery_email_tasks_id_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "password_recovery_email_tasks_next_attempt_at_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL next_attempt_at"
+        },
+        {
+            "name": "password_recovery_email_tasks_pkey",
+            "type": "p",
+            "table": "password_recovery_email_tasks",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "password_recovery_email_tasks_status_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "password_recovery_email_tasks_task_type_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL task_type"
+        },
+        {
+            "name": "password_recovery_email_tasks_updated_at_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "password_recovery_email_tasks_user_id_fkey",
+            "type": "f",
+            "table": "password_recovery_email_tasks",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+            "name": "password_recovery_email_tasks_user_id_not_null",
+            "type": "n",
+            "table": "password_recovery_email_tasks",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "uk_password_recovery_email_intent",
+            "type": "u",
+            "table": "password_recovery_email_tasks",
+            "definition": "UNIQUE (user_id, challenge_id, task_type)"
+        },
+        {
+            "name": "ck_password_recovery_rate_count",
+            "type": "c",
+            "table": "password_recovery_rate_limits",
+            "definition": "CHECK ((used_count >= 0))"
+        },
+        {
+            "name": "password_recovery_rate_limits_bucket_key_not_null",
+            "type": "n",
+            "table": "password_recovery_rate_limits",
+            "definition": "NOT NULL bucket_key"
+        },
+        {
+            "name": "password_recovery_rate_limits_last_accepted_at_not_null",
+            "type": "n",
+            "table": "password_recovery_rate_limits",
+            "definition": "NOT NULL last_accepted_at"
+        },
+        {
+            "name": "password_recovery_rate_limits_pkey",
+            "type": "p",
+            "table": "password_recovery_rate_limits",
+            "definition": "PRIMARY KEY (bucket_key)"
+        },
+        {
+            "name": "password_recovery_rate_limits_used_count_not_null",
+            "type": "n",
+            "table": "password_recovery_rate_limits",
+            "definition": "NOT NULL used_count"
+        },
+        {
+            "name": "password_recovery_rate_limits_window_started_at_not_null",
+            "type": "n",
+            "table": "password_recovery_rate_limits",
+            "definition": "NOT NULL window_started_at"
+        },
+        {
+            "name": "ck_pets_breed_not_blank",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK (((breed IS NULL) OR (btrim((breed)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_pets_date_of_birth",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK (((date_of_birth IS NULL) OR (date_of_birth >= '0001-01-01'::date)))"
+        },
+        {
+            "name": "ck_pets_estimated_birth_requires_date",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK (((NOT date_of_birth_estimated) OR (date_of_birth IS NOT NULL)))"
+        },
+        {
+            "name": "ck_pets_name_not_blank",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK ((btrim((name)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_pets_sex",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK (((sex IS NULL) OR ((sex)::text = ANY ((ARRAY['MALE'::character varying, 'FEMALE'::character varying, 'UNKNOWN'::character varying])::text[]))))"
+        },
+        {
+            "name": "ck_pets_species",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK (((species)::text = ANY ((ARRAY['DOG'::character varying, 'CAT'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_pets_timestamp_order",
+            "type": "c",
+            "table": "pets",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "pets_active_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL active"
+        },
+        {
+            "name": "pets_created_at_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "pets_date_of_birth_estimated_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL date_of_birth_estimated"
+        },
+        {
+            "name": "pets_id_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "pets_name_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL name"
+        },
+        {
+            "name": "pets_owner_id_fkey",
+            "type": "f",
+            "table": "pets",
+            "definition": "FOREIGN KEY (owner_id) REFERENCES owner_profiles(user_id)"
+        },
+        {
+            "name": "pets_owner_id_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL owner_id"
+        },
+        {
+            "name": "pets_pkey",
+            "type": "p",
+            "table": "pets",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "pets_species_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL species"
+        },
+        {
+            "name": "pets_updated_at_not_null",
+            "type": "n",
+            "table": "pets",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "ck_revoked_access_tokens_expiration",
+            "type": "c",
+            "table": "revoked_access_tokens",
+            "definition": "CHECK ((expires_at > revoked_at))"
+        },
+        {
+            "name": "ck_revoked_access_tokens_issuer_not_blank",
+            "type": "c",
+            "table": "revoked_access_tokens",
+            "definition": "CHECK ((btrim((issuer)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_revoked_access_tokens_jwt_id_not_blank",
+            "type": "c",
+            "table": "revoked_access_tokens",
+            "definition": "CHECK ((btrim((jwt_id)::text) <> ''::text))"
+        },
+        {
+            "name": "revoked_access_tokens_expires_at_not_null",
+            "type": "n",
+            "table": "revoked_access_tokens",
+            "definition": "NOT NULL expires_at"
+        },
+        {
+            "name": "revoked_access_tokens_issuer_not_null",
+            "type": "n",
+            "table": "revoked_access_tokens",
+            "definition": "NOT NULL issuer"
+        },
+        {
+            "name": "revoked_access_tokens_jwt_id_not_null",
+            "type": "n",
+            "table": "revoked_access_tokens",
+            "definition": "NOT NULL jwt_id"
+        },
+        {
+            "name": "revoked_access_tokens_pkey",
+            "type": "p",
+            "table": "revoked_access_tokens",
+            "definition": "PRIMARY KEY (issuer, jwt_id)"
+        },
+        {
+            "name": "revoked_access_tokens_revoked_at_not_null",
+            "type": "n",
+            "table": "revoked_access_tokens",
+            "definition": "NOT NULL revoked_at"
+        },
+        {
+            "name": "revoked_access_tokens_user_id_fkey",
+            "type": "f",
+            "table": "revoked_access_tokens",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+        },
+        {
+            "name": "revoked_access_tokens_user_id_not_null",
+            "type": "n",
+            "table": "revoked_access_tokens",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_staff_invitation_email_attempts",
+            "type": "c",
+            "table": "staff_invitation_email_tasks",
+            "definition": "CHECK (((attempts >= 0) AND (attempts <= 10)))"
+        },
+        {
+            "name": "ck_staff_invitation_email_completion",
+            "type": "c",
+            "table": "staff_invitation_email_tasks",
+            "definition": "CHECK ((((status)::text = 'PENDING'::text) = (completed_at IS NULL)))"
+        },
+        {
+            "name": "ck_staff_invitation_email_failure",
+            "type": "c",
+            "table": "staff_invitation_email_tasks",
+            "definition": "CHECK (((last_failure_code IS NULL) OR ((last_failure_code)::text = ANY ((ARRAY['SMTP_DELIVERY_FAILED'::character varying, 'INVITATION_DELIVERY_FAILED'::character varying])::text[]))))"
+        },
+        {
+            "name": "ck_staff_invitation_email_secret",
+            "type": "c",
+            "table": "staff_invitation_email_tasks",
+            "definition": "CHECK ((((status)::text = 'PENDING'::text) = (encrypted_token IS NOT NULL)))"
+        },
+        {
+            "name": "ck_staff_invitation_email_status",
+            "type": "c",
+            "table": "staff_invitation_email_tasks",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))"
+        },
+        {
+            "name": "staff_invitation_email_tasks_attempts_not_null",
+            "type": "n",
+            "table": "staff_invitation_email_tasks",
+            "definition": "NOT NULL attempts"
+        },
+        {
+            "name": "staff_invitation_email_tasks_invitation_id_fkey",
+            "type": "f",
+            "table": "staff_invitation_email_tasks",
+            "definition": "FOREIGN KEY (invitation_id) REFERENCES staff_invitations(id) ON DELETE CASCADE"
+        },
+        {
+            "name": "staff_invitation_email_tasks_invitation_id_not_null",
+            "type": "n",
+            "table": "staff_invitation_email_tasks",
+            "definition": "NOT NULL invitation_id"
+        },
+        {
+            "name": "staff_invitation_email_tasks_next_attempt_at_not_null",
+            "type": "n",
+            "table": "staff_invitation_email_tasks",
+            "definition": "NOT NULL next_attempt_at"
+        },
+        {
+            "name": "staff_invitation_email_tasks_pkey",
+            "type": "p",
+            "table": "staff_invitation_email_tasks",
+            "definition": "PRIMARY KEY (invitation_id)"
+        },
+        {
+            "name": "staff_invitation_email_tasks_status_not_null",
+            "type": "n",
+            "table": "staff_invitation_email_tasks",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "ck_staff_invitation_consumption",
+            "type": "c",
+            "table": "staff_invitations",
+            "definition": "CHECK ((((status)::text = 'CONSUMED'::text) = (consumed_at IS NOT NULL)))"
+        },
+        {
+            "name": "ck_staff_invitation_expiration",
+            "type": "c",
+            "table": "staff_invitations",
+            "definition": "CHECK ((expires_at > created_at))"
+        },
+        {
+            "name": "ck_staff_invitation_hash",
+            "type": "c",
+            "table": "staff_invitations",
+            "definition": "CHECK (((token_hash)::text ~ '^[0-9a-f]{64}$'::text))"
+        },
+        {
+            "name": "ck_staff_invitation_status",
+            "type": "c",
+            "table": "staff_invitations",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'CONSUMED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[])))"
+        },
+        {
+            "name": "staff_invitations_created_at_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "staff_invitations_expires_at_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL expires_at"
+        },
+        {
+            "name": "staff_invitations_id_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "staff_invitations_invited_by_fkey",
+            "type": "f",
+            "table": "staff_invitations",
+            "definition": "FOREIGN KEY (invited_by) REFERENCES users(id)"
+        },
+        {
+            "name": "staff_invitations_invited_by_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL invited_by"
+        },
+        {
+            "name": "staff_invitations_pkey",
+            "type": "p",
+            "table": "staff_invitations",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "staff_invitations_status_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "staff_invitations_token_hash_key",
+            "type": "u",
+            "table": "staff_invitations",
+            "definition": "UNIQUE (token_hash)"
+        },
+        {
+            "name": "staff_invitations_token_hash_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL token_hash"
+        },
+        {
+            "name": "staff_invitations_user_id_fkey",
+            "type": "f",
+            "table": "staff_invitations",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+            "name": "staff_invitations_user_id_not_null",
+            "type": "n",
+            "table": "staff_invitations",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_user_profile_photos_content_not_empty",
+            "type": "c",
+            "table": "user_profile_photos",
+            "definition": "CHECK ((octet_length(content) > 0))"
+        },
+        {
+            "name": "ck_user_profile_photos_content_type",
+            "type": "c",
+            "table": "user_profile_photos",
+            "definition": "CHECK (((content_type)::text = ANY ((ARRAY['image/jpeg'::character varying, 'image/png'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_user_profile_photos_height",
+            "type": "c",
+            "table": "user_profile_photos",
+            "definition": "CHECK (((height > 0) AND (height <= 512)))"
+        },
+        {
+            "name": "ck_user_profile_photos_size_bytes",
+            "type": "c",
+            "table": "user_profile_photos",
+            "definition": "CHECK (((size_bytes = octet_length(content)) AND (size_bytes <= 2097152)))"
+        },
+        {
+            "name": "ck_user_profile_photos_width",
+            "type": "c",
+            "table": "user_profile_photos",
+            "definition": "CHECK (((width > 0) AND (width <= 512)))"
+        },
+        {
+            "name": "user_profile_photos_content_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL content"
+        },
+        {
+            "name": "user_profile_photos_content_type_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL content_type"
+        },
+        {
+            "name": "user_profile_photos_height_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL height"
+        },
+        {
+            "name": "user_profile_photos_pkey",
+            "type": "p",
+            "table": "user_profile_photos",
+            "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+            "name": "user_profile_photos_size_bytes_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL size_bytes"
+        },
+        {
+            "name": "user_profile_photos_updated_at_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "user_profile_photos_user_id_fkey",
+            "type": "f",
+            "table": "user_profile_photos",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+        },
+        {
+            "name": "user_profile_photos_user_id_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "user_profile_photos_width_not_null",
+            "type": "n",
+            "table": "user_profile_photos",
+            "definition": "NOT NULL width"
+        },
+        {
+            "name": "ck_users_active_credentials",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((((status)::text <> 'ACTIVE'::text) OR (password_hash IS NOT NULL)))"
+        },
+        {
+            "name": "ck_users_authentication_version",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((authentication_version >= 0))"
+        },
+        {
+            "name": "ck_users_email_normalized",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((((email)::text = lower(btrim((email)::text))) AND ((email)::text <> ''::text)))"
+        },
+        {
+            "name": "ck_users_owner_credentials",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((((role)::text <> 'OWNER'::text) OR (password_hash IS NOT NULL)))"
+        },
+        {
+            "name": "ck_users_password_hash_not_blank",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((btrim((password_hash)::text) <> ''::text))"
+        },
+        {
+            "name": "ck_users_pending_credentials",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((((status)::text <> 'PENDING_ACTIVATION'::text) OR (((role)::text = ANY ((ARRAY['ADMINISTRATOR'::character varying, 'VETERINARIAN'::character varying])::text[])) AND (password_hash IS NULL))))"
+        },
+        {
+            "name": "ck_users_role",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK (((role)::text = ANY ((ARRAY['OWNER'::character varying, 'VETERINARIAN'::character varying, 'ADMINISTRATOR'::character varying, 'SUPER_ADMIN'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_users_status",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING_ACTIVATION'::character varying, 'ACTIVE'::character varying, 'DISABLED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_users_super_administrator_active",
+            "type": "c",
+            "table": "users",
+            "definition": "CHECK ((((role)::text <> 'SUPER_ADMIN'::text) OR ((status)::text = 'ACTIVE'::text)))"
+        },
+        {
+            "name": "uk_users_email",
+            "type": "u",
+            "table": "users",
+            "definition": "UNIQUE (email)"
+        },
+        {
+            "name": "users_authentication_version_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL authentication_version"
+        },
+        {
+            "name": "users_email_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL email"
+        },
+        {
+            "name": "users_id_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "users_optimistic_lock_version_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL optimistic_lock_version"
+        },
+        {
+            "name": "users_pkey",
+            "type": "p",
+            "table": "users",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "users_role_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL role"
+        },
+        {
+            "name": "users_status_not_null",
+            "type": "n",
+            "table": "users",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "ck_veterinarian_availability_event_intervals",
+            "type": "c",
+            "table": "veterinarian_availability_events",
+            "definition": "CHECK (((new_ends_at = (new_starts_at + '00:30:00'::interval)) AND ((previous_starts_at IS NULL) OR (previous_ends_at = (previous_starts_at + '00:30:00'::interval)))))"
+        },
+        {
+            "name": "ck_veterinarian_availability_event_shape",
+            "type": "c",
+            "table": "veterinarian_availability_events",
+            "definition": "CHECK (((((event_type)::text = 'CREATED'::text) AND (previous_starts_at IS NULL) AND (previous_ends_at IS NULL) AND (previous_status IS NULL) AND (reason IS NULL) AND (slot_version = 0)) OR (((event_type)::text <> 'CREATED'::text) AND (previous_starts_at IS NOT NULL) AND (previous_ends_at IS NOT NULL) AND (previous_status IS NOT NULL) AND (reason IS NOT NULL) AND (btrim((reason)::text) <> ''::text) AND (slot_version > 0))))"
+        },
+        {
+            "name": "ck_veterinarian_availability_event_status",
+            "type": "c",
+            "table": "veterinarian_availability_events",
+            "definition": "CHECK ((((previous_status IS NULL) OR ((previous_status)::text = ANY ((ARRAY['PUBLISHED'::character varying, 'BLOCKED'::character varying])::text[]))) AND ((new_status)::text = ANY ((ARRAY['PUBLISHED'::character varying, 'BLOCKED'::character varying])::text[]))))"
+        },
+        {
+            "name": "ck_veterinarian_availability_event_transition",
+            "type": "c",
+            "table": "veterinarian_availability_events",
+            "definition": "CHECK (((((event_type)::text = 'CREATED'::text) AND ((new_status)::text = 'PUBLISHED'::text)) OR (((event_type)::text = 'RESCHEDULED'::text) AND ((previous_status)::text = (new_status)::text)) OR (((event_type)::text = 'BLOCKED'::text) AND ((previous_status)::text = 'PUBLISHED'::text) AND ((new_status)::text = 'BLOCKED'::text)) OR (((event_type)::text = 'PUBLISHED'::text) AND ((previous_status)::text = 'BLOCKED'::text) AND ((new_status)::text = 'PUBLISHED'::text))))"
+        },
+        {
+            "name": "ck_veterinarian_availability_event_type",
+            "type": "c",
+            "table": "veterinarian_availability_events",
+            "definition": "CHECK (((event_type)::text = ANY ((ARRAY['CREATED'::character varying, 'RESCHEDULED'::character varying, 'BLOCKED'::character varying, 'PUBLISHED'::character varying])::text[])))"
+        },
+        {
+            "name": "uk_veterinarian_availability_event_version",
+            "type": "u",
+            "table": "veterinarian_availability_events",
+            "definition": "UNIQUE (slot_id, slot_version)"
+        },
+        {
+            "name": "veterinarian_availability_events_actor_id_fkey",
+            "type": "f",
+            "table": "veterinarian_availability_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_availability_events_actor_id_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL actor_id"
+        },
+        {
+            "name": "veterinarian_availability_events_event_type_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL event_type"
+        },
+        {
+            "name": "veterinarian_availability_events_id_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "veterinarian_availability_events_new_ends_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL new_ends_at"
+        },
+        {
+            "name": "veterinarian_availability_events_new_starts_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL new_starts_at"
+        },
+        {
+            "name": "veterinarian_availability_events_new_status_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL new_status"
+        },
+        {
+            "name": "veterinarian_availability_events_occurred_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL occurred_at"
+        },
+        {
+            "name": "veterinarian_availability_events_pkey",
+            "type": "p",
+            "table": "veterinarian_availability_events",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "veterinarian_availability_events_slot_id_fkey",
+            "type": "f",
+            "table": "veterinarian_availability_events",
+            "definition": "FOREIGN KEY (slot_id) REFERENCES veterinarian_availability_slots(id)"
+        },
+        {
+            "name": "veterinarian_availability_events_slot_id_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL slot_id"
+        },
+        {
+            "name": "veterinarian_availability_events_slot_version_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_events",
+            "definition": "NOT NULL slot_version"
+        },
+        {
+            "name": "ck_veterinarian_availability_duration",
+            "type": "c",
+            "table": "veterinarian_availability_slots",
+            "definition": "CHECK ((ends_at = (starts_at + '00:30:00'::interval)))"
+        },
+        {
+            "name": "ck_veterinarian_availability_grid",
+            "type": "c",
+            "table": "veterinarian_availability_slots",
+            "definition": "CHECK (((date_trunc('minute'::text, starts_at) = starts_at) AND (mod(EXTRACT(epoch FROM starts_at), (1800)::numeric) = (0)::numeric)))"
+        },
+        {
+            "name": "ck_veterinarian_availability_status",
+            "type": "c",
+            "table": "veterinarian_availability_slots",
+            "definition": "CHECK (((status)::text = ANY ((ARRAY['PUBLISHED'::character varying, 'BLOCKED'::character varying])::text[])))"
+        },
+        {
+            "name": "ck_veterinarian_availability_timestamps",
+            "type": "c",
+            "table": "veterinarian_availability_slots",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "ck_veterinarian_availability_version",
+            "type": "c",
+            "table": "veterinarian_availability_slots",
+            "definition": "CHECK ((version >= 0))"
+        },
+        {
+            "name": "uk_veterinarian_availability_start",
+            "type": "u",
+            "table": "veterinarian_availability_slots",
+            "definition": "UNIQUE (veterinarian_id, starts_at)"
+        },
+        {
+            "name": "veterinarian_availability_slots_created_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "veterinarian_availability_slots_created_by_fkey",
+            "type": "f",
+            "table": "veterinarian_availability_slots",
+            "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_availability_slots_created_by_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL created_by"
+        },
+        {
+            "name": "veterinarian_availability_slots_ends_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL ends_at"
+        },
+        {
+            "name": "veterinarian_availability_slots_id_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "veterinarian_availability_slots_pkey",
+            "type": "p",
+            "table": "veterinarian_availability_slots",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "veterinarian_availability_slots_starts_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL starts_at"
+        },
+        {
+            "name": "veterinarian_availability_slots_status_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL status"
+        },
+        {
+            "name": "veterinarian_availability_slots_updated_at_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "veterinarian_availability_slots_updated_by_fkey",
+            "type": "f",
+            "table": "veterinarian_availability_slots",
+            "definition": "FOREIGN KEY (updated_by) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_availability_slots_updated_by_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL updated_by"
+        },
+        {
+            "name": "veterinarian_availability_slots_version_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL version"
+        },
+        {
+            "name": "veterinarian_availability_slots_veterinarian_id_fkey",
+            "type": "f",
+            "table": "veterinarian_availability_slots",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "veterinarian_availability_slots_veterinarian_id_not_null",
+            "type": "n",
+            "table": "veterinarian_availability_slots",
+            "definition": "NOT NULL veterinarian_id"
+        },
+        {
+            "name": "ck_diploma_content_size",
+            "type": "c",
+            "table": "veterinarian_diplomas",
+            "definition": "CHECK ((octet_length(content) = size_bytes))"
+        },
+        {
+            "name": "veterinarian_diplomas_content_not_null",
+            "type": "n",
+            "table": "veterinarian_diplomas",
+            "definition": "NOT NULL content"
+        },
+        {
+            "name": "veterinarian_diplomas_pkey",
+            "type": "p",
+            "table": "veterinarian_diplomas",
+            "definition": "PRIMARY KEY (qualification_id)"
+        },
+        {
+            "name": "veterinarian_diplomas_qualification_id_fkey",
+            "type": "f",
+            "table": "veterinarian_diplomas",
+            "definition": "FOREIGN KEY (qualification_id) REFERENCES veterinarian_qualifications(id)"
+        },
+        {
+            "name": "veterinarian_diplomas_qualification_id_not_null",
+            "type": "n",
+            "table": "veterinarian_diplomas",
+            "definition": "NOT NULL qualification_id"
+        },
+        {
+            "name": "veterinarian_diplomas_size_bytes_check",
+            "type": "c",
+            "table": "veterinarian_diplomas",
+            "definition": "CHECK (((size_bytes >= 1) AND (size_bytes <= 5242880)))"
+        },
+        {
+            "name": "veterinarian_diplomas_size_bytes_not_null",
+            "type": "n",
+            "table": "veterinarian_diplomas",
+            "definition": "NOT NULL size_bytes"
+        },
+        {
+            "name": "veterinarian_diplomas_updated_at_not_null",
+            "type": "n",
+            "table": "veterinarian_diplomas",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "ck_veterinarian_biography",
+            "type": "c",
+            "table": "veterinarian_profiles",
+            "definition": "CHECK (((biography IS NULL) OR (btrim((biography)::text) <> ''::text)))"
+        },
+        {
+            "name": "ck_veterinarian_registration",
+            "type": "c",
+            "table": "veterinarian_profiles",
+            "definition": "CHECK ((((professional_registration_number)::text = upper(btrim((professional_registration_number)::text))) AND ((professional_registration_number)::text ~ '^[A-Z0-9][A-Z0-9 ./-]{0,49}$'::text)))"
+        },
+        {
+            "name": "ck_veterinarian_timestamps",
+            "type": "c",
+            "table": "veterinarian_profiles",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "uk_veterinarian_registration",
+            "type": "u",
+            "table": "veterinarian_profiles",
+            "definition": "UNIQUE (professional_registration_number)"
+        },
+        {
+            "name": "veterinarian_profiles_created_at_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "veterinarian_profiles_created_by_fkey",
+            "type": "f",
+            "table": "veterinarian_profiles",
+            "definition": "FOREIGN KEY (created_by) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_profiles_created_by_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL created_by"
+        },
+        {
+            "name": "veterinarian_profiles_full_name_check",
+            "type": "c",
+            "table": "veterinarian_profiles",
+            "definition": "CHECK ((btrim((full_name)::text) <> ''::text))"
+        },
+        {
+            "name": "veterinarian_profiles_full_name_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL full_name"
+        },
+        {
+            "name": "veterinarian_profiles_pkey",
+            "type": "p",
+            "table": "veterinarian_profiles",
+            "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+            "name": "veterinarian_profiles_professional_phone_number_check",
+            "type": "c",
+            "table": "veterinarian_profiles",
+            "definition": "CHECK (((professional_phone_number)::text ~ '^\\+[1-9][0-9]{1,14}$'::text))"
+        },
+        {
+            "name": "veterinarian_profiles_professional_phone_number_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL professional_phone_number"
+        },
+        {
+            "name": "veterinarian_profiles_professional_registration_number_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL professional_registration_number"
+        },
+        {
+            "name": "veterinarian_profiles_updated_at_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "veterinarian_profiles_updated_by_fkey",
+            "type": "f",
+            "table": "veterinarian_profiles",
+            "definition": "FOREIGN KEY (updated_by) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_profiles_updated_by_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL updated_by"
+        },
+        {
+            "name": "veterinarian_profiles_user_id_fkey",
+            "type": "f",
+            "table": "veterinarian_profiles",
+            "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+        },
+        {
+            "name": "veterinarian_profiles_user_id_not_null",
+            "type": "n",
+            "table": "veterinarian_profiles",
+            "definition": "NOT NULL user_id"
+        },
+        {
+            "name": "ck_qualification_base_type",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK (((NOT base_degree) OR ((type)::text = 'UNDERGRADUATE'::text)))"
+        },
+        {
+            "name": "ck_qualification_timestamps",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK ((updated_at >= created_at))"
+        },
+        {
+            "name": "veterinarian_qualifications_base_degree_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL base_degree"
+        },
+        {
+            "name": "veterinarian_qualifications_created_at_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL created_at"
+        },
+        {
+            "name": "veterinarian_qualifications_diploma_published_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL diploma_published"
+        },
+        {
+            "name": "veterinarian_qualifications_graduation_year_check",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK (((graduation_year >= 1900) AND (graduation_year <= 9999)))"
+        },
+        {
+            "name": "veterinarian_qualifications_id_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL id"
+        },
+        {
+            "name": "veterinarian_qualifications_institution_check",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK ((btrim((institution)::text) <> ''::text))"
+        },
+        {
+            "name": "veterinarian_qualifications_institution_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL institution"
+        },
+        {
+            "name": "veterinarian_qualifications_pkey",
+            "type": "p",
+            "table": "veterinarian_qualifications",
+            "definition": "PRIMARY KEY (id)"
+        },
+        {
+            "name": "veterinarian_qualifications_title_check",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK ((btrim((title)::text) <> ''::text))"
+        },
+        {
+            "name": "veterinarian_qualifications_title_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL title"
+        },
+        {
+            "name": "veterinarian_qualifications_type_check",
+            "type": "c",
+            "table": "veterinarian_qualifications",
+            "definition": "CHECK (((type)::text = ANY ((ARRAY['UNDERGRADUATE'::character varying, 'SPECIALIZATION'::character varying, 'MASTERS'::character varying, 'DOCTORATE'::character varying])::text[])))"
+        },
+        {
+            "name": "veterinarian_qualifications_type_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL type"
+        },
+        {
+            "name": "veterinarian_qualifications_updated_at_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL updated_at"
+        },
+        {
+            "name": "veterinarian_qualifications_veterinarian_id_fkey",
+            "type": "f",
+            "table": "veterinarian_qualifications",
+            "definition": "FOREIGN KEY (veterinarian_id) REFERENCES veterinarian_profiles(user_id)"
+        },
+        {
+            "name": "veterinarian_qualifications_veterinarian_id_not_null",
+            "type": "n",
+            "table": "veterinarian_qualifications",
+            "definition": "NOT NULL veterinarian_id"
+        }
+    ],
+    "migrationCount": 23
+}

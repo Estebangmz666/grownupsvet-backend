@@ -1,4 +1,9 @@
-# Backend de procesos 1 y 2 en Google Cloud
+# Despliegue del backend en Google Cloud
+
+Corte de hoy: **26/10/2026, America/Bogota**. La evaluación es parcial:
+P1/P2 web y P3 API publicado/verificado; no equivale a la entrega final
+completa. La auditoría integral debe esperar la finalización de la versión
+final. Los cortes fechados del 15/10 y 16/10 siguientes son antecedentes.
 
 **Decisión del 15/10/2026:** para la entrega académica se eligió Cloud Run con PostgreSQL gratuito de Render durante aproximadamente 30 días, dentro de los US$300 gratuitos totales y sin actualizar a una cuenta de pago. Consultar [la guía de esta alternativa](google-cloud-render.md). Esta página conserva la configuración de Cloud SQL; preparar archivos no significa que el despliegue se haya ejecutado.
 
@@ -74,7 +79,69 @@ Salud pública limitada a **GET** `/actuator/health/liveness` y `/actuator/healt
 
 ## 5. Script de despliegue y validación offline
 
-`scripts/deploy-google-cloud.ps1` requiere identificadores, imagen existente, remitente, presupuesto aprobado y **referencias** de secretos `nombre:versión-numérica`, nunca sus valores. Sin `-Execute` solo valida localmente; `-ValidateOnly` explicita ese modo y no requiere `gcloud`, autenticación o red.
+`scripts/deploy-google-cloud.ps1` usa **ImageOnly por omisión**. Sin
+`-Execute` valida identificadores/imagen y prepara un plan sin red,
+autenticación ni cambios en nube. `-ValidateOnly` explicita ese modo.
+`OutputPlanPath` debe ser una ruta JSON absoluta fuera del repositorio y
+nueva; no se sobrescriben expedientes. No pasar a ImageOnly la hashtable
+histórica de configuración: se rechazan parámetros de entorno o secretos.
+
+```powershell
+$imageUpdate = @{
+    ProjectId = $projectId
+    Region = $region
+    ServiceName = $serviceName
+    ImageUri = $verifiedImageDigest # Artifact Registry con @sha256:...
+    ExpectedContractVersion = $expectedContractVersion
+    CurrentServiceConfigurationPath = $privateReviewedServiceJson
+    OutputPlanPath = $privateNewPlanJson
+}
+.\scripts\deploy-google-cloud.ps1 @imageUpdate -ValidateOnly
+# Tras CI, revisión de imagen/configuración y autorización de la publicación:
+# elegir otra ruta de plan nueva si la validación anterior ya escribió una.
+.\scripts\deploy-google-cloud.ps1 @imageUpdate -Execute
+```
+
+Execute exige digest y versión de contrato esperada. Consulta el servicio
+existente, valida un contenedor, perfiles productivos, máximo 1, CPU fuera
+de solicitudes, probes e identidad explícita y referencias numéricas de
+Secret Manager. Si se aporta una descripción revisada, contrasta su huella
+con la configuración viva antes de actualizar. Lee el contrato público
+antes y después y ejecuta únicamente `gcloud run services update --image`.
+No añade flags de entorno, secretos, recursos o IAM.
+
+Requiere PowerShell 7.2 o posterior. El límite se interpreta por nivel:
+`run.googleapis.com/maxScale=1` del servicio puede coexistir con
+`autoscaling.knative.dev/maxScale=20` histórico de la revisión; Cloud Run
+aplica el menor. El helper acepta y conserva ambos valores, sin cambiar el
+20 por 1. Rechaza un cap explícito de servicio distinto de 1 y, si falta,
+exige cap de revisión 1. El manifiesto saneado muestra los dos valores por
+separado. [Máximos de servicio y revisión](https://docs.cloud.google.com/run/docs/configuring/max-instances).
+
+El expediente `.before.json`, `.after.json` y `.result.json` omite valores
+de entorno y secretos; conserva nombres/referencias y una huella de la
+configuración. La comparación incluye perfiles, variables, secretos,
+montajes, probes, recursos, CPU, límites, identidad y configuración de
+conexión/JWT/TLS. Solo ignora imagen y anotaciones identificadas del cliente
+de despliegue. Se exige imagen esperada, revisión lista, 100 % del tráfico
+en esa revisión y contrato esperado. Si el tráfico está fijado a una
+revisión anterior o algo difiere, falla la verificación y conserva evidencia;
+no cambia tráfico ni aplica un rollback histórico automáticamente.
+
+La descripción JSON original puede contener valores privados: conservarla
+fuera de Git y no pegarla en logs. El hash global no certifica la seguridad
+de cada valor ni evita cambios remotos simultáneos; conserva configuración
+y señala divergencias. La aceptación funcional y el scrape siguen teniendo
+sus pruebas propias. [CLI update](https://docs.cloud.google.com/sdk/gcloud/reference/run/services/update).
+
+### Plantilla histórica: preparación offline exclusivamente
+
+`-DeploymentMode ConfigurationTemplate` conserva la validación de la
+plantilla inicial. Requiere identificadores, remitente, presupuesto y
+**referencias** `nombre:versión-numérica`, nunca secretos en claro.
+Su `-Execute` está bloqueado: no puede reemplazar un servicio existente.
+Cambios de configuración real se preparan y verifican como una operación
+separada, preservando los valores efectivos y el gasto acordado.
 
 Preparar una hashtable de parámetros con `ProjectId`, `Region`, `ServiceName`, `ImageUri`, `CloudSqlInstanceConnectionName`, `ServiceAccountEmail`, `DatabaseName`, `DatabaseUsername`, `MailFrom`, `ApprovedMonthlyBudgetUsd` y `SecretBindings`. `MailProvider` admite `Mailtrap` (predeterminado, Sandbox 2525) o `Gmail` (SMTP 587); no modifica el proveedor de base de datos. Los nombres de bindings necesarios son:
 
@@ -83,6 +150,8 @@ Preparar una hashtable de parámetros con `ProjectId`, `Region`, `ServiceName`, 
 - Con `-EnableInvitations`: `STAFF_INVITATION_ENCRYPTION_KEY` y `StaffActivationUrl` real.
 - Con `-EnableBootstrap`: `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`; sin esa opción, no incluir esos bindings.
 - `JWT_KEY_PASSWORD` es opcional si la clave usa otra contraseña; `JwtKeyAlias` debe coincidir con el PKCS12.
+- Con `-EnableMonitoring`: perfil `monitoring` y referencia `MONITORING_TOKEN_SHA256` al hash del token máquina, nunca al Bearer original.
+- Con `-EnableLoginRateLimit`: `LOGIN_RATE_LIMIT_HMAC_SECRET` en Secret Manager, modo PEER con `TRUSTED_PROXY_PATTERN=^$` y límites 10/15 minutos por correo+peer y 60/minuto por peer. La plantilla no activa estos controles en nube.
 
 ### Gmail para destinatarios reales
 
@@ -110,16 +179,24 @@ Fuentes oficiales: [Gmail SMTP y TLS](https://developers.google.com/workspace/gm
 Una vez preparada esa hashtable local, las invocaciones son:
 
 ```powershell
-.\scripts\deploy-google-cloud.ps1 @deploymentParameters -ValidateOnly
-# Solo después de revisar proyecto, presupuesto, secretos, imagen y autorización de despliegue:
-.\scripts\deploy-google-cloud.ps1 @deploymentParameters -Execute
+.\scripts\deploy-google-cloud.ps1 @deploymentParameters -DeploymentMode ConfigurationTemplate -ValidateOnly
 ```
 
-El modo de ejecución despliega la revisión y consulta su URL. No crea proyecto, instancia SQL, usuario, secretos, registro, permisos, presupuesto o imagen, ni cobra/configura pagos por su cuenta. Sí realiza una operación Cloud Run que puede generar costo, cambia variables/revisión y habilita invocación pública, conservando JWT de Spring. El presupuesto declarado no es un límite de gasto implementado por el script.
+La plantilla offline no crea recursos, cambia variables ni habilita acceso
+público. El presupuesto declarado no configura un límite automático de gasto.
+La única ruta ejecutable del helper es ImageOnly sobre un servicio existente;
+no crea proyecto, base, secretos, imagen ni permisos.
 
-El manifiesto de variables es completo: `--env-vars-file` reemplaza las variables ordinarias del servicio, y conserva únicamente las representadas por los parámetros del script. Antes de reutilizarlo sobre un servicio con overrides manuales adicionales, incorporarlos al manifiesto y revisar la configuración prevista; no asumir que conservará esos valores por sí solo. Los bindings existentes adicionales se conservan salvo credenciales del bootstrap cuando este se deshabilita. El archivo temporal de variables no contiene valores de secretos y se elimina al terminar. No imprimir la línea completa de comandos ni capturar credenciales.
+El generador anterior usaba `--env-vars-file`, que podía reemplazar variables
+no representadas por sus parámetros. Esa aplicación de la plantilla se
+retiró: no reutilizar manifiestos históricos para modificar producción. Las
+referencias a secretos se preparan por nombre y versión numérica; no se leen
+sus valores ni se imprimen credenciales.
 
-Bootstrap inicial debe acordarse con identidad real y ejecutarse una sola vez. Al aprovisionar, volver a desplegar con `EnableBootstrap` desactivado y sin sus bindings; el script retira esos bindings del servicio y no borra los secretos de Secret Manager ni la cuenta creada.
+Bootstrap inicial requiere una operación específica acordada y de una sola
+vez. ImageOnly preserva sus variables existentes: no retira bindings ni
+aprovisiona cuentas. Su desactivación y retiro de referencias se verifican
+por separado.
 
 [Referencia CLI de deploy](https://docs.cloud.google.com/sdk/gcloud/reference/run/deploy).
 

@@ -91,4 +91,4 @@ jobs:
             target/ci-reports/*.xml
             target/generated-openapi/openapi.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30

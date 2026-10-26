@@ -9,7 +9,7 @@ class OpenApiServerConfigurationTests {
     @Test
     void unconfiguredServerLetsSpringdocUseTheCurrentEnvironment() {
         var specification = new OpenApiConfiguration().applicationOpenApi("");
-        assertThat(specification.getInfo().getVersion()).isEqualTo("0.10.0");
+        assertThat(specification.getInfo().getVersion()).isEqualTo("0.11.0");
         assertThat(specification.getServers()).isNullOrEmpty();
     }
 

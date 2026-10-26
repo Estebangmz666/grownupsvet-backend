@@ -1,0 +1,22 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "status": "PASSED",
+  "sourceDumpSha256": "27bc7712f57182149be8c330e5e3ea430af21c98db765d8a7430f1862bd60b93",
+  "localOnly": true,
+  "restoreVerified": true,
+  "migrationsVerified": true,
+  "jpaValidated": true,
+  "baselineVersion": "22",
+  "finalVersion": "23",
+  "migrationsExecuted": "1",
+  "smtpAttempts": "0",
+  "schedulingProcessorAbsent": "true",
+  "databaseRemoved": true,
+  "credentialFileRemoved": true,
+  "migrationSourcesUnchanged": true,
+  "sourceDumpUnchanged": true,
+  "completedAtUtc": "2026-10-26T12:01:58.8669671-05:00",
+  "failureStage": null,
+  "failureCategory": null
+}

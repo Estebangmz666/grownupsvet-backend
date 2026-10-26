@@ -36,7 +36,9 @@ La suite incluye diez casos de historia y dieciocho de recordatorios. Las prueba
 
 ## Pendientes para declarar terminado el backend desplegado
 
-Publicar la revisión comprobada, observar su CI remoto y configurar/comprobar el bloqueo efectivo de integración; habilitar recolección del despliegue y Grafana con acceso adecuado; ejecutar escenarios controlados que acrediten M1–M9 con denominador y oráculo de persistencia; verificar el recorrido de correo de la nueva revisión y la aceptación P1–P3. Los contadores operativos y las pruebas locales no sustituyen estos resultados de producción.
+El CORE ya se publicó en PR 2 con CI remoto verde y la protección de main impidió efectivamente una integración con contrato divergente; consultar la [verificación de protección](verificacion-proteccion-integracion-2026-10-25.md). El frontend compatible con COMPLETED se integró y está publicado. El [perfil de monitoreo local](verificacion-monitoreo-backend-2026-10-25.md) es un incremento posterior, que exige un nuevo commit, CI e imagen.
+
+Faltan publicar la revisión final en Cloud Run; habilitar la recolección desplegada con Prometheus/Grafana OSS locales; ejecutar escenarios controlados que acrediten M1–M9 con denominador y oráculo de persistencia; verificar el recorrido de correo de la nueva revisión y la aceptación P1–P3. Los contadores operativos y las pruebas locales no sustituyen estos resultados de producción.
 
 Se conserva el límite autorizado de créditos gratuitos y no se contempla actualizar la cuenta a pago. La configuración real de Cloud Run se respaldó privadamente antes de preparar cambios; sus secretos y manifiesto operativo completo no se publican en este informe.
 

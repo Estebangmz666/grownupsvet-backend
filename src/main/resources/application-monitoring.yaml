@@ -1,0 +1,28 @@
+# Opt-in machine-authenticated scraping on the existing API port, without a cloud collector.
+# Keep the original 32-byte Base64URL token only on the local Prometheus host.
+spring:
+  config:
+    import: classpath:metrics-common.yaml
+management:
+  endpoints:
+    access:
+      default: none
+    web:
+      exposure:
+        include: health,prometheus
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    prometheus:
+      access: read-only
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+      probes:
+        enabled: true
+        add-additional-paths: false
+grownupsvet:
+  monitoring:
+    token-sha256: ${MONITORING_TOKEN_SHA256:}

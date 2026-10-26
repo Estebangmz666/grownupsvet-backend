@@ -1,5 +1,8 @@
 # Opt in alongside dev/test/prod. The Cloud Run collector shares this loopback network.
 # Keep the API ingress port separate; never publish this port through a public proxy.
+spring:
+  config:
+    import: classpath:metrics-common.yaml
 management:
   server:
     port: 9091
@@ -22,19 +25,3 @@ management:
       show-components: never
       probes:
         add-additional-paths: true
-  metrics:
-    tags:
-      application: grownupsvet-backend
-      revision: ${K_REVISION:local}
-    web:
-      server:
-        max-uri-tags: 128
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-      minimum-expected-value:
-        http.server.requests: 1ms
-      maximum-expected-value:
-        http.server.requests: 30s
-      slo:
-        http.server.requests: 100ms,250ms,500ms,1s,3s,10s

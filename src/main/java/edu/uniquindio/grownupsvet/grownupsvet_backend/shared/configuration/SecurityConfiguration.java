@@ -54,7 +54,7 @@ public class SecurityConfiguration {
                         .accessDeniedHandler(apiSecurityErrorHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
-                        // Metrics are served only by the opt-in loopback management chain.
+                        // Opt-in monitoring transports use a narrower earlier chain; this API chain never grants metrics.
                         .requestMatchers("/actuator/prometheus", "/actuator/prometheus/**").denyAll()
                         .requestMatchers(HttpMethod.GET, HelloController.HELLO_PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/liveness", "/actuator/health/readiness").permitAll()

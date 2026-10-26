@@ -1,6 +1,18 @@
 # Observabilidad del backend
 
-Preparación I7a del 25/10/2026. El código habilita recolección confinada y los archivos permiten preparar Prometheus/Grafana. No se han activado el colector, IAM o Grafana en producción. Los resultados de pruebas se registran al final del [plan de implementación](plan-observabilidad-2026-10-25.md).
+Preparación I7 del 25/10/2026. La opción elegida por el usuario es **Prometheus y Grafana OSS locales, sin suscripción ni vencimiento**, para consultar el backend de Cloud Run. El perfil, runtime y despliegue tienen planes y verificaciones separados; no se declara el scrape desplegado hasta comprobarlo. Las alternativas administradas descritas más adelante se conservan como referencia y no se activan.
+
+## Opción elegida: servidor desplegado y panel local
+
+El perfil `monitoring` conserva las probes `/actuator/health/liveness` y `/actuator/health/readiness` en el puerto API y permite exclusivamente `GET /actuator/prometheus` con un token máquina aleatorio de 256 bits. No acepta sesiones de propietarios, veterinarios o administradores. El token no concede acceso a recursos de la API.
+
+El valor original permanece en un archivo privado del computador; Prometheus lo lee mediante `authorization.credentials_file` y envía el header por HTTPS. Cloud Run recibe solamente `MONITORING_TOKEN_SHA256`: guardar ese hash no permite usarlo como Bearer. Los archivos privados, datos y binarios portables quedan fuera de Git. No se agregan cuentas de servicio, claves Google, sidecars ni almacenamiento de métricas en nube.
+
+Prometheus y Grafana escuchan solo en `127.0.0.1`. El panel y su histórico están disponibles mientras el computador y los procesos estén encendidos; no constituyen vigilancia continua cuando el equipo está apagado. El scrape cada 60 segundos usa la URL real de Cloud Run y añade la etiqueta `service_name` para las consultas del panel. Con el límite actual de una instancia, los contadores corresponden a una sola instancia por revisión; escalar exige revisar la recolección por instancia.
+
+El [plan de seguridad del backend](plan-monitoreo-local-2026-10-25.md) define rechazos, configuración fail closed y pruebas HTTP. El [plan de publicación](plan-publicacion-cloud-run-p3-2026-10-25.md) exige reconstruir la imagen final y verificar la revisión desplegada antes de acreditar métricas. El perfil `observability` siguiente sigue disponible para desarrollo y topologías con loopback compartido; ambos perfiles son incompatibles entre sí.
+
+Para actualizar después solo la imagen, conservar la configuración del servicio mediante `gcloud run deploy --image=...` y revisar el manifiesto resultante. El generador histórico `deploy-google-cloud.ps1` todavía no incorpora el perfil `monitoring` ni su hash; no reemplazar la configuración de este despliegue con esa plantilla sin ampliarla primero.
 
 ## Activación local y superficie accesible
 
@@ -24,11 +36,11 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8080/readyz'
 
 [prometheus-local.yaml](../scripts/observability/prometheus-local.yaml) sirve para Prometheus ejecutándose en el mismo host/espacio de red. El `127.0.0.1` de un contenedor Docker separado no representa el host Windows. No ampliar la dirección de gestión para resolver esa diferencia: usar una topología con red compartida o ejecutar el recolector en el host. Si se dispone del binario, validar con `promtool check config scripts/observability/prometheus-local.yaml` antes de arrancar `prometheus --config.file=scripts/observability/prometheus-local.yaml`.
 
-## Preparación de Cloud Run
+## Alternativa preparada: colector administrado en Cloud Run
 
 [run-monitoring.yaml](../scripts/observability/run-monitoring.yaml) es configuración del sidecar administrado, **no** una especificación completa del servicio. El colector puede usar loopback porque los contenedores de una instancia Cloud Run comparten red. La ruta estándar de Actuator y el puerto requieren esta configuración personalizada; la configuración predeterminada del colector busca `/metrics` en 8080. [Guía del sidecar](https://docs.cloud.google.com/run/docs/monitoring-managed-prometheus-sidecar), [red de contenedores](https://docs.cloud.google.com/run/docs/deploying).
 
-El usuario aprobó el 25/10 usar servicios administrados priorizando lo gratuito. Esa decisión habilita preparar I7b; el saldo, plan y límites de cada cuenta deben verificarse antes de habilitar consumo.
+El usuario inicialmente permitió servicios administrados priorizando lo gratuito y después eligió la opción local para evitar pruebas con vencimiento y gasto adicional. La siguiente secuencia documenta una alternativa pendiente, sin autorización para generar gasto en efectivo; no forma parte del despliegue elegido.
 
 Antes de desplegar I7b:
 

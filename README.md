@@ -1,6 +1,6 @@
 # GrownupsVet backend
 
-API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.10.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. Este incremento local de P3 todavía no acredita publicación ni despliegue.
+API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.10.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [informe de P3](docs/verificacion-backend-p3-2026-10-25.md) distingue pruebas, publicación Git y aceptación del despliegue.
 
 ## Alcance funcional
 
@@ -62,7 +62,7 @@ Con el backend local en su puerto predeterminado:
 - OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`.
 - Salud: `/actuator/health/liveness` y `/actuator/health/readiness`.
 
-El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.9.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
+El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.10.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
 
 Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores utilizan `application/problem+json`, con `errorCode` y `fieldErrors` para los clientes. Registro, autenticación y operaciones públicas tienen sus condiciones específicas en OpenAPI; la existencia de una ruta no concede acceso a datos ajenos.
 
@@ -77,6 +77,14 @@ Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores 
 | [Datos de demostración](docs/datos-demostracion.md) | Helper reproducible para la API local con personal y credenciales aportados por el operador. |
 
 Estas guías conservan decisiones y verificaciones fechadas de cada incremento. Sus pendientes históricos deben interpretarse junto con el corte de entorno indicado arriba.
+
+### Avances posteriores al corte histórico
+
+El 25/10 el frontend compatible con `COMPLETED` se publicó en [Cloudflare Pages](https://grownupsvet-frontend.pages.dev/). El gateway existente usa la API desde el mismo origen; no requiere abrir CORS directo de Cloud Run. El CORE P3 pasó CI remoto y la [protección de main](docs/verificacion-proteccion-integracion-2026-10-25.md) bloqueó una prueba controlada con contrato divergente.
+
+Se obtuvo un [backup de Render y se comprobó su restauración](docs/verificacion-respaldo-render-2026-10-25.md), incluidas las migraciones clínicas. Quedó programada otra copia para el **13/11/2026 a las 09:00 de Bogotá**: requiere el computador y Codex encendidos. El respaldo y las credenciales permanecen fuera de Git.
+
+La [observabilidad elegida](docs/observabilidad.md) usa Grafana OSS y Prometheus locales, sin suscripción ni vencimiento. El perfil `monitoring` protege el scrape remoto con una credencial máquina independiente de los JWT humanos. La publicación de la imagen final y M1–M9 siguen sujetos a su verificación desplegada.
 
 ## Ejecución local en Windows
 

@@ -1,0 +1,43 @@
+{
+  "repository": "Estebangmz666/grownupsvet-frontend",
+  "control_sha": "6e49688ea9a68601e57b8d82561789f51d9aa0a5",
+  "main_sha": "492c71fc152ddeda55e34df808d0f132cd361dc7",
+  "pull_request": {
+    "number": 2,
+    "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/pull/2",
+    "state": "open",
+    "merged": false,
+    "draft": false,
+    "mergeable_state": "blocked",
+    "changed_files": 1,
+    "additions": 3,
+    "deletions": 0
+  },
+  "checks": [
+    {
+      "id": 121703854400,
+      "name": "Cloudflare Pages",
+      "status": "completed",
+      "conclusion": "failure",
+      "app_id": 85455,
+      "url": "https://github.com/Estebangmz666/grownupsvet-frontend/runs/121703854400"
+    },
+    {
+      "id": 121703210874,
+      "name": "Tipos, lint y pruebas",
+      "status": "completed",
+      "conclusion": "failure",
+      "app_id": 15368,
+      "url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40360090133/job/121703210874"
+    },
+    {
+      "id": 121702954430,
+      "name": "Tipos, lint y pruebas",
+      "status": "completed",
+      "conclusion": "failure",
+      "app_id": 15368,
+      "url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40360116077/job/121702954430"
+    }
+  ],
+  "expected_rejection_verified": true
+}

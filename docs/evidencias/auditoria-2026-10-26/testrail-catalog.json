@@ -1,0 +1,373 @@
+{
+  "cutoff_date": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "Partial audit catalog; catalog changes are not test execution results.",
+  "before_count": 84,
+  "after_count": 99,
+  "after_sections": 26,
+  "before_ids_preserved": true,
+  "updated_cases": [
+    {
+      "case_id": "C20",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C23",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C24",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C25",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C43",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C56",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C13",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C14",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C15",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C84",
+      "fields_match": {
+        "title": true,
+        "type": true,
+        "priority": true,
+        "references": true,
+        "preconditions": true,
+        "steps": true,
+        "expected_result": true
+      },
+      "verified": true
+    }
+  ],
+  "other_original_cases_unchanged": true,
+  "new_cases": [
+    {
+      "case_id": "C85",
+      "title": "AUD-REM-01 Completar acceso y perfil del propietario desde el sitio publicado",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/85",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C86",
+      "title": "AUD-REM-02 Seleccionar y persistir una fotografía desde el navegador real",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/86",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C87",
+      "title": "AUD-REM-03 Descartar una respuesta tardía después de cambiar de propietario",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/87",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C88",
+      "title": "AUD-REM-04 Restaurar una sesión con red interrumpida o token revocado",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/88",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C89",
+      "title": "AUD-REM-05 Abrir la PWA instalada sin conexión sin recuperar datos privados",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/89",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C90",
+      "title": "AUD-REM-06 Abrir una invitación sin consumirla ni persistir su token en el cliente",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/90",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C91",
+      "title": "AUD-REM-07 Reconciliar un cambio administrativo cuya respuesta no llegó al navegador",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/91",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C92",
+      "title": "AUD-REM-08 Rechazar un lote completo de turnos ante una colisión",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/92",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C93",
+      "title": "AUD-REM-09 Consultar todo el rango tras un resultado incierto de generación de turnos",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/93",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C94",
+      "title": "AUD-REM-10 Cargar descargar revisar y publicar un diploma privado",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/94",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C95",
+      "title": "AUD-REM-11 Conservar el título al retirar el diploma y revocar publicación al editar datos académicos",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/95",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C96",
+      "title": "AUD-REM-12 Correlacionar los avisos permitidos de una cita con la entrega real autorizada",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/96",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C97",
+      "title": "AUD-REM-13 Compartir versión e intención idempotente entre textos y tratamiento clínicos",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/97",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C98",
+      "title": "AUD-REM-14 Aplicar cambios de acceso clínico por reasignación y autoría final",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/98",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    },
+    {
+      "case_id": "C99",
+      "title": "AUD-REM-15 Entregar recordatorios clínicos solo dentro de su ventana real",
+      "url": "https://grownupsvet.testrail.io/index.php?/cases/view/99",
+      "fields_match": {
+        "Title": true,
+        "Type": true,
+        "Priority": true,
+        "References": true,
+        "Preconditions": true,
+        "Steps": true,
+        "Expected Result": true
+      },
+      "verified": true
+    }
+  ],
+  "results_created_by_catalog_changes": 0,
+  "before_sha256": "b2a3cd4e9c4935c83ea623975dd97a5e9ec1ef51a8700ef20865d3f0cc4cb967",
+  "after_sha256": "586488091bc3766d83c479548b9ea3751a07f122f7353fd42d8ef4e5e9e38d1f",
+  "verified": true
+}

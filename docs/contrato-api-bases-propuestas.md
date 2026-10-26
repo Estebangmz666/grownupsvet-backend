@@ -128,6 +128,8 @@ Después del primer login del propietario, el frontend conduce al registro de la
 
 Implementado: `POST /api/v1/auth/sessions` devuelve `200 OK`, JWT con identificación, correo, rol y permisos, duración de 24 horas (`exp = iat + 86400`) y ausencia de tokens de renovación. Al vencer es necesario volver a autenticarse.
 
+El contrato 0.11.0 añade `429 LOGIN_RATE_LIMITED` con `Retry-After` entero positivo y respuesta privada/no almacenable cuando se habilita la [admisión persistente](login-admission.md). Su política inicial es 10 intentos por correo normalizado/peer en 15 minutos y 60 por peer/minuto, contando accesos correctos y fallidos antes de verificar credenciales. No deshabilita cuentas ni revela su existencia. El único origen admitido es el peer de transporte con encabezados de reenvío ignorados; puede agrupar un proxy/NAT. La función está deshabilitada por omisión hasta verificar su configuración e impacto en el entorno.
+
 `UserLoginResponseDTO` contiene `accessToken`, `tokenType` con valor `Bearer`, `expiresIn` con valor `86400` y `user` con `id`, `email`, `role` y `permissions`. Esta forma está publicada en OpenAPI. La respuesta incluye `Cache-Control: no-store`.
 
 El JWT RS256 contiene `sub` con el UUID de la cuenta, `email`, `role`, `permissions`, `iat`, `exp`, `jti`, `iss=grownupsvet-backend`, `aud=grownupsvet-clients` y `authenticationVersion`. `iat`/`exp` son instantes Unix y `jti` identifica el token. No duplica `id` ni incluye contraseña, hash, teléfono, nacimiento o foto. [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html).

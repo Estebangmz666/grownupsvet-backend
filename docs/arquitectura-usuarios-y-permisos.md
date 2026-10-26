@@ -104,7 +104,7 @@ Veterinarios y administradores no pueden autodesactivarse mediante esta ruta. Su
 
 El filtro de seguridad valida primero firma, emisor, audiencia y tiempo. Después comprueba que el token no esté revocado y que la cuenta continúe existente y activa; el rol y los permisos vigentes se resuelven desde PostgreSQL. Un token revocado, o uno perteneciente a una cuenta inactiva, recibe `401 AUTHENTICATION_REQUIRED`. Los registros de revocación se eliminan después de `expires_at` más los 30 segundos de tolerancia de reloj. No hay refresh token.
 
-El frontend borra su copia de `localStorage` al recibir el cierre correcto o detectar el vencimiento. Eso mejora el comportamiento del cliente, pero no sustituye la lista de revocación. La limitación de intentos queda aplazada para un incremento futuro.
+El frontend borra su copia de `localStorage` al recibir el cierre correcto o detectar el vencimiento. Eso mejora el comportamiento del cliente, pero no sustituye la lista de revocación. El incremento 0.11.0 incorpora [admisión persistente de login](login-admission.md), activable mediante configuración: 10 intentos por correo normalizado/peer en 15 minutos y 60 por peer/minuto, `429 LOGIN_RATE_LIMITED` y `Retry-After`, sin desactivar cuentas. PEER puede representar un proxy compartido; no se presenta como IP humana. La activación productiva y sus evidencias se verifican por separado.
 
 ## Continuidad después de SCRUM-67
 

@@ -227,7 +227,11 @@ class UserLoginHttpIntegrationTests {
         assertThat(specification.path("paths").has(AUTHENTICATED_TEST_PATH)).isFalse();
         JsonNode operation = specification.path("paths").path(SESSIONS_PATH).path("post");
         assertThat(operation.path("operationId").asText()).isEqualTo("createUserSession");
-        assertThat(operation.path("responses").propertyNames()).contains("200", "400", "401", "415", "500");
+        assertThat(operation.path("responses").propertyNames()).contains("200", "400", "401", "415", "429", "500");
+        assertThat(operation.path("responses").path("429").path("headers").path("Retry-After")
+                .path("schema").path("type").asText()).isEqualTo("integer");
+        assertThat(operation.path("responses").path("429").path("headers").path("Retry-After")
+                .path("schema").path("minimum").asInt()).isEqualTo(1);
         assertThat(specification.path("components").path("securitySchemes").path("bearerAuth")
                 .path("scheme").asText()).isEqualTo("bearer");
         JsonNode responseSchema = specification.path("components").path("schemas").path("UserLoginResponseDTO");

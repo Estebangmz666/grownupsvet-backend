@@ -12,7 +12,23 @@ Prometheus y Grafana escuchan solo en `127.0.0.1`. El panel y su histórico est�
 
 El [plan de seguridad del backend](plan-monitoreo-local-2026-10-25.md) define rechazos, configuración fail closed y pruebas HTTP. El [plan de publicación](plan-publicacion-cloud-run-p3-2026-10-25.md) exige reconstruir la imagen final y verificar la revisión desplegada antes de acreditar métricas. El perfil `observability` siguiente sigue disponible para desarrollo y topologías con loopback compartido; ambos perfiles son incompatibles entre sí.
 
-Para actualizar después solo la imagen, conservar la configuración del servicio mediante `gcloud run deploy --image=...` y revisar el manifiesto resultante. El generador histórico `deploy-google-cloud.ps1` todavía no incorpora el perfil `monitoring` ni su hash; no reemplazar la configuración de este despliegue con esa plantilla sin ampliarla primero.
+Actualización del **26/10/2026, America/Bogota**: el helper
+`deploy-google-cloud.ps1` usa ImageOnly por omisión. Su modo sin Execute es
+offline; el modo ejecutable consulta el servicio y actualiza únicamente
+la imagen con `gcloud run services update --image`, sin reconstruir variables
+ni referencias. Conserva `monitoring`, `MONITORING_TOKEN_SHA256`, admisión
+de login, claves/JWT, probes, CPU, recursos, identidad y máximo 1 mediante
+comparación de configuración antes/después. No crea nube, IAM ni sidecars.
+
+La [guía de despliegue](google-cloud.md#5-script-de-despliegue-y-validación-offline)
+describe el plan y los manifiestos saneados fuera de Git. El helper falla
+si no verifica imagen, configuración, revisión lista, tráfico y contrato;
+no cambia el tráfico por su cuenta ni vuelve automáticamente a una imagen
+vieja. La plantilla completa queda restringida a validación offline y admite
+referencias numéricas `MONITORING_TOKEN_SHA256` y
+`LOGIN_RATE_LIMIT_HMAC_SECRET`; la activación real se prepara como cambio
+separado. El token Bearer original de monitoring permanece solo en el equipo,
+y el secreto HMAC de login no se pasa en flags ni logs.
 
 ## Activación local y superficie accesible
 
@@ -54,7 +70,10 @@ Antes de desplegar I7b:
 8. Publicar una revisión identificable y comprobar API/probes, ausencia de scrape público, recolección de cada instancia y etiquetas `revision_name`, `service_name`, `instance`. Comparar la etiqueta de aplicación `revision` con `K_REVISION` y vincularla al commit/imagen comprobados.
 9. Conectar Grafana al almacén Prometheus elegido con lectura autorizada; comprobar renovación de autenticación, permisos y consultas sobre esa revisión. [Grafana con Prometheus administrado](https://docs.cloud.google.com/stackdriver/docs/managed-prometheus/query).
 
-`deploy-google-cloud.ps1` todavía despliega un solo contenedor y probes anteriores. No usarlo sobre una revisión con varios contenedores preparada sin ampliarlo y revisar que preserve colector/configuración. Este incremento no ejecuta despliegues ni modifica IAM/costes.
+ImageOnly rechaza una topología de varios contenedores; no usar el helper
+para incorporar esta alternativa. La preparación del colector exige su
+revisión específica. Este incremento no ejecuta despliegues ni modifica
+IAM/costes.
 
 ## Panel y consultas
 

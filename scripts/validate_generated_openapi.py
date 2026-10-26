@@ -191,8 +191,8 @@ def validate_appointment_required_fields(specification: dict, responses: dict) -
 
 def validate_administrative_appointment_contract(specification: dict, responses: dict) -> None:
     """Check the new administrative request and real HTTP transition/replay responses."""
-    if specification["info"]["version"] != "0.10.0":
-        raise AssertionError("Clinical encounters require application contract 0.10.0")
+    if specification["info"]["version"] != "0.11.0":
+        raise AssertionError("The current application contract must be 0.11.0")
     request_fields = {
         "clientRequestId", "availabilitySlotId", "expectedAvailabilitySlotVersion", "expectedVersion",
         "reason", "agreementChannel", "agreementContactedAt", "agreementNote",
@@ -346,6 +346,7 @@ def main() -> None:
         "signup-invalid.json": "ApiErrorResponseDTO",
         "login-success.json": "UserLoginResponseDTO",
         "login-invalid-credentials.json": "ApiErrorResponseDTO",
+        "login-rate-limited.json": "ApiErrorResponseDTO",
         "profile-success.json": "OwnerProfileResponseDTO",
         "profile-invalid.json": "ApiErrorResponseDTO",
         "pet-created.json": "PetResponseDTO",
@@ -399,6 +400,12 @@ def main() -> None:
         response = json.loads((args.examples / filename).read_text(encoding="utf-8"))
         response_validator(specification, schema_name).validate(response)
         responses[filename] = response
+    login_limit = specification["paths"]["/api/v1/auth/sessions"]["post"]["responses"]["429"]
+    retry_header = login_limit["headers"]["Retry-After"]["schema"]
+    if retry_header.get("type") != "integer" or retry_header.get("minimum") != 1:
+        raise AssertionError("Login admission must document positive integer Retry-After seconds")
+    if responses["login-rate-limited.json"].get("status") != 429 or responses["login-rate-limited.json"].get("errorCode") != "LOGIN_RATE_LIMITED":
+        raise AssertionError("Login admission requires its real generic 429 problem example")
     validate_availability_required_fields(specification, responses)
     validate_appointment_required_fields(specification, responses)
     validate_appointment_operation_responses(specification)

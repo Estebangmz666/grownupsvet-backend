@@ -207,7 +207,7 @@ try {
     [void](Save-DemoReport)
 
     $contract = (Invoke-DemoApi 'BackendContract' 'GET' '/v3/api-docs' 200).Body
-    Add-DemoAssertion 'SupportedBackendContractVersion' (@('0.9.0', '0.10.0') -contains [string]$contract.info.version)
+    Add-DemoAssertion 'SupportedBackendContractVersion' (@('0.9.0', '0.10.0', '0.11.0') -contains [string]$contract.info.version)
     [void](Invoke-DemoApi 'UnauthenticatedProfileDenied' 'GET' '/api/v1/users/me' 401)
     $veterinarian = (Invoke-DemoApi 'AdministratorAndVeterinarianPreflight' 'GET' ('/api/v1/veterinarians/' + $VeterinarianId) 200 $administratorTokenText).Body
     Add-DemoAssertion 'ActiveExistingVeterinarian' ((Get-ResponseGuid $veterinarian 'id') -eq $VeterinarianId.ToString() -and

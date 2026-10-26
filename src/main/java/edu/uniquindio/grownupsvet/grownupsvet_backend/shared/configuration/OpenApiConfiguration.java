@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 public class OpenApiConfiguration {
     @Bean
     public OpenAPI applicationOpenApi(@Value("${grownupsvet.api.base-url:}") String baseUrl) {
-        OpenAPI specification = new OpenAPI().info(new Info().title("GrownupsVet API").version("0.10.0")
+        OpenAPI specification = new OpenAPI().info(new Info().title("GrownupsVet API").version("0.11.0")
                 .description("Contrato generado desde Java para usuarios, mascotas, acceso, recuperación durable, personal, disponibilidad, citas y atención clínica P3. Los borradores pertenecen a citas confirmadas y solo el veterinario asignado puede modificarlos. La finalización publica la atención inmutable y completa la cita en una transacción. Incluye historia propia/asignada, fórmula y controles, avisos durables de citas y recordatorios clínicos por correo con inicio y fin; SENT acredita aceptación SMTP, no recepción en buzón. La jornada y los horarios clínicos usan America/Bogota. Adendas, urgencias e inventario quedan fuera del alcance aprobado."));
         String normalized = FrontendConfigurationProperties.normalizeUrl(baseUrl, false);
         if (!normalized.isEmpty()) { specification.addServersItem(new Server().url(normalized)); }

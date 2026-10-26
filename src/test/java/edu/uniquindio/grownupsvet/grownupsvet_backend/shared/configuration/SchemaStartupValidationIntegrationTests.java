@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 /** Real servlet startup, Flyway and Hibernate validation; owns only UUID schemas in the test database. */
 @ActiveProfiles("test")
 class SchemaStartupValidationIntegrationTests {
-    private static final int LATEST_REVIEWED_MIGRATION_VERSION = 22;
+    private static final int LATEST_REVIEWED_MIGRATION_VERSION = 23;
     private static final String TEST_DATABASE_URL = "jdbc:postgresql://localhost:5432/grownupsvet_test";
     private static final String SCHEMA_PREFIX = "startup_validation_";
     private static final Path ORIGINAL_MIGRATIONS = Path.of("src", "main", "resources", "db", "migration");

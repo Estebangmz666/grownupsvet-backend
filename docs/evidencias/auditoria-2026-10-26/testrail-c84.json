@@ -1,0 +1,14 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "checkedAtUtc": "2026-10-26T17:28:36.300Z",
+  "runId": 2,
+  "testId": 112,
+  "caseId": 84,
+  "status": "Passed",
+  "url": "https://grownupsvet.testrail.io/index.php?/tests/view/112",
+  "body": "QUÉ SIGNIFICA PASSED AQUÍ: C84 aprobó el control que impide integrar un PR con errores deliberados. El fallo de las ramas temporales fue el resultado esperado y ese código no se integró. Este resultado NO aprueba la integración funcional frontend ↔ backend ni los recorridos de usuarios; los otros 27 casos de R2 continúan sin ejecutar.\n\nVerificación técnica asistida con corte al 26/10/2026, America/Bogota. Alcance exclusivo: CI y bloqueo de integración de los dos repositorios; no acredita aceptación integral del producto. Actor GitHub Estebangmz666, sujeto a enforce_admins.\n\nÉxitos remotos: backend main960c8898, run40366805490, 722 pruebas/63 suites, 0 fallos/errores/omitidas, contrato validado. Frontend main9cdcb03, run40365585334, tipos/lint/pruebas/build correctos, 835 pruebas/47 archivos. Artefacto web coincide byte a byte con el bundle publicado05d461c8f0d4f780f8c5161492dc5474.js. Retención30d y ZIPs conservados con SHA256.\n\nControles negativos: frontend PR2, SHA6e49688ea9a68601e57b8d82561789f51d9aa0a5, fallo TS2322 del check obligatorio Tipos, lint y pruebas(app15368), mergeable_state=blocked. Backend PR5, SHA576d96fb, fallo deliberado AuditCiExpectedFailureTests con marcador AUDIT_CONTROLLED_FAILURE_C84_2026_10_26; 723 pruebas/1 fallo esperado/0 errores/0 omitidas, check obligatorio Backend verification(app15368), mergeable_state=blocked. Ambos PR no-draft se cerraron sin merge y se retiraron sus ramas tras verificar el SHA. Main quedó intacto durante cada ensayo; no se intentó bypass. La prueba deliberadamente fallida no forma parte del producto.\n\nReglas verificadas en ambos: strict, check obligatorio por app, enforce_admins; sin force-push ni eliminación de main; PR obligatorio, cero aprobaciones humanas exigidas. Esto acredita el gate, no una revisión humana.\n\nEnlaces: https://github.com/Estebangmz666/grownupsvet-frontend/pull/2 ; https://github.com/Estebangmz666/grownupsvet-backend/pull/5 ; https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366805490 ; https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40365585334 . Reportes saneados y hashes en el expediente del corte; R1 conserva sus resultados históricos.",
+  "scope": "CI controls only; not complete project acceptance",
+  "singleResultVerified": true,
+  "clarificationVerifiedAtUtc": "2026-10-26T17:33:10.105Z"
+}

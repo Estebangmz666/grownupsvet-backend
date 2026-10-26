@@ -1,0 +1,230 @@
+{
+  "cutoffDate": "2026-10-26",
+  "scope": "API direct production acceptance only; partial P1/P2 web and published P3 API audit",
+  "testRailCandidate": "C100",
+  "sourceGitSha": "960c8898acbb22a227eac9424260a12936556227",
+  "revision": "grownupsvet-backend-admission-960c8898",
+  "imageDigest": "sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "policyConfigured": {
+    "enabled": true,
+    "identifierOriginMaximum": 5,
+    "identifierOriginWindow": "PT15M",
+    "originMaximum": 60,
+    "originWindow": "PT1M",
+    "originMode": "PEER"
+  },
+  "secretVersion": "1",
+  "status": "PASSED",
+  "httpSamples": [
+    {
+      "attempt": 1,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    },
+    {
+      "attempt": 2,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    },
+    {
+      "attempt": 3,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    },
+    {
+      "attempt": 4,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    },
+    {
+      "attempt": 5,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    },
+    {
+      "attempt": 6,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 429,
+      "actualStatus": 429
+    },
+    {
+      "attempt": 7,
+      "identifierAlias": "A",
+      "spoofingHeadersSent": true,
+      "expectedStatus": 429,
+      "actualStatus": 429
+    },
+    {
+      "attempt": 8,
+      "identifierAlias": "B",
+      "spoofingHeadersSent": false,
+      "expectedStatus": 401,
+      "actualStatus": 401
+    }
+  ],
+  "checks": [
+    {
+      "name": "client_socket_open_1",
+      "passed": true
+    },
+    {
+      "name": "attempt_1_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_1_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_2",
+      "passed": true
+    },
+    {
+      "name": "attempt_2_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_2_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_3",
+      "passed": true
+    },
+    {
+      "name": "attempt_3_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_3_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_4",
+      "passed": true
+    },
+    {
+      "name": "attempt_4_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_4_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_5",
+      "passed": true
+    },
+    {
+      "name": "attempt_5_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_5_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_6",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_generic_problem",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_problem_content_type",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_retry_after_positive",
+      "passed": true
+    },
+    {
+      "name": "attempt_6_private_no_store",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_7",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_generic_problem",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_problem_content_type",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_retry_after_positive",
+      "passed": true
+    },
+    {
+      "name": "attempt_7_private_no_store",
+      "passed": true
+    },
+    {
+      "name": "client_socket_open_8",
+      "passed": true
+    },
+    {
+      "name": "attempt_8_expected_status",
+      "passed": true
+    },
+    {
+      "name": "attempt_8_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "same_client_transport_connection_for_all_eight",
+      "passed": true
+    }
+  ],
+  "realCredentialsUsed": false,
+  "secretPayloadAccessed": false,
+  "productionSqlExecuted": false,
+  "businessDataCreated": false,
+  "browserE2ETested": false,
+  "humanIpClaimed": false,
+  "sameClientTransportConnectionReused": true,
+  "fourExpectedBehaviors": {
+    "A_first_five_401": true,
+    "A_sixth_429_with_retry_private_no_store": true,
+    "A_spoofed_headers_seventh_429": true,
+    "B_eighth_401_before_origin_cap": true
+  },
+  "httpSampleCount": 8,
+  "assertionCount": 33,
+  "globalOrigin60ExhaustionTested": false,
+  "productionAccountStateVariantsTested": false,
+  "upstreamPeerStabilityInferredFromClientConnection": false,
+  "notes": "PEER may aggregate proxies/NAT; the successful control B proves identifier-specific admission for this sample, not human-IP isolation.",
+  "recordedAtUtc": "2026-10-26T18:11:07.8612191Z"
+}

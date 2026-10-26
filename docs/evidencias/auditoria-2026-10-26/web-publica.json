@@ -1,0 +1,47 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "checkedAtUtc": "2026-10-26T17:21:02.380Z",
+  "scope": "Partial anonymous web verification; not complete accessibility or human acceptance.",
+  "url": "https://grownupsvet-frontend.pages.dev/",
+  "frontendCommit": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+  "observedScript": "/_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+  "keyboardFocusObservations": [
+    {
+      "label": "Contraseña",
+      "role": null,
+      "tag": "INPUT",
+      "text": "",
+      "type": "password"
+    },
+    {
+      "label": "Mostrar contraseña: Contraseña",
+      "role": "button",
+      "tag": "BUTTON",
+      "text": "Mostrar contraseña",
+      "type": "button"
+    },
+    {
+      "label": "Iniciar sesión",
+      "role": null,
+      "tag": "BUTTON",
+      "text": "Iniciar sesión",
+      "type": "button"
+    }
+  ],
+  "checks": {
+    "loginEmptyShowsSpanishAlertAndFocusesEmail": true,
+    "loginEmailErrorLinkedViaAriaDescribedBy": true,
+    "keyboardNavigationToRegistrationAndRecovery": true,
+    "registrationEmptyShowsSpanishErrorsAndFocusesName": true,
+    "recoveryEmptyShowsRequiredEmailError": true
+  },
+  "accountsCreated": 0,
+  "emailRequestsSubmitted": 0,
+  "credentialsSubmitted": 0,
+  "limits": [
+    "Authenticated four-role acceptance not performed: credential export was rejected by automatic approval review.",
+    "No human participants, screen-reader run, 200% zoom or authenticated agenda/dialog flow was completed.",
+    "These partial checks do not authorize complete Passed for C20/C23/C24/C25/C43 or C85."
+  ]
+}

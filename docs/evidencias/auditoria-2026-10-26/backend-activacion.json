@@ -1,0 +1,146 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "Auditoría parcial P1/P2 web y P3 API publicado; esta evidencia acredita admisión de login por API, no auditoría final del proyecto ni E2E web",
+  "recordedAtUtc": "2026-10-26T18:12:08.4251698Z",
+  "status": "ACTIVATED_AND_DIRECT_API_ACCEPTANCE_PASSED",
+  "projectId": "project-4f1c67ce-5621-40e0-96c",
+  "region": "us-central1",
+  "service": "grownupsvet-backend",
+  "billingMatchesApprovedTrialAccount": true,
+  "paidPlanUpgradePerformed": false,
+  "sourceGitSha": "960c8898acbb22a227eac9424260a12936556227",
+  "imageDigest": "us-central1-docker.pkg.dev/project-4f1c67ce-5621-40e0-96c/grownupsvet/backend@sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "imageRebuiltForActivation": false,
+  "priorRevision": "grownupsvet-backend-audit-960c8898",
+  "activeRevision": "grownupsvet-backend-admission-960c8898",
+  "trafficPercent": 100,
+  "candidateTagRemoved": true,
+  "promotedAtUtc": "2026-10-26T18:07:41.0491081Z",
+  "contractVersion": "0.11.0",
+  "contractPaths": 47,
+  "contractRawSha256": "82a84c97a4ad3b3139125854546a1ff61d66e1835146aba1cdb4cbdf25c646b1",
+  "contractMatchesMergedSourceExceptServers": true,
+  "policyConfigured": {
+    "enabled": true,
+    "identifierOriginMaximum": 5,
+    "identifierOriginWindow": "PT15M",
+    "originMaximum": 60,
+    "originWindow": "PT1M",
+    "originMode": "PEER",
+    "humanIpIsolationClaimed": false
+  },
+  "secret": {
+    "resource": "grownupsvet-login-rate-limit-hmac",
+    "versionPinned": "1",
+    "versionObservedState": "ENABLED",
+    "versionCreatedAtUtc": "2026-10-26T18:01:31.81308Z",
+    "versionCreatedByUserHandoff": true,
+    "payloadAccessedByAgent": false,
+    "payloadExportedByAgent": false,
+    "runtime": "grownupsvet-runtime@project-4f1c67ce-5621-40e0-96c.iam.gserviceaccount.com",
+    "scopedRole": "roles/secretmanager.secretAccessor",
+    "explicitBindingCount": 1,
+    "onlyRequestedRuntimeExplicitlyGranted": true,
+    "inheritedProjectIamEvaluated": false,
+    "runtimeSecretReferenceLinked": true
+  },
+  "preservation": {
+    "otherEnvironmentAndSecretReferences": true,
+    "otherRuntimeSpecification": true,
+    "cpuAndRuntimeAnnotations": true,
+    "profiles": "prod,external-postgres,monitoring",
+    "forwardHeadersStrategyFromImage": "native",
+    "trustedProxyPattern": "^$",
+    "serviceMinScale": 1,
+    "serviceMaxScale": 1,
+    "sqlAndSmtpConfiguration": true
+  },
+  "candidateAcceptance": {
+    "status": "PASSED",
+    "httpSampleCount": 11,
+    "assertionCount": 39,
+    "configuredMaximum": 5,
+    "observedFirstRejection": 6,
+    "spoofedForwardingHeadersReturned429": true,
+    "healthAndContractPassed": true,
+    "wasZeroTrafficWhenTested": true,
+    "report": "smoke-login-limits-sanitized.json"
+  },
+  "directProductionAcceptance": {
+    "status": "PASSED",
+    "testRailCandidate": "C100",
+    "httpSampleCount": 8,
+    "assertionCount": 33,
+    "statuses": [
+      401,
+      401,
+      401,
+      401,
+      401,
+      429,
+      429,
+      401
+    ],
+    "sameClientTransportConnectionReused": true,
+    "controlBReturned401": true,
+    "positiveRetryAfterAndPrivateNoStore": true,
+    "report": "smoke-login-limits-c100-sanitized.json"
+  },
+  "gatewayAcceptance": {
+    "normalThresholdStatus": "PASSED",
+    "normalSequence": [
+      401,
+      401,
+      401,
+      401,
+      401,
+      429
+    ],
+    "retryAfterPreserved": true,
+    "noStorePreserved": true,
+    "spoofingExtraControlStatus": "FAILED_EXPECTATION",
+    "spoofingExpectedStatus": 429,
+    "spoofingActualStatus": 403,
+    "responseSourceNotAttributed": true,
+    "doesNotAccreditGateway429ForSpoofing": true,
+    "originalCombinedReportRetainedWithStatus": "FAILED",
+    "report": "smoke-login-limits-production-sanitized.json"
+  },
+  "initialCorsDiagnostic": {
+    "retained": true,
+    "status": "FAILED",
+    "expectedSixthStatus": 429,
+    "actualSixthStatus": 403,
+    "reason": "Harness added an unapproved Origin only to sixth request; corrected subsequent same-route smoke omits Origin for direct API",
+    "report": "smoke-login-limits-initial-cors-diagnostic-sanitized.json",
+    "corsConfigurationChanged": false
+  },
+  "monitoring": {
+    "prometheus": {
+      "reachable": false,
+      "status": "UNVERIFIED",
+      "errorType": "URLError"
+    },
+    "grafana": {
+      "reachable": false,
+      "status": "UNVERIFIED",
+      "errorType": "URLError"
+    },
+    "restartPerformed": false
+  },
+  "limitations": [
+    "PEER puede agrupar proxy/NAT; no acredita límite por IP humana.",
+    "No se agotó el límite global de60 para evitar afectar sesiones de otros usuarios.",
+    "La variante con headers falsificados por gateway recibió403; no se acredita429 en esa variante.",
+    "Prometheus/Grafana locales no fueron accesibles; no se reiniciaron y no se acredita scrape fresco.",
+    "Sin E2E web, SQL adicional en producción ni verificación SQL de revocación C67."
+  ],
+  "productionSqlExecutedByActivationSmoke": false,
+  "businessDataCreatedBySmoke": false,
+  "smtpRequestsSentByHarness": false,
+  "secretUploadAttemptedInThisActivation": false,
+  "historicalAutomaticUploadRejectionsRemainHistorical": true,
+  "historicalEmptySecretStateSupersededByUserCreatedVersion": true,
+  "noCommandsStillRunningByThisAgent": true
+}

@@ -1,0 +1,384 @@
+{
+  "cutoffDate": "2026-10-26",
+  "scope": "Partial P1/P2 web and P3 API audit; live API/gateway login admission checks only, not browser E2E",
+  "sourceGitSha": "960c8898acbb22a227eac9424260a12936556227",
+  "revision": "grownupsvet-backend-admission-960c8898",
+  "imageDigest": "sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "status": "FAILED",
+  "checks": [
+    {
+      "name": "liveness_up",
+      "passed": true
+    },
+    {
+      "name": "readiness_up",
+      "passed": true
+    },
+    {
+      "name": "main_contract_200",
+      "passed": true
+    },
+    {
+      "name": "main_contract_0_11",
+      "passed": true
+    },
+    {
+      "name": "main_contract_matches_source_except_servers",
+      "passed": true
+    },
+    {
+      "name": "main_anonymous_profile_denied",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_1_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_1_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_2_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_2_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_3_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_3_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_4_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_4_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_5_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_5_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_generic_problem",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_problem_content_type",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_positive_retry_after",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_no_store",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_6_private",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_expected_status",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_generic_problem",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_problem_content_type",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_positive_retry_after",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_no_store",
+      "passed": true
+    },
+    {
+      "name": "direct_api_attempt_7_private",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_1_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_1_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_2_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_2_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_3_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_3_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_4_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_4_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_5_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_5_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_expected_status",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_no_input_echo",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_generic_problem",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_problem_content_type",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_positive_retry_after",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_6_no_store",
+      "passed": true
+    },
+    {
+      "name": "frontend_gateway_attempt_7_expected_status",
+      "passed": false
+    }
+  ],
+  "httpSamples": [
+    {
+      "name": "liveness",
+      "method": "GET",
+      "path": "/actuator/health/liveness",
+      "status": 200
+    },
+    {
+      "name": "readiness",
+      "method": "GET",
+      "path": "/actuator/health/readiness",
+      "status": 200
+    },
+    {
+      "name": "main_contract",
+      "method": "GET",
+      "path": "/v3/api-docs",
+      "status": 200
+    },
+    {
+      "name": "anonymous_profile",
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_1",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_2",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_3",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_4",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_5",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "direct_api_login_6",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 429
+    },
+    {
+      "name": "direct_api_login_7",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 429
+    },
+    {
+      "name": "frontend_gateway_login_1",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "frontend_gateway_login_2",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "frontend_gateway_login_3",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "frontend_gateway_login_4",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "frontend_gateway_login_5",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 401
+    },
+    {
+      "name": "frontend_gateway_login_6",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 429
+    },
+    {
+      "name": "frontend_gateway_login_7",
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "status": 403
+    }
+  ],
+  "routes": [
+    {
+      "route": "direct_api",
+      "statuses": [
+        401,
+        401,
+        401,
+        401,
+        401,
+        429,
+        429
+      ],
+      "realCredentialsUsed": false,
+      "sameClientConnectionRequested": true,
+      "forwardingHeadersUsedOnlyForBoundedNegativeControl": true,
+      "thresholdObserved": {
+        "admittedInvalidRequests": 5,
+        "firstRejectedAttempt": 6,
+        "firstRejectedStatus": 429,
+        "spoofedHeaderRetryStatus": 429
+      },
+      "status": "PASSED"
+    },
+    {
+      "route": "frontend_gateway",
+      "statuses": [
+        401,
+        401,
+        401,
+        401,
+        401,
+        429,
+        403
+      ],
+      "realCredentialsUsed": false,
+      "sameClientConnectionRequested": true,
+      "forwardingHeadersUsedOnlyForBoundedNegativeControl": true
+    }
+  ],
+  "policyConfigured": {
+    "enabled": true,
+    "identifierOriginMaximum": 5,
+    "identifierOriginWindow": "PT15M",
+    "originMaximum": 60,
+    "originWindow": "PT1M",
+    "originMode": "PEER"
+  },
+  "humanIpClaimed": false,
+  "secretPayloadAccessed": false,
+  "businessDataCreated": false,
+  "productionSqlExecuted": false,
+  "smtpRequestsSentByHarness": false,
+  "contractVersion": "0.11.0",
+  "contractPathCount": 47,
+  "contractRawSha256": "82a84c97a4ad3b3139125854546a1ff61d66e1835146aba1cdb4cbdf25c646b1",
+  "failureType": "AssertionError",
+  "failedCheck": "frontend_gateway_attempt_7_expected_status",
+  "httpSampleCount": 18,
+  "assertionCount": 47,
+  "globalOrigin60LimitExhaustionTested": false,
+  "accountStateVariantsInProductionTested": false,
+  "crossInstanceConcurrencyInProductionTested": false,
+  "browserE2ETested": false,
+  "monitoring": {
+    "prometheus": {
+      "reachable": false,
+      "status": "UNVERIFIED",
+      "errorType": "URLError"
+    },
+    "grafana": {
+      "reachable": false,
+      "status": "UNVERIFIED",
+      "errorType": "URLError"
+    },
+    "restartPerformed": false
+  }
+}

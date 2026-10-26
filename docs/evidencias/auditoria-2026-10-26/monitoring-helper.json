@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "checkedAtUtc": "2026-10-26T18:20:15.3814327+00:00",
+  "cutDate": "2026-10-26",
+  "timezone": "America/Bogota",
+  "status": "PASSED",
+  "sourceGitBase": "960c8898acbb22a227eac9424260a12936556227",
+  "helperFixCommitPending": true,
+  "helperSha256": "c93643d4790d02d273fa3b301ec6be80fea7bf7dc798f2697b380a8e07a75117",
+  "testSha256": "1427a11223b1ee6c1c6bab902b3876a9b54bc1d6a91cc9e37adec9b6a5de6c95",
+  "tests": {
+    "status": "PASSED",
+    "testCount": 14,
+    "realHttpRequests": 0,
+    "credentialsRead": false,
+    "representations": [
+      "ISO string",
+      "UTC DateTime",
+      "local DateTime",
+      "DateTimeOffset"
+    ],
+    "cultures": [
+      "es-CO",
+      "en-US"
+    ],
+    "negativeCases": [
+      "Invalid timestamp",
+      "Stale sample",
+      "Sample before current process start",
+      "Target down",
+      "up=0"
+    ],
+    "optionalRemoteCheckReportsStaleness": true,
+    "command": "pwsh -File scripts/tests/LocalMonitoring.Tests.ps1"
+  },
+  "realCheck": {
+    "command": "pwsh -File scripts/observability/local/Test-LocalMonitoring.ps1 -RequireRemoteUp",
+    "exitCode": 0,
+    "status": "LOCAL_RUNTIME_VERIFIED",
+    "loopbackOnly": true,
+    "grafanaEdition": "oss",
+    "grafanaVersion": "13.2.4",
+    "prometheusVersion": "3.15.1",
+    "datasourceVerified": true,
+    "dashboardReadOnly": true,
+    "panelCount": 10,
+    "scrapeHealth": "up",
+    "remoteUp": "1",
+    "freshScrape": true,
+    "remoteMetricsVerified": true,
+    "retentionMaximum": "30d / 512MB"
+  },
+  "revisionCheck": {
+    "expected": "grownupsvet-backend-admission-960c8898",
+    "observed": "grownupsvet-backend-admission-960c8898",
+    "lastSampleUtc": "2026-10-26T18:19:32.5820000+00:00",
+    "sampleAgeSeconds": 42.799,
+    "fresh": true,
+    "source": "Prometheus timestamp(process_uptime_seconds), separate from up target health"
+  },
+  "processesRestartedForFix": false,
+  "configurationChanged": false,
+  "credentialsChanged": false,
+  "cloudMutationsPerformed": false,
+  "rawMetricsOrLogsPersisted": false,
+  "limits": [
+    "Timestamp compatibility fix and current scrape verification only; not sustained availability, load testing, acceptance or M1-M9.",
+    "The checker does not require a revision parameter; the exact current application revision is independently verified in revisionCheck.",
+    "Existing protected credential files are only used by the existing helper/runtime; no values are printed or exported."
+  ]
+}

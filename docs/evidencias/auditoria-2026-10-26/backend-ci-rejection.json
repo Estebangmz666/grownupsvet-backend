@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "Preparación de auditoría parcial P1/P2 web y P3 API; no entrega final ni aceptación integral.",
+  "repository": "Estebangmz666/grownupsvet-backend",
+  "base_main_sha": "960c8898acbb22a227eac9424260a12936556227",
+  "head_sha": "576d96fb9261c570c7e0c17d9d3a00479340c465",
+  "branch": "codex/audit-ci-rejection-proof-2026-10-26",
+  "pr_number": 5,
+  "pr_url": "https://github.com/Estebangmz666/grownupsvet-backend/pull/5",
+  "expected_failure_marker": "AUDIT_CONTROLLED_FAILURE_C84_2026_10_26",
+  "expected_test": "edu.uniquindio.grownupsvet.grownupsvet_backend.audit.AuditCiExpectedFailureTests",
+  "run_ids": {
+    "pull_request": 40367771554,
+    "push": 40367728795
+  },
+  "log_excerpt": [
+    "2026-10-26T17:23:11.7958001Z [ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.009 s <<< FAILURE! -- in edu.uniquindio.grownupsvet.grownupsvet_backend.audit.AuditCiExpectedFailureTests",
+    "2026-10-26T17:23:11.7960762Z [ERROR] edu.uniquindio.grownupsvet.grownupsvet_backend.audit.AuditCiExpectedFailureTests.rejectsIntegrationWhenTheRequiredBackendCheckFails -- Time elapsed: 0.008 s <<< FAILURE!",
+    "2026-10-26T17:23:11.7968320Z org.opentest4j.AssertionFailedError: AUDIT_CONTROLLED_FAILURE_C84_2026_10_26: expected failure proving protected-main enforcement; do not merge.",
+    "2026-10-26T17:24:02.8611187Z [ERROR]   AuditCiExpectedFailureTests.rejectsIntegrationWhenTheRequiredBackendCheckFails:11 AUDIT_CONTROLLED_FAILURE_C84_2026_10_26: expected failure proving protected-main enforcement; do not merge.",
+    "2026-10-26T17:24:02.8613126Z [ERROR] Tests run: 723, Failures: 1, Errors: 0, Skipped: 0",
+    "2026-10-26T17:24:02.8635949Z [INFO] BUILD FAILURE"
+  ],
+  "test_totals": {
+    "tests": 723,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0
+  },
+  "failure_is_expected": true,
+  "merge_attempted": false,
+  "bypass_attempted": false,
+  "cleanup_verified": true,
+  "proof_complete": true,
+  "observed_before_cleanup_at_utc": "2026-10-26T17:26:04.854125+00:00",
+  "actor": {
+    "login": "Estebangmz666",
+    "permission": "admin",
+    "role_name": "admin"
+  },
+  "changed_files": [
+    {
+      "filename": "src/test/java/edu/uniquindio/grownupsvet/grownupsvet_backend/audit/AuditCiExpectedFailureTests.java",
+      "status": "added",
+      "additions": 13,
+      "deletions": 0
+    }
+  ],
+  "protection": {
+    "url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection",
+    "required_status_checks": {
+      "url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection/required_status_checks",
+      "strict": true,
+      "contexts": [
+        "Backend verification"
+      ],
+      "contexts_url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection/required_status_checks/contexts",
+      "checks": [
+        {
+          "context": "Backend verification",
+          "app_id": 15368
+        }
+      ]
+    },
+    "required_pull_request_reviews": {
+      "url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection/required_pull_request_reviews",
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": false,
+      "required_approving_review_count": 0
+    },
+    "required_signatures": {
+      "url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection/required_signatures",
+      "enabled": false
+    },
+    "enforce_admins": {
+      "url": "https://api.github.com/repos/Estebangmz666/grownupsvet-backend/branches/main/protection/enforce_admins",
+      "enabled": true
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": false
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    }
+  },
+  "pr_observed_before_cleanup": {
+    "number": 5,
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "mergeable": true,
+    "mergeable_state": "blocked",
+    "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/pull/5",
+    "created_at": "2026-10-26T17:20:56Z",
+    "updated_at": "2026-10-26T17:20:56Z"
+  },
+  "main_sha_before_cleanup": "960c8898acbb22a227eac9424260a12936556227",
+  "required_check_runs": [
+    {
+      "id": 121730022933,
+      "name": "Backend verification",
+      "head_sha": "576d96fb9261c570c7e0c17d9d3a00479340c465",
+      "status": "completed",
+      "conclusion": "failure",
+      "app_id": 15368,
+      "details_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40367771554/job/121730022933"
+    },
+    {
+      "id": 121729868438,
+      "name": "Backend verification",
+      "head_sha": "576d96fb9261c570c7e0c17d9d3a00479340c465",
+      "status": "completed",
+      "conclusion": "failure",
+      "app_id": 15368,
+      "details_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40367728795/job/121729868438"
+    }
+  ],
+  "run": {
+    "id": 40367771554,
+    "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40367771554",
+    "head_sha": "576d96fb9261c570c7e0c17d9d3a00479340c465",
+    "head_branch": "codex/audit-ci-rejection-proof-2026-10-26",
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "failure",
+    "created_at": "2026-10-26T17:20:59Z",
+    "updated_at": "2026-10-26T17:24:08Z",
+    "run_attempt": 1
+  },
+  "artifact": {
+    "id": 12670399203,
+    "name": "backend-verification-40367771554-1",
+    "size_in_bytes": 85982,
+    "expired": false,
+    "created_at": "2026-10-26T17:24:04Z",
+    "expires_at": "2026-11-25T17:24:03Z",
+    "digest": "sha256:e4b837d05c70fd07aca8608b3a56348d3609da1f4a6ebbc3c43ac137d8d78531",
+    "preserved": {
+      "file": "C:\\Users\\ASUS\\Documents\\ChatGPT\\GrownupsVet\\output\\auditoria-2026-10-26\\github\\grownupsvet-backend\\artifact-12670399203.zip",
+      "sha256": "e4b837d05c70fd07aca8608b3a56348d3609da1f4a6ebbc3c43ac137d8d78531",
+      "bytes": 85982,
+      "content_reviewed_for_publication": false
+    }
+  },
+  "observed_after_cleanup_at_utc": "2026-10-26T17:26:44.346225+00:00",
+  "main_sha_after_cleanup": "960c8898acbb22a227eac9424260a12936556227",
+  "main_unchanged_before_and_after": true,
+  "pr_closed": true,
+  "pr_merged": false,
+  "pr_closed_at_utc": "2026-10-26T17:26:11Z",
+  "proof_branch_deleted": true,
+  "proof_branch_get_status": 404,
+  "branch_cleanup_method": "git push origin --delete codex/audit-ci-rejection-proof-2026-10-26; no force; exact head and main SHA verified immediately beforehand"
+}

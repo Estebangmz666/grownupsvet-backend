@@ -1,0 +1,18 @@
+{
+  "cutoffDate": "2026-10-26",
+  "verifiedAtUtc": "2026-10-26T17:32:19.6893969+00:00",
+  "sourceGit": "960c8898acbb22a227eac9424260a12936556227",
+  "buildId": "dad42878-dafd-4b77-a87f-b66ab765b6a0",
+  "revision": "grownupsvet-backend-audit-960c8898",
+  "trafficPercent": 100,
+  "tagsRemoved": true,
+  "imageDigest": "sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "contractVersion": "0.11.0",
+  "loginRateLimitEnabled": false,
+  "identifierOriginMaximumConfigured": 5,
+  "hmacSecretBound": false,
+  "serviceMinimumInstances": "1",
+  "serviceMaximumInstances": "1",
+  "previousImageRetainedForCompatibleRollback": true,
+  "paidUpgradePerformed": false
+}

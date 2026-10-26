@@ -1,0 +1,887 @@
+{
+  "formatVersion": 1,
+  "checkedAtUtc": "2026-10-26T17:24:55.696978+00:00",
+  "cutDate": "2026-10-26",
+  "timezone": "America/Bogota",
+  "scope": "CI de código publicado del incremento parcial; no aceptación integral del proyecto.",
+  "remoteMutationsPerformed": false,
+  "repositories": [
+    {
+      "repository": "Estebangmz666/grownupsvet-backend",
+      "targetPrefixes": [
+        "960c8898",
+        "0585ecd"
+      ],
+      "notFound": [],
+      "runs": [
+        {
+          "id": 40366805490,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366805490",
+          "head_sha": "960c8898acbb22a227eac9424260a12936556227",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "585d5eb4a60ff89b4513901183c21754c9dd90c54efd970e4132a343d37f2de9",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-backend/blob/960c8898acbb22a227eac9424260a12936556227/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121726626977,
+              "name": "Backend verification",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366805490/job/121726626977",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Initialize containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Require PowerShell for the demo integration tests",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Install contract validation dependencies",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Compile, test and package against isolated PostgreSQL",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Reject missing, failed or skipped test suites",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Validate generated OpenAPI and real HTTP examples",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Check the versioned OpenAPI snapshot",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verify that the gates reject controlled failures",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Preserve test diagnostics and generated contract",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Stop containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12671610400,
+              "name": "backend-verification-40366805490-1",
+              "size_in_bytes": 85063,
+              "expired": false,
+              "created_at": "2026-10-26T17:17:19Z",
+              "expires_at": "2026-11-25T17:17:18Z",
+              "zipSha256": "d287cbb06c299e2d7847629d20fcf22212c713da26b099e15ba3cc8ddbd62c64",
+              "zipBytes": 85063,
+              "rawZipPublished": false,
+              "observedRetentionDays": 29.999988425925928,
+              "zipMembers": 64,
+              "openApi": {
+                "version": "0.11.0",
+                "paths": 47,
+                "schemas": 69,
+                "sha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotSha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotJsonMatches": true
+              },
+              "junit": {
+                "reports": 63,
+                "tests": 722,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0,
+                "reportsWithProcessProperties": 0
+              },
+              "boundedTextReview": {
+                "filesScanned": 64,
+                "filesSkipped": 0,
+                "bytesScanned": 475981,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              }
+            }
+          ]
+        },
+        {
+          "id": 40366121631,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366121631",
+          "head_sha": "0585ecdc0d23c6e61bdb7903b406529d28a7b705",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "585d5eb4a60ff89b4513901183c21754c9dd90c54efd970e4132a343d37f2de9",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-backend/blob/0585ecdc0d23c6e61bdb7903b406529d28a7b705/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121724175681,
+              "name": "Backend verification",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366121631/job/121724175681",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Initialize containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Require PowerShell for the demo integration tests",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Install contract validation dependencies",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Compile, test and package against isolated PostgreSQL",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Reject missing, failed or skipped test suites",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Validate generated OpenAPI and real HTTP examples",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Check the versioned OpenAPI snapshot",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verify that the gates reject controlled failures",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Preserve test diagnostics and generated contract",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Stop containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12670757270,
+              "name": "backend-verification-40366121631-1",
+              "size_in_bytes": 85110,
+              "expired": false,
+              "created_at": "2026-10-26T17:13:07Z",
+              "expires_at": "2026-11-25T17:13:07Z",
+              "zipSha256": "4fe4c58724b28b4d05e3d626211140b98da0051e555fe380420f2be0a67ff5b6",
+              "zipBytes": 85110,
+              "rawZipPublished": false,
+              "observedRetentionDays": 30.0,
+              "zipMembers": 64,
+              "openApi": {
+                "version": "0.11.0",
+                "paths": 47,
+                "schemas": 69,
+                "sha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotSha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotJsonMatches": true
+              },
+              "junit": {
+                "reports": 63,
+                "tests": 722,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0,
+                "reportsWithProcessProperties": 0
+              },
+              "boundedTextReview": {
+                "filesScanned": 64,
+                "filesSkipped": 0,
+                "bytesScanned": 475951,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              }
+            }
+          ]
+        },
+        {
+          "id": 40366059706,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366059706",
+          "head_sha": "0585ecdc0d23c6e61bdb7903b406529d28a7b705",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "585d5eb4a60ff89b4513901183c21754c9dd90c54efd970e4132a343d37f2de9",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-backend/blob/0585ecdc0d23c6e61bdb7903b406529d28a7b705/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121723957718,
+              "name": "Backend verification",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40366059706/job/121723957718",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Initialize containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Require PowerShell for the demo integration tests",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Install contract validation dependencies",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Compile, test and package against isolated PostgreSQL",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Reject missing, failed or skipped test suites",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Validate generated OpenAPI and real HTTP examples",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Check the versioned OpenAPI snapshot",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verify that the gates reject controlled failures",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Preserve test diagnostics and generated contract",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Python",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configure Java 25",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Stop containers",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12669603779,
+              "name": "backend-verification-40366059706-1",
+              "size_in_bytes": 85155,
+              "expired": false,
+              "created_at": "2026-10-26T17:13:15Z",
+              "expires_at": "2026-11-25T17:13:13Z",
+              "zipSha256": "1ac32dced1a41480d01e06194260438e7529313c61fab90bd3afdbf4ce0fbdbc",
+              "zipBytes": 85155,
+              "rawZipPublished": false,
+              "observedRetentionDays": 29.99997685185185,
+              "zipMembers": 64,
+              "openApi": {
+                "version": "0.11.0",
+                "paths": 47,
+                "schemas": 69,
+                "sha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotSha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d",
+                "sourceSnapshotJsonMatches": true
+              },
+              "junit": {
+                "reports": 63,
+                "tests": 722,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0,
+                "reportsWithProcessProperties": 0
+              },
+              "boundedTextReview": {
+                "filesScanned": 64,
+                "filesSkipped": 0,
+                "bytesScanned": 475995,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "Estebangmz666/grownupsvet-frontend",
+      "targetPrefixes": [
+        "9cdcb03",
+        "4d2"
+      ],
+      "notFound": [],
+      "runs": [
+        {
+          "id": 40365585334,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40365585334",
+          "head_sha": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "9f25a99384b30c671bb5b5f11909d0dc7e0404b9682e4a3c76ae0407338dd12b",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-frontend/blob/9cdcb03a9141c2f63f14d4476d3298d6648e74e1/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121722264264,
+              "name": "Tipos, lint y pruebas",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40365585334/job/121722264264",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Instalar dependencias (lockfile)",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verificar tipos, lint y pruebas",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Empaquetar la vista web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Publicar el bundle web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12670017707,
+              "name": "web-dist",
+              "size_in_bytes": 551377,
+              "expired": false,
+              "created_at": "2026-10-26T17:08:03Z",
+              "expires_at": "2026-11-25T17:08:02Z",
+              "zipSha256": "efcb45033a56542b8c9532cb45e65dd33ab3e0eaf11e88b37e496b86393ce875",
+              "zipBytes": 551377,
+              "rawZipPublished": false,
+              "observedRetentionDays": 29.999988425925928,
+              "zipMembers": 26,
+              "boundedTextReview": {
+                "filesScanned": 11,
+                "filesSkipped": 15,
+                "bytesScanned": 1181552,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              },
+              "webBundles": [
+                {
+                  "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+                  "bytes": 1163521,
+                  "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+                  "matchesLiveBytes": true
+                }
+              ]
+            }
+          ],
+          "jobLogReview": [
+            {
+              "jobId": 121722264264,
+              "sha256": "181a952f5e21223a2d50939cbff42713f8fd0591a1d1820e893c7ea24064fce6",
+              "bytes": 29392,
+              "testFilesPassed": 47,
+              "testsPassed": 835,
+              "boundedSecretPatternCounts": {
+                "github_token_like": 0,
+                "private_key_pem": 0,
+                "authorization_bearer_literal": 0,
+                "jwt_like": 0
+              },
+              "rawLogPublished": false
+            }
+          ],
+          "packageSourceSha256": "ac3191b07ec43efc9c87f60509019b07e460e19ed45789370d951ff41fa78327",
+          "checkAndBuildCommands": {
+            "lint": "eslint .",
+            "typecheck": "tsc --noEmit",
+            "test": "vitest run",
+            "check": "npm run typecheck && npm run lint && npm test",
+            "web:build": "expo export --platform web --output-dir dist && node scripts/prepare-web-build.mjs"
+          }
+        },
+        {
+          "id": 40362265777,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40362265777",
+          "head_sha": "4d2cedb4689a6dd4a5416661047978b575b15d88",
+          "event": "pull_request",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "9f25a99384b30c671bb5b5f11909d0dc7e0404b9682e4a3c76ae0407338dd12b",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-frontend/blob/4d2cedb4689a6dd4a5416661047978b575b15d88/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121710543832,
+              "name": "Tipos, lint y pruebas",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40362265777/job/121710543832",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Instalar dependencias (lockfile)",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verificar tipos, lint y pruebas",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Empaquetar la vista web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Publicar el bundle web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12668567550,
+              "name": "web-dist",
+              "size_in_bytes": 551377,
+              "expired": false,
+              "created_at": "2026-10-26T16:46:55Z",
+              "expires_at": "2026-11-25T16:46:54Z",
+              "zipSha256": "25d8ae4c845d0ce4ad06903c42538854955134b90d528968524074d26b57622b",
+              "zipBytes": 551377,
+              "rawZipPublished": false,
+              "observedRetentionDays": 29.999988425925928,
+              "zipMembers": 26,
+              "boundedTextReview": {
+                "filesScanned": 11,
+                "filesSkipped": 15,
+                "bytesScanned": 1181552,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              },
+              "webBundles": [
+                {
+                  "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+                  "bytes": 1163521,
+                  "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+                  "matchesLiveBytes": true
+                }
+              ]
+            }
+          ],
+          "jobLogReview": [
+            {
+              "jobId": 121710543832,
+              "sha256": "0517b0842f6d24feb6688b53f5cf79a46b12a50c6a0518dc50f5307b50c20a2f",
+              "bytes": 30443,
+              "testFilesPassed": 47,
+              "testsPassed": 835,
+              "boundedSecretPatternCounts": {
+                "github_token_like": 0,
+                "private_key_pem": 0,
+                "authorization_bearer_literal": 0,
+                "jwt_like": 0
+              },
+              "rawLogPublished": false
+            }
+          ],
+          "packageSourceSha256": "ac3191b07ec43efc9c87f60509019b07e460e19ed45789370d951ff41fa78327",
+          "checkAndBuildCommands": {
+            "lint": "eslint .",
+            "typecheck": "tsc --noEmit",
+            "test": "vitest run",
+            "check": "npm run typecheck && npm run lint && npm test",
+            "web:build": "expo export --platform web --output-dir dist && node scripts/prepare-web-build.mjs"
+          }
+        },
+        {
+          "id": 40362257193,
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40362257193",
+          "head_sha": "4d2cedb4689a6dd4a5416661047978b575b15d88",
+          "event": "push",
+          "status": "completed",
+          "conclusion": "success",
+          "workflowSourceSha256": "9f25a99384b30c671bb5b5f11909d0dc7e0404b9682e4a3c76ae0407338dd12b",
+          "workflowSourceUrl": "https://github.com/Estebangmz666/grownupsvet-frontend/blob/4d2cedb4689a6dd4a5416661047978b575b15d88/.github/workflows/ci.yml",
+          "declaredArtifactRetentionDays": [
+            30
+          ],
+          "jobs": [
+            {
+              "id": 121710514660,
+              "name": "Tipos, lint y pruebas",
+              "status": "completed",
+              "conclusion": "success",
+              "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40362257193/job/121710514660",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Instalar dependencias (lockfile)",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Verificar tipos, lint y pruebas",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Empaquetar la vista web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Publicar el bundle web",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Configurar Node",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Post Checkout",
+                  "conclusion": "success"
+                },
+                {
+                  "name": "Complete job",
+                  "conclusion": "success"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 12668003077,
+              "name": "web-dist",
+              "size_in_bytes": 551377,
+              "expired": false,
+              "created_at": "2026-10-26T16:47:01Z",
+              "expires_at": "2026-11-25T16:47:00Z",
+              "zipSha256": "1f70a08bb6d9b2130aa557af745ee381d7ad21bdc4e05febfb57019757f20ec7",
+              "zipBytes": 551377,
+              "rawZipPublished": false,
+              "observedRetentionDays": 29.999988425925928,
+              "zipMembers": 26,
+              "boundedTextReview": {
+                "filesScanned": 11,
+                "filesSkipped": 15,
+                "bytesScanned": 1181552,
+                "secretPatternCounts": {
+                  "github_token_like": 0,
+                  "private_key_pem": 0,
+                  "authorization_bearer_literal": 0,
+                  "jwt_like": 0
+                },
+                "exhaustive": false
+              },
+              "webBundles": [
+                {
+                  "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+                  "bytes": 1163521,
+                  "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+                  "matchesLiveBytes": true
+                }
+              ]
+            }
+          ],
+          "jobLogReview": [
+            {
+              "jobId": 121710514660,
+              "sha256": "39a2ead88decc87ed94a9c251dbc9c6b5b3d4b4c1f45adf9672350294800ec02",
+              "bytes": 29586,
+              "testFilesPassed": 47,
+              "testsPassed": 835,
+              "boundedSecretPatternCounts": {
+                "github_token_like": 0,
+                "private_key_pem": 0,
+                "authorization_bearer_literal": 0,
+                "jwt_like": 0
+              },
+              "rawLogPublished": false
+            }
+          ],
+          "packageSourceSha256": "ac3191b07ec43efc9c87f60509019b07e460e19ed45789370d951ff41fa78327",
+          "checkAndBuildCommands": {
+            "lint": "eslint .",
+            "typecheck": "tsc --noEmit",
+            "test": "vitest run",
+            "check": "npm run typecheck && npm run lint && npm test",
+            "web:build": "expo export --platform web --output-dir dist && node scripts/prepare-web-build.mjs"
+          }
+        }
+      ],
+      "postMergeChecks": [
+        {
+          "id": 121722998306,
+          "name": "Cloudflare Pages",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/runs/121722998306",
+          "head_sha": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+          "app": "cloudflare-workers-and-pages"
+        },
+        {
+          "id": 121722264264,
+          "name": "Tipos, lint y pruebas",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Estebangmz666/grownupsvet-frontend/actions/runs/40365585334/job/121722264264",
+          "head_sha": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+          "app": "github-actions"
+        }
+      ]
+    }
+  ],
+  "contentReviewLimits": {
+    "maximumMembersPerZip": 300,
+    "maximumTextBytesPerFile": 8388608,
+    "maximumTextBytesPerZip": 16777216,
+    "binaryMediaNotScanned": true,
+    "reviewIsBoundedNotExhaustive": true,
+    "rawArchivesAndLogsPublished": false
+  },
+  "liveFrontend": {
+    "htmlHttpStatus": 200,
+    "bundleHttpStatus": 200,
+    "bundleUrl": "https://grownupsvet-frontend.pages.dev/_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+    "bundleSha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+    "bundleBytes": 1163521,
+    "boundedSecretPatternCounts": {
+      "github_token_like": 0,
+      "private_key_pem": 0,
+      "authorization_bearer_literal": 0,
+      "jwt_like": 0
+    },
+    "rawBundlePublished": false,
+    "ciComparisons": [
+      {
+        "repository": "Estebangmz666/grownupsvet-frontend",
+        "runId": 40365585334,
+        "sourceSha": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+        "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+        "bytes": 1163521,
+        "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+        "matchesLiveBytes": true
+      },
+      {
+        "repository": "Estebangmz666/grownupsvet-frontend",
+        "runId": 40362265777,
+        "sourceSha": "4d2cedb4689a6dd4a5416661047978b575b15d88",
+        "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+        "bytes": 1163521,
+        "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+        "matchesLiveBytes": true
+      },
+      {
+        "repository": "Estebangmz666/grownupsvet-frontend",
+        "runId": 40362257193,
+        "sourceSha": "4d2cedb4689a6dd4a5416661047978b575b15d88",
+        "member": "_expo/static/js/web/index-05d461c8f0d4f780f8c5161492dc5474.js",
+        "bytes": 1163521,
+        "sha256": "dd90daa15c1617e269852dcc5f95c3f6466a45fa488f5b11ee88d256488dad4e",
+        "matchesLiveBytes": true
+      }
+    ]
+  }
+}

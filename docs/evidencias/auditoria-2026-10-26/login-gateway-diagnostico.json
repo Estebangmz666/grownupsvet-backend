@@ -1,0 +1,82 @@
+{
+  "cutoffDate": "2026-10-26",
+  "scope": "Diagnóstico acotado posterior a activación; no cambia el resultado del ensayo gateway ni C100 API directa",
+  "observedAtUtc": "2026-10-26T18:16:41.7307394Z",
+  "classification": "NO_CLASIFICADO",
+  "originalReport": "smoke-login-limits-production-sanitized.json",
+  "originalReportStatusRetained": "FAILED",
+  "expectedGatewaySeventhStatus": 429,
+  "actualGatewaySeventhStatus": 403,
+  "clientSource": {
+    "file": "smoke_login_limits_production.py",
+    "sha256": "652dd0aa7f6d2bf33204c570fa6040d36a0e8c60d4b17f19f87160deb4667a00",
+    "routeDeclarationLine": 57,
+    "headerCopyLine": 67,
+    "seventhExtraHeadersLine": 69,
+    "normalExplicitHeaderNames": [
+      "Accept",
+      "Connection",
+      "Content-Type",
+      "Origin"
+    ],
+    "seventhExplicitHeaderNames": [
+      "Accept",
+      "Connection",
+      "Content-Type",
+      "Origin",
+      "X-Forwarded-For",
+      "Forwarded",
+      "CF-Connecting-IP"
+    ],
+    "originSameAcrossAllSeven": true,
+    "originAddedOnlyOnSeventh": false,
+    "refererPresentNormally": false,
+    "refererPresentOnSeventh": false,
+    "syntheticIdentifierUnchangedAcrossSeven": true,
+    "transportGeneratedHeadersNotCaptured": true
+  },
+  "gatewaySource": {
+    "originAndRefererStripped": true,
+    "xForwardedForReconstructed": true,
+    "forwardedAndCfConnectingIpNotListedInStripSet": true,
+    "explicit403HandlerForTheseHeadersFound": false,
+    "sourceFiles": [
+      "proxy/policy.mjs",
+      "proxy/worker.mjs"
+    ],
+    "sourceObservationDoesNotProveEdgeBehavior": true
+  },
+  "savedResponseEvidence": {
+    "status": 403,
+    "bodyCaptured": false,
+    "headersCaptured": false,
+    "contentType": null,
+    "isInvalidCorsRequest": null,
+    "genericErrorCode": null,
+    "limitation": "El harness no persistió cuerpo ni headers y el identificador A sólo existió en memoria; no se reconstruyó ni sustituyó por otro para repetir la petición."
+  },
+  "requestLogMetadata": {
+    "project": "project-4f1c67ce-5621-40e0-96c",
+    "revision": "grownupsvet-backend-admission-960c8898",
+    "windowStartUtc": "2026-10-26T18:07:41Z",
+    "windowEndUtc": "2026-10-26T18:09:11Z",
+    "method": "POST",
+    "path": "/api/v1/auth/sessions",
+    "entryCount": 13,
+    "status401Count": 10,
+    "status429Count": 3,
+    "status403Count": 0,
+    "logsMatchThirteenPrecedingResponses": true,
+    "requestPayloadsRequested": false,
+    "remoteIpsRequested": false,
+    "jwtsRequested": false
+  },
+  "conclusion": "El cliente no introdujo Origin sólo en el séptimo intento. No aparece un403 correspondiente en los logs acotados de CloudRun; es un indicio de rechazo anterior a CloudRun, sin atribución confirmada a Cloudflare, CORS ni al limitador. La causa exacta permanece no clasificada.",
+  "additionalHttpRequests": 0,
+  "productionSqlExecuted": false,
+  "configurationChanged": false,
+  "loggerChanged": false,
+  "originalFailureChanged": false,
+  "C100DirectAcceptanceUnchanged": "PASSED",
+  "furtherDiagnosticsStopped": true
+}

@@ -1,0 +1,10 @@
+{
+  "cutoffDate": "2026-10-26",
+  "revision": "grownupsvet-backend-audit-960c8898",
+  "matchingEntries": 27,
+  "v23MigrationObserved": true,
+  "appliedOneMigrationObserved": true,
+  "version23Observed": true,
+  "all23ValidatedObserved": true,
+  "directProductionSqlPerformed": false
+}

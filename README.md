@@ -1,6 +1,8 @@
 # GrownupsVet backend
 
-API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.10.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [informe de P3](docs/verificacion-backend-p3-2026-10-25.md) distingue pruebas, publicación Git y aceptación del despliegue.
+API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.11.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [expediente de auditoría](docs/expediente-auditoria-2026-10-26.md) distingue pruebas, publicación y estado del despliegue.
+
+**Auditoría parcial con corte al 26 de octubre de 2026, America/Bogota:** P1/P2 web y P3 API en las versiones y límites documentados. La auditoría del proyecto completo debe esperar su finalización y entrega final. Consultar el [manual por roles](docs/manual-usuario-auditoria-2026-10-26.md), la [arquitectura del corte](docs/arquitectura-auditoria-2026-10-26.md) y el [kit de BD con datos ficticios](docs/auditoria-base-datos.md).
 
 ## Alcance funcional
 
@@ -62,7 +64,7 @@ Con el backend local en su puerto predeterminado:
 - OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`.
 - Salud: `/actuator/health/liveness` y `/actuator/health/readiness`.
 
-El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.10.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
+El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.11.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
 
 Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores utilizan `application/problem+json`, con `errorCode` y `fieldErrors` para los clientes. Registro, autenticación y operaciones públicas tienen sus condiciones específicas en OpenAPI; la existencia de una ruta no concede acceso a datos ajenos.
 

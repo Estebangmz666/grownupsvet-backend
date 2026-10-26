@@ -1,0 +1,894 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "startedAtUtc": "2026-10-26T17:37:53.363688+00:00",
+  "scope": "Partial API acceptance; P1/P2 web and P3 API remain separate scopes",
+  "sourceGit": "960c8898acbb22a227eac9424260a12936556227",
+  "revision": "grownupsvet-backend-audit-960c8898",
+  "imageDigest": "sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+  "origin": "https://grownupsvet-backend-w5glrcsyda-uc.a.run.app",
+  "checks": {
+    "live_contract_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:53.866836+00:00",
+      "evidence": {}
+    },
+    "published_contract": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:53.867286+00:00",
+      "evidence": {}
+    },
+    "probe_liveness_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.085783+00:00",
+      "evidence": {}
+    },
+    "probe_liveness_up": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.086265+00:00",
+      "evidence": {}
+    },
+    "probe_readiness_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.365369+00:00",
+      "evidence": {}
+    },
+    "probe_readiness_up": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.365782+00:00",
+      "evidence": {}
+    },
+    "profile_anonymous_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.574694+00:00",
+      "evidence": {}
+    },
+    "profile_anonymous_private": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:54.575388+00:00",
+      "evidence": {}
+    },
+    "login_super_admin_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.091292+00:00",
+      "evidence": {}
+    },
+    "login_identity_super_admin_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.091888+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_super_admin_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.284725+00:00",
+      "evidence": {}
+    },
+    "login_administrator_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.641019+00:00",
+      "evidence": {}
+    },
+    "login_identity_administrator_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.641460+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_administrator_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:55.783753+00:00",
+      "evidence": {}
+    },
+    "login_veterinarian_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.169632+00:00",
+      "evidence": {}
+    },
+    "login_identity_veterinarian_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.170322+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_veterinarian_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.314479+00:00",
+      "evidence": {}
+    },
+    "login_veterinarian_2_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.743549+00:00",
+      "evidence": {}
+    },
+    "login_identity_veterinarian_2": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.744298+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_veterinarian_2": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:56.885236+00:00",
+      "evidence": {}
+    },
+    "login_owner_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.261522+00:00",
+      "evidence": {}
+    },
+    "login_identity_owner_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.262031+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_owner_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.415115+00:00",
+      "evidence": {}
+    },
+    "login_owner_2_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.800741+00:00",
+      "evidence": {}
+    },
+    "login_identity_owner_2": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.801501+00:00",
+      "evidence": {
+        "bearerType": true,
+        "lifetime": true,
+        "subject": true,
+        "role": true,
+        "nonStorable": true
+      }
+    },
+    "jwt_claims_owner_2": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:57.954354+00:00",
+      "evidence": {}
+    },
+    "owner_profile_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:58.553061+00:00",
+      "evidence": {}
+    },
+    "owner_profile_identity": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:58.553852+00:00",
+      "evidence": {}
+    },
+    "owner_profile_forbidden_administrator_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:58.962356+00:00",
+      "evidence": {}
+    },
+    "profile_role_denied_administrator_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:58.963048+00:00",
+      "evidence": {}
+    },
+    "owner_profile_forbidden_super_admin_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:59.294419+00:00",
+      "evidence": {}
+    },
+    "profile_role_denied_super_admin_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:59.294824+00:00",
+      "evidence": {}
+    },
+    "owner_profile_forbidden_veterinarian_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:59.612847+00:00",
+      "evidence": {}
+    },
+    "profile_role_denied_veterinarian_1": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:59.613351+00:00",
+      "evidence": {}
+    },
+    "profile_modified_signature_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:37:59.839106+00:00",
+      "evidence": {}
+    },
+    "modified_signature_denied": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:00.017375+00:00",
+      "evidence": {}
+    },
+    "super_admin_lists_administrators_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:00.653781+00:00",
+      "evidence": {}
+    },
+    "administrator_lists_veterinarians_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:01.435843+00:00",
+      "evidence": {}
+    },
+    "super_admin_cannot_manage_veterinarians_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:01.849763+00:00",
+      "evidence": {}
+    },
+    "owner_cannot_list_staff_administration_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:02.175111+00:00",
+      "evidence": {}
+    },
+    "owner_lists_own_pets_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:02.666252+00:00",
+      "evidence": {}
+    },
+    "own_pet_read_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:03.116902+00:00",
+      "evidence": {}
+    },
+    "foreign_pet_hidden_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:03.632711+00:00",
+      "evidence": {}
+    },
+    "own_published_history_read_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:04.225869+00:00",
+      "evidence": {}
+    },
+    "foreign_clinical_history_hidden_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:04.771309+00:00",
+      "evidence": {}
+    },
+    "administrative_clinical_history_denied_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:05.134049+00:00",
+      "evidence": {}
+    },
+    "assigned_veterinarian_reads_existing_draft_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:05.549937+00:00",
+      "evidence": {}
+    },
+    "existing_clinical_identity": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:05.550759+00:00",
+      "evidence": {}
+    },
+    "assigned_veterinarian_reads_treatment_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:06.136232+00:00",
+      "evidence": {}
+    },
+    "clinical_visibility_veterinarian_2_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:06.604210+00:00",
+      "evidence": {}
+    },
+    "clinical_visibility_owner_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:07.059785+00:00",
+      "evidence": {}
+    },
+    "clinical_visibility_administrator_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:07.403016+00:00",
+      "evidence": {}
+    },
+    "clinical_visibility_super_admin_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:07.760912+00:00",
+      "evidence": {}
+    },
+    "owner_logout_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:08.409302+00:00",
+      "evidence": {}
+    },
+    "revoked_owner_profile_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:08.763469+00:00",
+      "evidence": {}
+    },
+    "revoked_owner_profile_private": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:08.764110+00:00",
+      "evidence": {}
+    },
+    "second_owner_logout_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:09.155059+00:00",
+      "evidence": {}
+    },
+    "revocation_before_natural_expiry": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:09.155678+00:00",
+      "evidence": {}
+    },
+    "cleanup_logout_super_admin_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:09.632618+00:00",
+      "evidence": {}
+    },
+    "cleanup_logout_administrator_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:10.083563+00:00",
+      "evidence": {}
+    },
+    "cleanup_logout_veterinarian_1_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:10.584592+00:00",
+      "evidence": {}
+    },
+    "cleanup_logout_veterinarian_2_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:11.117927+00:00",
+      "evidence": {}
+    },
+    "cleanup_logout_owner_2_http": {
+      "passed": true,
+      "atUtc": "2026-10-26T17:38:11.593434+00:00",
+      "evidence": {}
+    }
+  },
+  "httpSamples": [
+    {
+      "case": "live_contract",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 501.654,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:53.866166+00:00"
+    },
+    {
+      "case": "probe_liveness",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 217.468,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:54.085251+00:00"
+    },
+    {
+      "case": "probe_readiness",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 277.974,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:54.364785+00:00"
+    },
+    {
+      "case": "profile_anonymous",
+      "method": "GET",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "elapsedMilliseconds": 207.758,
+      "errorCode": "AUTHENTICATION_REQUIRED",
+      "atUtc": "2026-10-26T17:37:54.573972+00:00"
+    },
+    {
+      "case": "login_super_admin_1",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 514.782,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:55.090740+00:00"
+    },
+    {
+      "case": "login_administrator_1",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 354.818,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:55.640378+00:00"
+    },
+    {
+      "case": "login_veterinarian_1",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 384.257,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:56.168925+00:00"
+    },
+    {
+      "case": "login_veterinarian_2",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 427.134,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:56.742588+00:00"
+    },
+    {
+      "case": "login_owner_1",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 374.963,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:57.260809+00:00"
+    },
+    {
+      "case": "login_owner_2",
+      "method": "POST",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 383.693,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:57.799609+00:00"
+    },
+    {
+      "case": "owner_profile",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 596.681,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:37:58.551931+00:00"
+    },
+    {
+      "case": "owner_profile_forbidden_administrator_1",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 406.731,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:37:58.961367+00:00"
+    },
+    {
+      "case": "owner_profile_forbidden_super_admin_1",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 330.017,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:37:59.293813+00:00"
+    },
+    {
+      "case": "owner_profile_forbidden_veterinarian_1",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 316.379,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:37:59.612086+00:00"
+    },
+    {
+      "case": "profile_modified_signature",
+      "method": "GET",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "elapsedMilliseconds": 224.387,
+      "errorCode": "AUTHENTICATION_REQUIRED",
+      "atUtc": "2026-10-26T17:37:59.838335+00:00"
+    },
+    {
+      "case": "super_admin_lists_administrators",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 634.462,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:00.652946+00:00"
+    },
+    {
+      "case": "administrator_lists_veterinarians",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 780.262,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:01.434802+00:00"
+    },
+    {
+      "case": "super_admin_cannot_manage_veterinarians",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 411.813,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:38:01.848689+00:00"
+    },
+    {
+      "case": "owner_cannot_list_staff_administration",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 323.488,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:38:02.174213+00:00"
+    },
+    {
+      "case": "owner_lists_own_pets",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 489.377,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:02.665417+00:00"
+    },
+    {
+      "case": "own_pet_read",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 448.792,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:03.116064+00:00"
+    },
+    {
+      "case": "foreign_pet_hidden",
+      "method": "GET",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "elapsedMilliseconds": 514.498,
+      "errorCode": "PET_NOT_FOUND",
+      "atUtc": "2026-10-26T17:38:03.631859+00:00"
+    },
+    {
+      "case": "own_published_history_read",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 591.929,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:04.225188+00:00"
+    },
+    {
+      "case": "foreign_clinical_history_hidden",
+      "method": "GET",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "elapsedMilliseconds": 543.729,
+      "errorCode": "CLINICAL_ENCOUNTER_NOT_FOUND",
+      "atUtc": "2026-10-26T17:38:04.770414+00:00"
+    },
+    {
+      "case": "administrative_clinical_history_denied",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 361.181,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:38:05.133018+00:00"
+    },
+    {
+      "case": "assigned_veterinarian_reads_existing_draft",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 413.891,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:05.548818+00:00"
+    },
+    {
+      "case": "assigned_veterinarian_reads_treatment",
+      "method": "GET",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "elapsedMilliseconds": 583.556,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:06.135307+00:00"
+    },
+    {
+      "case": "clinical_visibility_veterinarian_2",
+      "method": "GET",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "elapsedMilliseconds": 466.1,
+      "errorCode": "CLINICAL_ENCOUNTER_NOT_FOUND",
+      "atUtc": "2026-10-26T17:38:06.603144+00:00"
+    },
+    {
+      "case": "clinical_visibility_owner_1",
+      "method": "GET",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "elapsedMilliseconds": 453.788,
+      "errorCode": "CLINICAL_ENCOUNTER_NOT_FOUND",
+      "atUtc": "2026-10-26T17:38:07.058656+00:00"
+    },
+    {
+      "case": "clinical_visibility_administrator_1",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 341.06,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:38:07.401989+00:00"
+    },
+    {
+      "case": "clinical_visibility_super_admin_1",
+      "method": "GET",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "elapsedMilliseconds": 356.018,
+      "errorCode": "ACCESS_DENIED",
+      "atUtc": "2026-10-26T17:38:07.759912+00:00"
+    },
+    {
+      "case": "owner_logout",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "elapsedMilliseconds": 646.458,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:08.408348+00:00"
+    },
+    {
+      "case": "revoked_owner_profile",
+      "method": "GET",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "elapsedMilliseconds": 352.387,
+      "errorCode": "AUTHENTICATION_REQUIRED",
+      "atUtc": "2026-10-26T17:38:08.762437+00:00"
+    },
+    {
+      "case": "second_owner_logout",
+      "method": "DELETE",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "elapsedMilliseconds": 389.432,
+      "errorCode": "AUTHENTICATION_REQUIRED",
+      "atUtc": "2026-10-26T17:38:09.154234+00:00"
+    },
+    {
+      "case": "cleanup_logout_super_admin_1",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204,
+        401
+      ],
+      "elapsedMilliseconds": 475.295,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:09.631784+00:00"
+    },
+    {
+      "case": "cleanup_logout_administrator_1",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204,
+        401
+      ],
+      "elapsedMilliseconds": 449.321,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:10.082495+00:00"
+    },
+    {
+      "case": "cleanup_logout_veterinarian_1",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204,
+        401
+      ],
+      "elapsedMilliseconds": 499.378,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:10.583743+00:00"
+    },
+    {
+      "case": "cleanup_logout_veterinarian_2",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204,
+        401
+      ],
+      "elapsedMilliseconds": 531.782,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:11.117064+00:00"
+    },
+    {
+      "case": "cleanup_logout_owner_2",
+      "method": "DELETE",
+      "status": 204,
+      "expected": [
+        204,
+        401
+      ],
+      "elapsedMilliseconds": 473.625,
+      "errorCode": null,
+      "atUtc": "2026-10-26T17:38:11.592467+00:00"
+    }
+  ],
+  "testRail": {
+    "C64": {
+      "result": "PASSED",
+      "case": "PV-RNF-04.03-01",
+      "allRequiredStepsExecuted": true,
+      "evidence": [
+        "login_owner_1_http",
+        "jwt_claims_owner_1",
+        "owner_profile_identity"
+      ],
+      "signatureVerification": "RS256 with existing certificate public key; private key never requested"
+    },
+    "C65": {
+      "result": "PASSED",
+      "case": "PV-RNF-04.03-02",
+      "allRequiredStepsExecuted": true,
+      "evidence": [
+        "profile_anonymous_private",
+        "modified_signature_denied"
+      ]
+    },
+    "C67": {
+      "result": "PARTIAL_HTTP_PASSED_NOT_FULL",
+      "case": "PV-RNF-04.04-01",
+      "allRequiredCaseStepsExecuted": false,
+      "completedHttpSteps": [
+        1,
+        2,
+        3
+      ],
+      "step4ConditionAppliesBecauseHarnessWasUsed": true,
+      "revocationRecordExistenceVerified": false,
+      "missingStep": "Step 4: verify the revocation record exists without exporting its values. No SQL oracle was executed.",
+      "evidence": [
+        "owner_logout_http",
+        "revoked_owner_profile_private",
+        "second_owner_logout_http",
+        "revocation_before_natural_expiry"
+      ],
+      "testRailStatusMustNotBeChangedToPassed": true
+    },
+    "C13_C14_C15_C98": {
+      "result": "NOT_COMPLETED",
+      "reason": "Read-only API observations do not execute their creation/finalization/reassignment and other required variants"
+    },
+    "C85_C88_AND_CTI": {
+      "result": "NOT_EXECUTED_BY_THIS_HARNESS",
+      "reason": "Require browser/client interactions; API cannot close them"
+    }
+  },
+  "businessMutationPerformed": false,
+  "directSqlPerformed": false,
+  "smtpRequested": false,
+  "calendarOrClockChanged": false,
+  "credentialsPersisted": false,
+  "jwtPersisted": false,
+  "permittedSessionMutations": [
+    "LOGIN_super_admin_1",
+    "LOGIN_administrator_1",
+    "LOGIN_veterinarian_1",
+    "LOGIN_veterinarian_2",
+    "LOGIN_owner_1",
+    "LOGIN_owner_2",
+    "LOGOUT_owner_1",
+    "LOGOUT_super_admin_1",
+    "LOGOUT_administrator_1",
+    "LOGOUT_veterinarian_1",
+    "LOGOUT_veterinarian_2",
+    "LOGOUT_owner_2"
+  ],
+  "status": "PASSED_FOR_EXECUTED_API_CHECKS",
+  "limitations": [
+    "No browser or CTI/E2E claim",
+    "No clinical creation/finalization/reassignment or reminder delivery",
+    "No direct SQL persistence oracle",
+    "No security/global availability percentage or M1-M9 certification",
+    "Rate limit activation is not claimed; deployment configuration remains disabled",
+    "C67 remains partial: its conditional harness revocation-record verification (step 4) was not executed. API rejection after logout does not replace that step."
+  ],
+  "contractVersion": "0.11.0",
+  "contractRawSha256": "82a84c97a4ad3b3139125854546a1ff61d66e1835146aba1cdb4cbdf25c646b1",
+  "publicKeySha256": "7b002cdfeb51fb6a7f8905af8405a67eadff16928adacfe12abeec392dd921d7",
+  "rolesAuthenticated": [
+    "ADMINISTRATOR",
+    "OWNER",
+    "SUPER_ADMIN",
+    "VETERINARIAN"
+  ],
+  "existingClinicalResourceObserved": "DRAFT",
+  "completedAtUtc": "2026-10-26T17:38:11.594165+00:00",
+  "sessionsRetainedInHarness": 0,
+  "testRailFullyCompletedCases": [
+    "C64",
+    "C65"
+  ]
+}

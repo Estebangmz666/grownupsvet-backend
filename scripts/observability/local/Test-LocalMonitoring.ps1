@@ -39,7 +39,10 @@ try {
     if ($result.status -ne 'success') { throw 'MONITORING_DATASOURCE_QUERY_FAILED' }
     $up = if ($result.data.result.Count -eq 1) {[string]$result.data.result[0].value[1]} else {'PENDING_FIRST_SCRAPE'}
     $prometheusRecord = @($records | Where-Object name -eq 'prometheus')[0]
-    $lastScrape = [DateTimeOffset]::Parse($targets[0].lastScrape)
+    $scrapeTimestamp = $targets[0].lastScrape
+    $lastScrape = if ($scrapeTimestamp -is [DateTimeOffset]) { $scrapeTimestamp }
+        elseif ($scrapeTimestamp -is [DateTime]) { [DateTimeOffset]::new($scrapeTimestamp) }
+        else { [DateTimeOffset]::Parse([string]$scrapeTimestamp, [Globalization.CultureInfo]::InvariantCulture) }
     $freshScrape = $lastScrape.UtcTicks -gt [long]$prometheusRecord.startTimeUtcTicks -and $lastScrape -gt [DateTimeOffset]::UtcNow.AddSeconds(-90)
     $remoteVerified = $up -eq '1' -and $targets[0].health -eq 'up' -and $freshScrape
     if ($RequireRemoteUp -and -not $remoteVerified) { throw 'MONITORING_REMOTE_SCRAPE_NOT_UP' }

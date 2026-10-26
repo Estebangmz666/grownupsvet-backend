@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "checkedAtUtc": "2026-10-26T18:16:33.919619+00:00",
+  "cutDate": "2026-10-26",
+  "timezone": "America/Bogota",
+  "status": "PASSED",
+  "sourceGit": "960c8898acbb22a227eac9424260a12936556227",
+  "expectedRevision": "grownupsvet-backend-admission-960c8898",
+  "origin": "https://grownupsvet-backend-w5glrcsyda-uc.a.run.app",
+  "localAction": "Existing portable processes restarted with guarded hidden helper; first 45-second cold-start timeout cleaned up only newly started processes, second start passed.",
+  "installedOrUpdatedSoftware": false,
+  "configurationOrCredentialsChanged": false,
+  "cloudResourcesChanged": false,
+  "credentialsReadByThisVerifier": false,
+  "rawMetricsOrLogsPersisted": false,
+  "existingHelperRemoteCheck": {
+    "result": "FAILED_AT_TIMESTAMP_CONVERSION",
+    "category": "MethodInvocationException",
+    "observedLastScrapeDotNetType": "System.DateTime",
+    "dateTimeOffsetParsePassed": false,
+    "sourceFilesChanged": false,
+    "independentJsonVerifierUsed": true
+  },
+  "localRuntime": {
+    "loopbackOnly": true,
+    "grafanaEdition": "oss",
+    "grafanaVersion": "13.2.4",
+    "prometheusVersion": "3.15.1",
+    "dashboardReadOnly": true,
+    "panelCount": 10,
+    "retentionMaximum": "30d / 512MB",
+    "dashboardUrl": "http://127.0.0.1:3000/d/grownupsvet-observability"
+  },
+  "grafana": {
+    "database": "ok",
+    "datasourceVerified": true,
+    "dashboardReadOnly": true,
+    "panelCount": 10
+  },
+  "target": {
+    "count": 1,
+    "health": "up",
+    "up": 1.0,
+    "lastScrapeUtc": "2026-10-26T18:16:32.582696+00:00",
+    "ageSeconds": 1.337,
+    "scrapeAfterCurrentPrometheusStart": true,
+    "interval": "1m",
+    "timeout": "15s",
+    "scrapeUrl": "https://grownupsvet-backend-w5glrcsyda-uc.a.run.app/actuator/prometheus"
+  },
+  "revisionSamples": [
+    {
+      "revision": "grownupsvet-backend-admission-960c8898",
+      "lastSampleUnixSeconds": 1793038592.582,
+      "sampleAgeSeconds": 1.338
+    }
+  ],
+  "expectedRevisionSampleFresh": true,
+  "remoteMetricsVerified": true,
+  "familySeriesCounts": {
+    "process_uptime_seconds": 1.0,
+    "jvm_memory_used_bytes": 8.0,
+    "hikaricp_connections_active": 1.0,
+    "http_server_requests_seconds_count": 7.0,
+    "http_server_requests_seconds_sum": 7.0,
+    "http_server_requests_seconds_bucket": 525.0,
+    "grownupsvet_business_commits_total": 7.0
+  },
+  "aggregateValues": {
+    "process_uptime_seconds": 755.665,
+    "jvm_memory_used_bytes": 231211216.0,
+    "hikaricp_connections_active": 0.0,
+    "http_server_requests_seconds_count": 147.0,
+    "grownupsvet_business_commits_total": 0.0
+  },
+  "limits": [
+    "Point-in-time scrape verification, not sustained availability, load testing, user acceptance or M1-M9 measurement.",
+    "Prometheus up identifies the HTTPS scrape target, not a physical Cloud Run instance; revision is separately observed on application metrics.",
+    "Collection stops when this Windows computer or the two local processes are off.",
+    "Raw secret-bearing configuration, authorization headers, credentials, logs and metrics payloads are not included."
+  ]
+}

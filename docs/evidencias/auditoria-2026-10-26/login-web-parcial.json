@@ -1,0 +1,53 @@
+{
+  "cutoffDate": "2026-10-26",
+  "timeZone": "America/Bogota",
+  "checkedAtUtc": "2026-10-26T18:40:14.231Z",
+  "url": "https://grownupsvet-frontend.pages.dev/",
+  "frontendCommit": "9cdcb03a9141c2f63f14d4476d3298d6648e74e1",
+  "backendSource": "960c8898acbb22a227eac9424260a12936556227",
+  "backendRevision": "grownupsvet-backend-admission-960c8898",
+  "scope": "Partial anonymous browser login verification; not full C101 acceptance.",
+  "manualActions": [
+    {
+      "manualAttempt": 1,
+      "message": "No pudimos iniciar sesión con esos datos. Revisa el correo y la contraseña o usa «Olvidé mi contraseña»."
+    },
+    {
+      "manualAttempt": 2,
+      "message": "No pudimos iniciar sesión con esos datos. Revisa el correo y la contraseña o usa «Olvidé mi contraseña»."
+    },
+    {
+      "manualAttempt": 3,
+      "message": "No pudimos iniciar sesión con esos datos. Revisa el correo y la contraseña o usa «Olvidé mi contraseña»."
+    },
+    {
+      "manualAttempt": 4,
+      "message": "No pudimos iniciar sesión con esos datos. Revisa el correo y la contraseña o usa «Olvidé mi contraseña»."
+    },
+    {
+      "manualAttempt": 5,
+      "message": "No pudimos iniciar sesión con esos datos. Revisa el correo y la contraseña o usa «Olvidé mi contraseña»."
+    },
+    {
+      "manualAttempt": 6,
+      "message": "Hay demasiados intentos. Espera al menos 14 minutos y 28 segundos antes de volver a iniciar sesión. Conservamos el correo y la contraseña que escribiste."
+    }
+  ],
+  "spanishWaitMessageObserved": true,
+  "applicationClaimsFieldsRetained": true,
+  "inputValuesRedactedByBrowserTool": true,
+  "exactFieldValueRetentionVerified": false,
+  "networkCapturePerformed": false,
+  "networkRequestCountClaimed": false,
+  "automaticRetryAbsenceVerified": false,
+  "testRailCase": "C101",
+  "testRailState": "Untested",
+  "realCredentialsUsed": false,
+  "accountsCreated": 0,
+  "emailRequestsSubmitted": 0,
+  "limitations": [
+    "No complete traffic capture to verify absence of automatic login/refresh requests or exact response Retry-After in this browser.",
+    "Direct reads of form values were redacted by the browser tool; the failed equality comparison is not a product defect.",
+    "The visible Spanish wait message does not approve all expected results of C101."
+  ]
+}

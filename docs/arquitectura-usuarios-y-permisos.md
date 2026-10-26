@@ -113,3 +113,12 @@ El frontend borra su copia de `localStorage` al recibir el cierre correcto o det
 3. Los permisos PET_CREATE_SELF, PET_READ_SELF y PET_UPDATE_SELF pertenecen exclusivamente a OWNER y exigen propiedad por recurso. Los permisos de personal se limitan a su jerarquía de creación; los módulos clínicos requieren contratos y controles adicionales cuando se implementen.
 
 Antes de implementar autorización clínica se concretarán la relación que habilita al veterinario a consultar una historia y los datos clínicos que puede leer el administrador. Estas decisiones pertenecen a los contratos de personal y atención y no obligan a resolver ahora todos los módulos del sistema.
+
+
+## Ampliación clínica P3 — 25 de octubre de 2026
+
+El alcance aprobado de P3 añade `CLINICAL_ENCOUNTER_MANAGE_ASSIGNED` y `CLINICAL_HISTORY_READ_ASSIGNED` a VETERINARIAN y `CLINICAL_HISTORY_READ_SELF` a OWNER. No se otorgan permisos clínicos a ADMINISTRATOR ni SUPER_ADMIN. Las secciones anteriores describen el corte previo y no amplían estos permisos por herencia.
+
+El propietario lee únicamente atenciones FINALIZED de mascotas propias. El veterinario vigente edita el borrador de su cita CONFIRMED/ASSIGNED y finaliza desde el inicio del turno. Puede leer antecedentes publicados mientras tenga una cita confirmada asignada de esa mascota; después conserva únicamente la lectura de atenciones cuyo responsable final es él. Ser creador de un borrador reasignado no concede acceso posterior. La misma política protege historial, detalle, fórmula y búsqueda por cita.
+
+La reasignación preserva `createdBy` y los eventos; el nuevo asignado continúa y quien finaliza queda como responsable. El recurso ajeno o no visible devuelve 404 y el rol sin permiso devuelve 403. Los JWT anteriores de OWNER/VETERINARIAN requieren nuevo login porque se conserva la comparación exacta de permisos vigentes. Véanse [atenciones clínicas](atenciones-clinicas.md) y [plan de ejecución](plan-cierre-ejecucion-2026-10-25.md).

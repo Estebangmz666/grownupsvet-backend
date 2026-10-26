@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -63,7 +64,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false",
         "grownupsvet.appointments.workday-start-time=06:00"})
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import({TestJwtKeyConfiguration.class, AppointmentHttpIntegrationTests.AppointmentClockConfiguration.class})
 @Transactional
@@ -151,10 +152,84 @@ class AppointmentHttpIntegrationTests {
     @Test
     void differentPetsOfOneOwnerCanUseDifferentVeterinariansAtTheSameTime() throws Exception {
         Pet secondPet=pet(ownerOne,"Milo");
-        mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),petOne,slotOne))).andExpect(status().isCreated());
-        mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),secondPet,slotTwo))).andExpect(status().isCreated());
+        JsonNode first = body(mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),petOne,slotOne)))
+                .andExpect(status().isCreated()).andReturn());
+        JsonNode second = body(mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),secondPet,slotTwo)))
+                .andExpect(status().isCreated()).andReturn());
+        assertThat(first.path("id").asText()).isNotEqualTo(second.path("id").asText());
+        for (JsonNode appointment : List.of(first, second)) {
+            mvc.perform(authenticated(get(BASE + "/" + appointment.path("id").asText()), ownerOne))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(appointment.path("id").asText()))
+                    .andExpect(jsonPath("$.startsAt").value(slotOne.getStartsAt().toString()))
+                    .andExpect(jsonPath("$.endsAt").value(slotOne.getEndsAt().toString()));
+        }
         assertThat(jdbc.queryForObject("select count(*) from appointments where owner_id=? and starts_at=? and status='REQUESTED'",
                 Integer.class,ownerOne.getId(),java.sql.Timestamp.from(slotOne.getStartsAt()))).isEqualTo(2);
+    }
+
+    @Test
+    void onePetCanReserveContiguousTurnsWithoutAnOverlappingInterval() throws Exception {
+        var firstSlot = slot(veterinarianOne, slotOne.getStartsAt().minusSeconds(7200), administrator.getId());
+        var nextSlot = slot(veterinarianOne, firstSlot.getEndsAt(), administrator.getId());
+        JsonNode first = body(mvc.perform(authenticated(post(BASE), ownerOne, request(UUID.randomUUID(), petOne, firstSlot)))
+                .andExpect(status().isCreated()).andReturn());
+        JsonNode second = body(mvc.perform(authenticated(post(BASE), ownerOne, request(UUID.randomUUID(), petOne, nextSlot)))
+                .andExpect(status().isCreated()).andReturn());
+        assertThat(first.path("id").asText()).isNotEqualTo(second.path("id").asText());
+        assertThat(Instant.parse(first.path("endsAt").asText())).isEqualTo(Instant.parse(second.path("startsAt").asText()));
+        for (JsonNode appointment : List.of(first, second)) {
+            JsonNode stored = body(mvc.perform(authenticated(get(BASE + "/" + appointment.path("id").asText()), ownerOne))
+                    .andExpect(status().isOk()).andReturn());
+            assertThat(stored.path("id")).isEqualTo(appointment.path("id"));
+            assertThat(stored.path("petId").asText()).isEqualTo(petOne.getId().toString());
+            assertThat(stored.path("status").asText()).isEqualTo("REQUESTED");
+            assertThat(stored.path("startsAt")).isEqualTo(appointment.path("startsAt"));
+            assertThat(stored.path("endsAt")).isEqualTo(appointment.path("endsAt"));
+        }
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class,
+                UUID.fromString(first.path("id").asText()))).isEqualTo(firstSlot.getId());
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class,
+                UUID.fromString(second.path("id").asText()))).isEqualTo(nextSlot.getId());
+        assertThat(jdbc.queryForObject("select count(*) from appointments where pet_id=?", Integer.class, petOne.getId())).isEqualTo(2);
+    }
+
+    @Test
+    void archivingAndReactivatingAPetPreserveItsLiveAppointmentAndRegisteredData() throws Exception {
+        String appointmentId = createAppointment();
+        String petPath = "/api/v1/pets/" + petOne.getId();
+        JsonNode originalPet = body(mvc.perform(authenticated(get(petPath), ownerOne)).andExpect(status().isOk()).andReturn());
+        JsonNode originalAppointment = body(mvc.perform(authenticated(get(BASE + "/" + appointmentId), ownerOne))
+                .andExpect(status().isOk()).andReturn());
+        assertThat(originalAppointment.path("status").asText()).isEqualTo("REQUESTED");
+
+        for (boolean active : List.of(false, true)) {
+            JsonNode changed = body(mvc.perform(authenticated(patch(petPath), ownerOne, Map.of("active", active)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(active)).andReturn());
+            JsonNode readPet = body(mvc.perform(authenticated(get(petPath), ownerOne)).andExpect(status().isOk()).andReturn());
+            for (String field : List.of("id", "name", "species", "breed", "sex", "dateOfBirth", "dateOfBirthEstimated", "createdAt")) {
+                assertThat(changed.path(field)).as("PATCH preserves %s", field).isEqualTo(originalPet.path(field));
+                assertThat(readPet.path(field)).as("GET preserves %s", field).isEqualTo(originalPet.path(field));
+            }
+            assertThat(readPet.path("active").asBoolean()).isEqualTo(active);
+            JsonNode activePets = body(mvc.perform(authenticated(get("/api/v1/pets").param("active", "true"), ownerOne))
+                    .andExpect(status().isOk()).andReturn());
+            JsonNode archivedPets = body(mvc.perform(authenticated(get("/api/v1/pets").param("active", "false"), ownerOne))
+                    .andExpect(status().isOk()).andReturn());
+            assertThat(activePets.path("items").valueStream().map(item -> item.path("id").asText()).toList())
+                    .containsExactlyElementsOf(active ? List.of(petOne.getId().toString()) : List.of());
+            assertThat(archivedPets.path("items").valueStream().map(item -> item.path("id").asText()).toList())
+                    .containsExactlyElementsOf(active ? List.of() : List.of(petOne.getId().toString()));
+            JsonNode currentAppointment = body(mvc.perform(authenticated(get(BASE + "/" + appointmentId), ownerOne))
+                    .andExpect(status().isOk()).andReturn());
+            for (String field : List.of("id", "ownerId", "petId", "status", "veterinarianId", "startsAt", "endsAt", "version", "assignmentStatus")) {
+                assertThat(currentAppointment.path(field)).as("appointment preserves %s", field).isEqualTo(originalAppointment.path(field));
+            }
+            assertThat(jdbc.queryForObject("select owner_id from pets where id=?", UUID.class, petOne.getId())).isEqualTo(ownerOne.getId());
+            assertThat(jdbc.queryForObject("select count(*) from pets where id=?", Integer.class, petOne.getId())).isEqualTo(1);
+            assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class,
+                    UUID.fromString(appointmentId))).isEqualTo(1);
+        }
     }
 
     @Test
@@ -172,8 +247,12 @@ class AppointmentHttpIntegrationTests {
                 .andExpect(status().isCreated()).andReturn()).path("id").asText();
         mvc.perform(authenticated(patch(BASE+"/"+confirmedId+"/status"),administrator,
                 Map.of("status","CONFIRMED","expectedVersion",0,"reason",""))).andExpect(status().isOk());
-        java.sql.Timestamp expired=java.sql.Timestamp.from(clock.instant().minusSeconds(1));
-        jdbc.update("update appointments set confirmation_cutoff_at=? where id in (?,?)",expired,UUID.fromString(pendingId),UUID.fromString(confirmedId));
+        Instant cutoff=slotOne.getStartsAt().atZone(ZONE).toLocalDate().atTime(6,0).atZone(ZONE).toInstant();
+        for (String id : List.of(pendingId,confirmedId)) {
+            assertThat(jdbc.queryForObject("select confirmation_cutoff_at from appointments where id=?",java.sql.Timestamp.class,
+                    UUID.fromString(id)).toInstant()).isEqualTo(cutoff);
+        }
+        clock.set(cutoff);
 
         assertThat(appointments.expirePendingAppointments()).isEqualTo(1);
         assertThat(appointments.expirePendingAppointments()).isZero();
@@ -181,6 +260,17 @@ class AppointmentHttpIntegrationTests {
         assertThat(jdbc.queryForObject("select status from appointments where id=?",String.class,UUID.fromString(confirmedId))).isEqualTo("CONFIRMED");
         assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='DAILY_CUTOFF'",
                 Integer.class,UUID.fromString(pendingId))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and event_type='DAILY_CUTOFF' " +
+                        "and actor_type='SYSTEM' and actor_id is null and occurred_at=? and reason='DAILY_CONFIRMATION_CUTOFF'",
+                Integer.class,UUID.fromString(pendingId),java.sql.Timestamp.from(cutoff))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? and status in ('REQUESTED','CONFIRMED')",
+                Integer.class,slotOne.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? and status in ('REQUESTED','CONFIRMED')",
+                Integer.class,slotTwo.getId())).isEqualTo(1);
+        assertThat(appointmentVersion(pendingId)).isEqualTo(1);
+        assertThat(eventCount(pendingId)).isEqualTo(2);
+        assertThat(appointmentVersion(confirmedId)).isEqualTo(1);
+        assertThat(eventCount(confirmedId)).isEqualTo(2);
     }
 
     @Test
@@ -442,6 +532,68 @@ class AppointmentHttpIntegrationTests {
     }
 
     @Test
+    void newRequestsIncludeExactlySixtyDaysAndRejectTheNextThirtyMinuteTurn() throws Exception {
+        Instant maximumStart=clock.instant().plus(Duration.ofDays(60));
+        var lastEligible=slot(veterinarianOne,maximumStart,administrator.getId());
+        var outside=slot(veterinarianOne,maximumStart.plusSeconds(1800),administrator.getId());
+        String date=maximumStart.atZone(ZONE).toLocalDate().toString();
+        JsonNode options=body(mvc.perform(authenticated(get("/api/v1/availability-slots").param("from",date)
+                .param("to",date),ownerOne)).andExpect(status().isOk()).andReturn());
+        assertThat(options.path("items").toString()).contains(lastEligible.getId().toString()).doesNotContain(outside.getId().toString());
+        mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),petOne,outside)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_OUTSIDE_REQUEST_WINDOW"));
+        assertThat(jdbc.queryForObject("select count(*) from appointments where pet_id=?",Integer.class,petOne.getId())).isZero();
+        mvc.perform(authenticated(post(BASE),ownerOne,request(UUID.randomUUID(),petOne,lastEligible)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("REQUESTED"))
+                .andExpect(jsonPath("$.startsAt").value(maximumStart.toString()));
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=?",Integer.class,outside.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? and status='REQUESTED'",
+                Integer.class,lastEligible.getId())).isEqualTo(1);
+    }
+
+    @Test
+    void confirmationAllowsTheInstantBeforeCutoffAndRejectsTheExactCutoff() throws Exception {
+        String beforeId=createAppointment();
+        String atId=body(mvc.perform(authenticated(post(BASE),ownerTwo,request(UUID.randomUUID(),petTwo,slotTwo)))
+                .andExpect(status().isCreated()).andReturn()).path("id").asText();
+        Instant cutoff=slotOne.getStartsAt().atZone(ZONE).toLocalDate().atTime(6,0).atZone(ZONE).toInstant();
+        Map<String,Object> atState=jdbc.queryForMap("select * from appointments where id=?",UUID.fromString(atId));
+        clock.set(cutoff);
+        mvc.perform(authenticated(patch(BASE+"/"+atId+"/status"),administrator,Map.of("status","CONFIRMED","expectedVersion",0)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED"));
+        assertThat(jdbc.queryForMap("select * from appointments where id=?",UUID.fromString(atId))).isEqualTo(atState);
+        assertThat(eventCount(atId)).isEqualTo(1);
+        clock.set(cutoff.minusNanos(1000));
+        mvc.perform(authenticated(patch(BASE+"/"+beforeId+"/status"),administrator,Map.of("status","CONFIRMED","expectedVersion",0)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.version").value(1));
+        assertOriginalReservation(beforeId,1,2);
+    }
+
+    @Test
+    void confirmationRejectsTheOriginalStartEvenWhenItsCutoffIsStillInTheFuture() throws Exception {
+        String beforeId=createAppointment();
+        String atId=body(mvc.perform(authenticated(post(BASE),ownerTwo,request(UUID.randomUUID(),petTwo,slotTwo)))
+                .andExpect(status().isCreated()).andReturn()).path("id").asText();
+        // Isolate the start guard from the independent cutoff guard using controlled persisted fixtures.
+        jdbc.update("update appointments set confirmation_cutoff_at=? where id in (?,?)",
+                java.sql.Timestamp.from(slotOne.getStartsAt().plusSeconds(3600)),UUID.fromString(beforeId),UUID.fromString(atId));
+        Map<String,Object> atState=jdbc.queryForMap("select * from appointments where id=?",UUID.fromString(atId));
+        for (Instant blockedInstant : List.of(slotOne.getStartsAt(),slotOne.getStartsAt().plusSeconds(1))) {
+            clock.set(blockedInstant);
+            mvc.perform(authenticated(patch(BASE+"/"+atId+"/status"),administrator,Map.of("status","CONFIRMED","expectedVersion",0)))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED"));
+            assertThat(jdbc.queryForMap("select * from appointments where id=?",UUID.fromString(atId))).isEqualTo(atState);
+            assertThat(eventCount(atId)).isEqualTo(1);
+        }
+        clock.set(slotOne.getStartsAt().minusNanos(1000));
+        mvc.perform(authenticated(patch(BASE+"/"+beforeId+"/status"),administrator,Map.of("status","CONFIRMED","expectedVersion",0)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.version").value(1));
+        assertOriginalReservation(beforeId,1,2);
+    }
+
+    @Test
     void agreementMetadataRejectsInvalidChannelNumericTimestampsAndMissingOffsets() throws Exception {
         String id = createAppointment();
         disableVeterinarian(veterinarianOne);
@@ -597,8 +749,12 @@ class AppointmentHttpIntegrationTests {
         mvc.perform(post(BASE + "/" + id + "/reschedulings").contentType("application/json")
                         .content(mapper.writeValueAsBytes(rescheduling(slotTwo, 0))))
                 .andExpect(status().isUnauthorized());
-        assertThat(appointmentVersion(id)).isZero();
-        assertThat(eventCount(id)).isEqualTo(1);
+        mvc.perform(patch(BASE+"/"+id+"/status").contentType("application/json")
+                        .content(mapper.writeValueAsBytes(Map.of("status","CANCELLED","expectedVersion",0,"reason","Cambio solicitado."))))
+                .andExpect(status().isUnauthorized());
+        assertOriginalReservation(id,0,1);
+        assertThat(jdbc.queryForObject("select count(*) from appointments where current_slot_id=? and status='REQUESTED'",
+                Integer.class,slotOne.getId())).isEqualTo(1);
     }
 
     @Test
@@ -834,6 +990,12 @@ class AppointmentHttpIntegrationTests {
         clock.set(slotOne.getStartsAt());
         mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 1))).andExpect(status().isConflict());
         assertOriginalReservation(id, 1, 2);
+        clock.set(slotOne.getStartsAt().plusSeconds(1));
+        mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 1)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("APPOINTMENT_ALREADY_STARTED"));
+        assertOriginalReservation(id, 1, 2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?",
+                Integer.class,UUID.fromString(id))).isZero();
         clock.set(slotOne.getStartsAt().minusNanos(1));
         mvc.perform(authenticated(post(path), administrator, rescheduling(destination, 1))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));

@@ -7,6 +7,9 @@ spring:
       minimum-idle: 0
       idle-timeout: 10000
 grownupsvet:
+  clinical:
+    reminders:
+      polling-enabled: false
   appointments:
     workday-start-time: "00:00"
   security:

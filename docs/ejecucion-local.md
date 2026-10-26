@@ -38,8 +38,8 @@ Si se proporcionan parámetros y existe un override, comprobar que representan e
 | Archivo PKCS12 | Verificar la ruta y permisos locales. El helper comprueba existencia, sin abrirlo o validar alias/contraseña |
 | `JWT_KEY_ALIAS`, `JWT_KEY_PASSWORD` | Alias puede usar el default del proyecto; contraseña de clave puede heredar la del almacén. Se reportan como opcionales |
 | `APPOINTMENT_WORKDAY_START_TIME` | En `dev` es obligatoria. Para la entrega acordada usar 06:00 en `America/Bogota`; el fallback de `prod` no se aplica al perfil local |
-| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Configuración existente del Sandbox necesaria para demostrar P12. No se imprime ni se prueba SMTP |
-| `MAIL_HOST`, `MAIL_PORT` | `dev` dispone de defaults de Mailtrap Sandbox/2525; el helper informa si no existen overrides |
+| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Credenciales y remitente del proveedor elegido para demostrar P12. Con Gmail, usuario y remitente son la misma dirección completa y la contraseña es de aplicación. El diagnóstico no imprime ni prueba SMTP |
+| `MAIL_HOST`, `MAIL_PORT` | `dev` dispone de defaults de Mailtrap Sandbox/2525; Gmail utiliza `smtp.gmail.com`/587. El diagnóstico informa si no existen overrides |
 | Recuperación habilitada | Exige presencia de `PASSWORD_RECOVERY_HMAC_SECRET` y `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY`; Java valida sus formatos, tamaños e independencia |
 | Invitaciones habilitadas | Exige `STAFF_INVITATION_ENCRYPTION_KEY` y `STAFF_ACTIVATION_URL` configuradas; el recorrido debe conducir al formulario real cuando esté disponible |
 
@@ -48,6 +48,33 @@ Si se proporcionan parámetros y existe un override, comprobar que representan e
 Un `PreliminaryConfigurationChecksPassed=true` **no acredita arranque ni P1/P2 completos**: puede haber funciones deshabilitadas, formatos incorrectos o problemas de autenticación/SMTP que solo el arranque y recorrido comprueban. No duplicamos aquí las validaciones Java de secretos, JWT, SMTP, estados o reglas de citas.
 
 `scripts/configure-mailtrap.ps1` es un configurador distinto: pide credenciales, puede crear claves faltantes y modifica variables del usuario/proceso. No se invoca desde este diagnóstico. Para revisar la configuración existente no hace falta ejecutarlo ni crear nuevos secretos.
+
+### Gmail en la terminal actual
+
+La alternativa preparada el **16/10/2026** usa una cuenta Gmail con verificación en dos pasos y su contraseña de aplicación. No necesita dominio propio. Desde PowerShell en Windows, ejecutar una de estas opciones:
+
+```powershell
+.\scripts\configure-gmail.ps1
+# O abrir el formulario local, con la contraseña oculta:
+.\scripts\configure-gmail.ps1 -ShowWindow
+```
+
+El modo de terminal solicita la cuenta y lee la contraseña con `Read-Host -AsSecureString`; el formulario usa un campo de contraseña. El helper guarda una `PSCredential` en `%USERPROFILE%\.grownupsvet\gmail\smtp-credential.clixml`, fuera del repositorio. La contraseña queda protegida con DPAPI y se recupera con el mismo usuario de Windows en el mismo equipo; no copiar este archivo como mecanismo de configuración de otra máquina.
+
+Solo se preparan `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USERNAME`, `MAIL_FROM` y `MAIL_PASSWORD` en el proceso de PowerShell actual. Usuario y remitente usan la misma cuenta Gmail. No se persiste la contraseña en el registro de variables de entorno ni se modifican DB, JWT, HMAC o claves de cifrado. El helper no inicia la aplicación, envía correos ni cambia Cloud Run.
+
+En cada terminal nueva, importar la credencial guardada mediante dot-sourcing y después seguir el arranque normal:
+
+```powershell
+. .\scripts\configure-gmail.ps1 -UseSavedCredential
+.\scripts\check-local-configuration.ps1
+# Después de comprobar el destino DB y los demás requisitos:
+.\mvnw.cmd spring-boot:run
+```
+
+Ejecutar el backend desde esa misma terminal; otra terminal, un IDE abierto o un backend ya iniciado no reciben estos cambios. Para actualizar la cuenta o contraseña de aplicación, repetir el configurador interactivo. Para Cloud Run, usar [Secret Manager y las referencias del despliegue](google-cloud.md#gmail-para-destinatarios-reales); el archivo DPAPI local no se sube.
+
+Guardar/importar la credencial y un diagnóstico satisfactorio no acreditan autenticación SMTP ni recepción real. Verificar un flujo acordado y el buzón del destinatario, incluido spam. `SENT` registra aceptación SMTP; Sandbox continúa disponible para capturar pruebas sin entrega externa. La evidencia del despliegue del 15/10/2026 sigue correspondiendo a Sandbox hasta verificar una revisión con Gmail.
 
 ## 3. Arrancar después del diagnóstico
 

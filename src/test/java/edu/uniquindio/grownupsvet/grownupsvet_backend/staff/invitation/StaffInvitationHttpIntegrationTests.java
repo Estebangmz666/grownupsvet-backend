@@ -15,10 +15,14 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserReposi
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -41,6 +45,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +60,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -71,7 +77,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "grownupsvet.staff.invitations.sender-address=no-reply@example.test",
         "grownupsvet.staff.invitations.dispatch-delay=3600000"
 })
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import({TestJwtKeyConfiguration.class, StaffInvitationHttpIntegrationTests.ControlledClockConfiguration.class})
 class StaffInvitationHttpIntegrationTests {
@@ -144,6 +150,37 @@ class StaffInvitationHttpIntegrationTests {
         login(veterinarian, 200);
         activate(token, PASSWORD, PASSWORD).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("STAFF_INVITATION_INVALID"));
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void activationStoresSaltedArgon2idAndKeepsCredentialsOutOfDiagnostics(CapturedOutput output) throws Exception {
+        String chosenPassword = UUID.randomUUID() + "-" + UUID.randomUUID();
+
+        String response = activate(token, chosenPassword, chosenPassword).andExpect(status().isNoContent())
+                .andReturn().getResponse().getContentAsString();
+        User active = users.findById(veterinarian.getId()).orElseThrow();
+        String storedPasswordHash = jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?",
+                String.class, veterinarian.getId());
+
+        // Only booleans reach assertion failures; the credential, salt and hash stay in memory.
+        assertThat(hasSaltedArgon2idEncoding(storedPasswordHash))
+                .as("activation must persist an Argon2id encoding with salt and digest").isTrue();
+        assertThat(encoder.matches(chosenPassword, storedPasswordHash))
+                .as("the persisted credential must recognize the chosen password").isTrue();
+        assertThat(active.getStatus() == UserStatus.ACTIVE).as("the invited account must be active").isTrue();
+        assertThat("CONSUMED".equals(invitationStatus(invitationId)))
+                .as("activation must consume the invitation").isTrue();
+        assertThat(encryptedToken(invitationId) == null)
+                .as("the consumed invitation must not retain its delivery secret").isTrue();
+        assertThat(response.isEmpty()).as("activation must not return credentials or a response body").isTrue();
+        assertThat(mockingDetails(sender).getInvocations().isEmpty())
+                .as("this isolated activation must not invoke SMTP").isTrue();
+
+        String diagnostics = output.getAll();
+        assertThat(!diagnostics.contains(chosenPassword)).as("diagnostics must omit the chosen password").isTrue();
+        assertThat(!diagnostics.contains(token)).as("diagnostics must omit the invitation token").isTrue();
+        assertThat(!diagnostics.contains(storedPasswordHash)).as("diagnostics must omit the persisted hash").isTrue();
     }
 
     @Test
@@ -381,6 +418,19 @@ class StaffInvitationHttpIntegrationTests {
     private void assertForbidden(Runnable action) {
         assertThatThrownBy(action::run).isInstanceOfSatisfying(StaffOperationException.class,
                 exception -> assertThat(exception.getStatus().value()).isEqualTo(403));
+    }
+
+    private boolean hasSaltedArgon2idEncoding(String encodedPassword) {
+        if (encodedPassword == null || !encodedPassword.startsWith("{argon2id}$argon2id$")) return false;
+        String[] fields = encodedPassword.substring("{argon2id}".length()).split("\\$", -1);
+        if (fields.length != 6 || !fields[2].matches("v=[1-9][0-9]*")
+                || !fields[3].matches("m=[1-9][0-9]*,t=[1-9][0-9]*,p=[1-9][0-9]*")) return false;
+        try {
+            return Base64.getDecoder().decode(fields[4]).length > 0
+                    && Base64.getDecoder().decode(fields[5]).length > 0;
+        } catch (IllegalArgumentException invalidEncoding) {
+            return false;
+        }
     }
 
     @TestConfiguration(proxyBeanMethods = false)

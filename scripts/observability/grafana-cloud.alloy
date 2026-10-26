@@ -1,0 +1,56 @@
+// Cloud Run sidecar preparation. Validate with the pinned Alloy version before deployment.
+// Run with --server.http.listen-addr=127.0.0.1:12345 and private writable storage.
+// Metadata reads ONLY the instance id; no identity/access-token metadata is requested.
+remote.http "cloud_run_instance" {
+  url            = "http://metadata.google.internal/computeMetadata/v1/instance/id"
+  headers        = { "Metadata-Flavor" = "Google" }
+  poll_frequency = "1h"
+  poll_timeout   = "5s"
+}
+
+// Avoid merging metrics from different instances behind the same loopback address.
+// An empty/unavailable instance id leaves no scrape target until metadata is available.
+discovery.relabel "grownupsvet_instance" {
+  targets = [{
+    "__address__"   = "127.0.0.1:9091",
+    "instance"      = remote.http.cloud_run_instance.content,
+    "service_name"  = sys.env("K_SERVICE"),
+    "revision_name" = sys.env("K_REVISION"),
+  }]
+  rule {
+    source_labels = ["instance"]
+    regex         = "[a-zA-Z0-9_-]+"
+    action        = "keep"
+  }
+}
+
+prometheus.scrape "grownupsvet_backend" {
+  targets         = discovery.relabel.grownupsvet_instance.output
+  job_name        = "grownupsvet-backend"
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "60s"
+  scrape_timeout  = "10s"
+  sample_limit    = 9000
+  forward_to      = [prometheus.relabel.grownupsvet_dashboard.receiver]
+}
+
+// Keep only metrics used by the prepared dashboard and scrape diagnostics.
+prometheus.relabel "grownupsvet_dashboard" {
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+  rule {
+    source_labels = ["__name__"]
+    regex         = "http_server_requests_seconds_.*|grownupsvet_business_commits_total|jvm_memory_used_bytes|hikaricp_connections_active|process_uptime_seconds|up|scrape_samples_scraped|scrape_series_added"
+    action        = "keep"
+  }
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    // Supply the real HTTPS endpoint and tenant id from the approved Free stack at runtime.
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+    basic_auth {
+      username      = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password_file = "/var/secrets/grafana-cloud/metrics-write-token"
+    }
+  }
+}

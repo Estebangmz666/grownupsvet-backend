@@ -15,11 +15,14 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.OwnerProfil
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.OwnerProfile;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperation;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperationCommittedEvent;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -37,11 +40,13 @@ public class PetService {
     private final PetRepository petRepository;
     private final OwnerProfileRepository ownerProfileRepository;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    public PetService(PetRepository petRepository, OwnerProfileRepository ownerProfileRepository, Clock clock) {
+    public PetService(PetRepository petRepository, OwnerProfileRepository ownerProfileRepository, Clock clock, ApplicationEventPublisher events) {
         this.petRepository = petRepository;
         this.ownerProfileRepository = ownerProfileRepository;
         this.clock = clock;
+        this.events = events;
     }
 
     @Transactional
@@ -51,7 +56,9 @@ public class PetService {
                 request.isDateOfBirthEstimated(), true);
         Pet pet = new Pet(owner, request.getName().strip(), request.getSpecies(), normalizedBreed(request.getBreed()),
                 request.getSex(), request.getDateOfBirth(), request.isDateOfBirthEstimated(), currentInstant());
-        return toResponse(petRepository.saveAndFlush(pet));
+        PetResponseDTO response = toResponse(petRepository.saveAndFlush(pet));
+        events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.PET_CREATE));
+        return response;
     }
 
     @Transactional(readOnly = true)

@@ -2,6 +2,8 @@
 
 Fecha: **10 de octubre de 2026**, `America/Bogota`.
 
+**Actualización del 16 de octubre:** el equipo identificó `feature/propietario` y el commit `738207d` como corte vigente. La [nueva revisión de integración](revision-frontend-propietario-2026-10-16.md) evalúa ese código. El resto de este documento conserva la evaluación histórica de `master` en `58de109`.
+
 Se encontró el repositorio público [juanjo1303/grownupsvet-frontend](https://github.com/juanjo1303/grownupsvet-frontend). Su README enlaza este backend y describe dos aplicaciones Expo/React Native, de propietario y administración. **Esteban no ha podido confirmar que sea el repositorio usado actualmente por el equipo ni que incluya los cambios recientes.** Se conserva como candidato de lectura; no se modificó su código ni se publicaron cambios en él.
 
 ## Corte verificado

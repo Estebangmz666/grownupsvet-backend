@@ -7,11 +7,15 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfigur
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +30,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Real PostgreSQL and real security filters; no outer test transaction hides commit or rollback failures. */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import(TestJwtKeyConfiguration.class)
 class UserSignupHttpIntegrationTests {
@@ -60,6 +66,7 @@ class UserSignupHttpIntegrationTests {
     @Autowired private MockMvc mockMvc;
     @Autowired private JsonMapper jsonMapper;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private Clock clock;
     @MockitoSpyBean private PasswordEncoder passwordEncoder;
     @MockitoSpyBean private OwnerProfileRepository ownerProfileRepository;
 
@@ -101,6 +108,37 @@ class UserSignupHttpIntegrationTests {
         assertThat(profile.get("date_of_birth").toString()).isEqualTo("1955-05-20");
         assertThat(profile.get("phone_number")).isEqualTo("+573001234567");
         saveResponseExample("signup-success.json", result);
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void signupStoresASaltedArgon2idHashWithoutExposingSecrets(CapturedOutput output) throws Exception {
+        String generatedPassword = "Ensayo privado de registro " + UUID.randomUUID();
+        Map<String, Object> request = validRequest();
+        request.put("password", generatedPassword);
+        MvcResult result = register(request, 201);
+        String responseBody = result.getResponse().getContentAsString();
+        JsonNode response = jsonMapper.readTree(responseBody);
+        UUID userId = UUID.fromString(response.path("id").asText());
+        String passwordHash = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM users WHERE id = ?", String.class, userId);
+
+        assertThat(passwordHash != null && passwordHash.startsWith("{argon2id}$argon2id$"))
+                .as("Stored password uses the Argon2id encoding").isTrue();
+        String[] encodedFields = passwordHash.split("\\$", -1);
+        assertThat(encodedFields.length == 6 && !encodedFields[4].isBlank() && !encodedFields[5].isBlank())
+                .as("Argon2id encoding contains a salt and a derived digest").isTrue();
+        assertThat(passwordEncoder.matches(generatedPassword, passwordHash))
+                .as("The exact generated password matches the stored encoding").isTrue();
+        assertThat(passwordHash.contains(generatedPassword))
+                .as("No plaintext password is stored").isFalse();
+        assertThat(response.has("password") || response.has("passwordHash") || response.has("password_hash"))
+                .as("The public response has no password fields").isFalse();
+        assertThat(responseBody.contains(generatedPassword) || responseBody.contains(passwordHash))
+                .as("The public response contains neither secret").isFalse();
+        assertThat(output.getAll().contains(generatedPassword) || output.getAll().contains(passwordHash))
+                .as("Captured diagnostics contain neither secret").isFalse();
+        assertAccountCounts(1);
     }
 
     @Test
@@ -157,12 +195,100 @@ class UserSignupHttpIntegrationTests {
 
     @Test
     void rollsBackTheAccountIfSavingTheProfileFails() throws Exception {
-        doThrow(new DataIntegrityViolationException("PRIVATE_DATABASE_DIAGNOSTIC"))
-                .when(ownerProfileRepository).saveAndFlush(any(OwnerProfile.class));
-        MvcResult result = register(validRequest(), 500);
-        assertProblem(result, "INTERNAL_ERROR");
-        assertThat(result.getResponse().getContentAsString()).doesNotContain("PRIVATE_DATABASE_DIAGNOSTIC");
+        String preservedEmail = "preserved-signup+" + UUID.randomUUID() + "@example.com";
+        try {
+            Map<String, Object> preservedRequest = validRequest();
+            preservedRequest.put("email", preservedEmail);
+            MvcResult preservedResult = register(preservedRequest, 201);
+            UUID preservedId = UUID.fromString(jsonMapper.readTree(
+                    preservedResult.getResponse().getContentAsString()).path("id").asText());
+            Map<String, Object> preservedAccount = jdbcTemplate.queryForMap(
+                    "SELECT * FROM users WHERE id = ?", preservedId);
+            Map<String, Object> preservedProfile = jdbcTemplate.queryForMap(
+                    "SELECT * FROM owner_profiles WHERE user_id = ?", preservedId);
+
+            doThrow(new DataIntegrityViolationException("PRIVATE_DATABASE_DIAGNOSTIC"))
+                    .when(ownerProfileRepository).saveAndFlush(any(OwnerProfile.class));
+            MvcResult result = register(validRequest(), 500);
+            assertProblem(result, "INTERNAL_ERROR");
+            assertThat(result.getResponse().getContentAsString()).doesNotContain("PRIVATE_DATABASE_DIAGNOSTIC");
+            assertAccountCounts(0);
+            assertThat(jdbcTemplate.queryForMap("SELECT * FROM users WHERE id = ?", preservedId)
+                    .equals(preservedAccount)).as("Unrelated account remains unchanged").isTrue();
+            assertThat(jdbcTemplate.queryForMap("SELECT * FROM owner_profiles WHERE user_id = ?", preservedId)
+                    .equals(preservedProfile)).as("Unrelated owner profile remains unchanged").isTrue();
+        } finally {
+            jdbcTemplate.update("DELETE FROM owner_profiles WHERE user_id IN (SELECT id FROM users WHERE email = ?)",
+                    preservedEmail);
+            jdbcTemplate.update("DELETE FROM users WHERE email = ?", preservedEmail);
+        }
+    }
+
+    @Test
+    void acceptsAnAdultYoungerThanSixtyWithoutAProfilePhoto() throws Exception {
+        LocalDate dateOfBirth = LocalDate.now(clock).minusYears(30);
+        Map<String, Object> request = validRequest();
+        request.put("fullName", "María O’Connor");
+        request.put("dateOfBirth", dateOfBirth.toString());
+        MvcResult result = register(request, 201);
+        UUID userId = UUID.fromString(jsonMapper.readTree(
+                result.getResponse().getContentAsString()).path("id").asText());
+
+        assertAccountCounts(1);
+        Map<String, Object> profile = jdbcTemplate.queryForMap(
+                "SELECT * FROM owner_profiles WHERE user_id = ?", userId);
+        assertThat(profile.get("full_name")).isEqualTo("María O’Connor");
+        assertThat(profile.get("date_of_birth").toString()).isEqualTo(dateOfBirth.toString());
+        assertThat(profile.get("phone_number")).isEqualTo("+573001234567");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM user_profile_photos WHERE user_id = ?",
+                Integer.class, userId)).isZero();
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingOrNullRequiredFields")
+    void rejectsMissingOrNullRequiredFieldsWithoutCreatingAnAccount(RequiredSignupFieldVariant variant)
+            throws Exception {
+        Map<String, Object> request = validRequest();
+        if (variant.omitted()) {
+            request.remove(variant.field());
+        } else {
+            request.put(variant.field(), null);
+        }
+        Integer accountsBefore = jdbcTemplate.queryForObject("SELECT count(*) FROM users", Integer.class);
+        Integer profilesBefore = jdbcTemplate.queryForObject("SELECT count(*) FROM owner_profiles", Integer.class);
+
+        MvcResult result = register(request, 400);
+        assertProblem(result, "VALIDATION_FAILED");
+        JsonNode errors = jsonMapper.readTree(result.getResponse().getContentAsString()).path("fieldErrors");
+        assertThat(errors.valueStream().anyMatch(error -> variant.field().equals(error.path("field").asText())))
+                .isTrue();
         assertAccountCounts(0);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM users", Integer.class)).isEqualTo(accountsBefore);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM owner_profiles", Integer.class))
+                .isEqualTo(profilesBefore);
+    }
+
+    static Stream<RequiredSignupFieldVariant> missingOrNullRequiredFields() {
+        return Stream.of("email", "fullName", "dateOfBirth", "phoneNumber", "password")
+                .flatMap(field -> Stream.of(new RequiredSignupFieldVariant(field, true),
+                        new RequiredSignupFieldVariant(field, false)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("passwordsOutsideTheLengthBounds")
+    void rejectsPasswordsOutsideTheLengthBoundsWithoutCreatingAnAccount(String password) throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("password", password);
+        MvcResult result = register(request, 400);
+        assertProblem(result, "VALIDATION_FAILED");
+        JsonNode errors = jsonMapper.readTree(result.getResponse().getContentAsString()).path("fieldErrors");
+        assertThat(errors.valueStream().anyMatch(error -> "password".equals(error.path("field").asText())))
+                .isTrue();
+        assertAccountCounts(0);
+    }
+
+    static Stream<String> passwordsOutsideTheLengthBounds() {
+        return Stream.of("a".repeat(14), "a".repeat(129));
     }
 
     @ParameterizedTest
@@ -323,4 +449,5 @@ class UserSignupHttpIntegrationTests {
     }
 
     private record InvalidField(String field, Object value, String errorCode) { }
+    private record RequiredSignupFieldVariant(String field, boolean omitted) { }
 }

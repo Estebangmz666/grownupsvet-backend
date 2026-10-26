@@ -1,12 +1,14 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.exception.ApiErrorResponseFactory;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.controller.HelloController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.security.ApiSecurityErrorHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,19 +20,38 @@ import java.util.Map;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = CorsAndProbeHttpTests.ProbeTestController.class, properties = {
+@WebMvcTest(controllers = {CorsAndProbeHttpTests.ProbeTestController.class, HelloController.class}, properties = {
         "grownupsvet.frontend.base-url=",
         "grownupsvet.frontend.allowed-origins=https://owners.vet-demo.dev,https://staff.vet-demo.dev",
         "grownupsvet.api.base-url="})
 @Import({SecurityConfiguration.class, FrontendConfiguration.class, ApiSecurityErrorHandler.class, ApiErrorResponseFactory.class,
-        CorsAndProbeHttpTests.ProbeTestController.class})
+        CorsAndProbeHttpTests.ProbeTestController.class, HelloController.class})
 class CorsAndProbeHttpTests {
     @Autowired private MockMvc mvc;
     @MockitoBean private JwtDecoder decoder;
+
+    @Test
+    void publicHelloReturnsExactPlainTextWithoutAuthenticationOrOrigin() throws Exception {
+        mvc.perform(get(HelloController.HELLO_PATH))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.parseMediaType("text/plain;charset=UTF-8")))
+                .andExpect(content().string("Hola Mundo, GrownUpsVet desde google cloud"))
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+        verifyNoInteractions(decoder);
+    }
+
+    @Test
+    void helloPublicAccessIsLimitedToItsExactGetRoute() throws Exception {
+        mvc.perform(post(HelloController.HELLO_PATH)).andExpect(status().isUnauthorized());
+        mvc.perform(get(HelloController.HELLO_PATH + "/private")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(decoder);
+    }
 
     @Test
     void permittedPreflightIsHandledBeforeJwtAuthenticationForBothPortals() throws Exception {

@@ -19,7 +19,8 @@ public class UserPermissionResolver {
             UserPermission.VETERINARIAN_PROFILE_READ.name(),
             UserPermission.VETERINARIAN_AVAILABILITY_READ_AVAILABLE.name(),
             UserPermission.APPOINTMENT_CREATE_SELF.name(),
-            UserPermission.APPOINTMENT_READ_SELF.name());
+            UserPermission.APPOINTMENT_READ_SELF.name(),
+            UserPermission.CLINICAL_HISTORY_READ_SELF.name());
 
     private static final List<String> STAFF_PERMISSIONS = List.of(
             UserPermission.PROFILE_PHOTO_READ_SELF.name(),
@@ -33,7 +34,9 @@ public class UserPermissionResolver {
                     UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(),
                     UserPermission.VETERINARIAN_AVAILABILITY_READ_SELF.name(),
                     UserPermission.APPOINTMENT_READ_ASSIGNED.name(),
-                    UserPermission.APPOINTMENT_OWNER_EMAIL_READ.name());
+                    UserPermission.APPOINTMENT_OWNER_EMAIL_READ.name(),
+                    UserPermission.CLINICAL_ENCOUNTER_MANAGE_ASSIGNED.name(),
+                    UserPermission.CLINICAL_HISTORY_READ_ASSIGNED.name());
             case ADMINISTRATOR -> List.of(UserPermission.PROFILE_PHOTO_READ_SELF.name(),
                     UserPermission.PROFILE_PHOTO_UPDATE_SELF.name(), UserPermission.VETERINARIAN_MANAGE.name(),
                     UserPermission.VETERINARIAN_AVAILABILITY_MANAGE.name(),

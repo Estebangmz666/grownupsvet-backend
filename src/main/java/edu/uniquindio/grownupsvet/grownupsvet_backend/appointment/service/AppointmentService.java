@@ -9,6 +9,8 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.Appointm
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperation;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperationCommittedEvent;
 import org.postgresql.util.PSQLException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
@@ -118,6 +120,7 @@ public class AppointmentService {
         insertAssignment(appointmentId, slot, ownerId, now, "Solicitud de cita");
         insertEvent(appointmentId, 0, "REQUESTED", null, "REQUESTED", null, "ASSIGNED", null,
                 slot.id(), ownerId, "HUMAN", now, reason, null, null, null);
+        eventPublisher.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.APPOINTMENT_CREATE));
         return new AppointmentCreationResult(get(ownerId, appointmentId), true);
     }
 

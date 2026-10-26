@@ -8,11 +8,14 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.UserRole;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserRepository;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperation;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperationCommittedEvent;
 import org.hibernate.exception.ConstraintViolationException;
 import org.postgresql.util.PSQLException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -20,12 +23,14 @@ public class UserSignupService {
     private final UserRepository userRepository;
     private final OwnerProfileRepository ownerProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher events;
 
     public UserSignupService(UserRepository userRepository, OwnerProfileRepository ownerProfileRepository,
-                             PasswordEncoder passwordEncoder) {
+                             PasswordEncoder passwordEncoder, ApplicationEventPublisher events) {
         this.userRepository = userRepository;
         this.ownerProfileRepository = ownerProfileRepository;
         this.passwordEncoder = passwordEncoder;
+        this.events = events;
     }
 
     /** Saves the account and owner profile atomically, without granting a session. */
@@ -49,6 +54,7 @@ public class UserSignupService {
             }
             throw exception;
         }
+        events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.OWNER_SIGNUP));
         return new UserSignupResponseDTO(user.getId(), user.getEmail());
     }
 

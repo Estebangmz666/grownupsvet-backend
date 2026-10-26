@@ -191,8 +191,8 @@ def validate_appointment_required_fields(specification: dict, responses: dict) -
 
 def validate_administrative_appointment_contract(specification: dict, responses: dict) -> None:
     """Check the new administrative request and real HTTP transition/replay responses."""
-    if specification["info"]["version"] != "0.9.0":
-        raise AssertionError("Appointment notifications require application contract 0.9.0")
+    if specification["info"]["version"] != "0.10.0":
+        raise AssertionError("Clinical encounters require application contract 0.10.0")
     request_fields = {
         "clientRequestId", "availabilitySlotId", "expectedAvailabilitySlotVersion", "expectedVersion",
         "reason", "agreementChannel", "agreementContactedAt", "agreementNote",
@@ -277,6 +277,61 @@ def validate_notification_contract(specification: dict, responses: dict) -> None
         raise AssertionError("Notification empty-page example must come from an empty page")
 
 
+
+def validate_clinical_contract(specification: dict, responses: dict) -> None:
+    required = {"id", "appointmentId", "petId", "ownerId", "veterinarianId", "createdBy", "status", "version",
+                "reason", "anamnesis", "physicalExamination", "diagnosis", "carePlan", "createdAt", "updatedAt", "finalizedAt"}
+    schema = specification["components"]["schemas"]["ClinicalEncounterResponseDTO"]
+    if set(schema.get("required", [])) != required:
+        raise AssertionError("ClinicalEncounterResponseDTO: required fields differ from the agreed contract")
+    validator = response_validator(specification, "ClinicalEncounterResponseDTO")
+    for filename in ("clinical-created.json", "clinical-updated.json"):
+        response = responses[filename]
+        validator.validate(response)
+        for field in required:
+            if validator.is_valid({key: value for key, value in response.items() if key != field}):
+                raise AssertionError(f"ClinicalEncounterResponseDTO: omission of {field} must be rejected")
+        for invalid in ({**response, "status": "INVALID"}, {**response, "version": -1},
+                        {**response, "version": "1"}, {**response, "unexpected": True}):
+            if validator.is_valid(invalid):
+                raise AssertionError("ClinicalEncounterResponseDTO: invalid response shape was accepted")
+    for path, method in (("/api/v1/clinical-encounters", "post"),
+                         ("/api/v1/clinical-encounters/{encounterId}", "get"),
+                         ("/api/v1/clinical-encounters/{encounterId}", "put"),
+                         ("/api/v1/appointments/{appointmentId}/clinical-encounter", "get")):
+        operation = specification["paths"][path][method]
+        if {"bearerAuth": []} not in operation.get("security", []):
+            raise AssertionError(f"{method.upper()} {path}: bearer authentication is required")
+        for status in ("400", "401", "403", "404", "500"):
+            error = operation["responses"][status]["content"]["application/problem+json"]["schema"]
+            if error.get("$ref") != "#/components/schemas/ApiErrorResponseDTO":
+                raise AssertionError(f"{method.upper()} {path}: standard errors must be documented")
+
+
+
+def validate_clinical_treatment_contract(specification: dict, responses: dict) -> None:
+    schema = specification["components"]["schemas"]["ClinicalTreatmentResponseDTO"]
+    if set(schema.get("required", [])) != {"encounterId", "version", "prescriptions", "controls"}:
+        raise AssertionError("ClinicalTreatmentResponseDTO: required fields differ from the agreed contract")
+    example = responses["clinical-treatment.json"]
+    if not example["prescriptions"] or not example["controls"]:
+        raise AssertionError("Clinical treatment requires populated, real HTTP examples")
+    for child, name in ((example["prescriptions"][0], "ClinicalPrescriptionResponseDTO"),
+                        (example["controls"][0], "ClinicalControlResponseDTO")):
+        validator = response_validator(specification, name)
+        validator.validate(child)
+        for field in specification["components"]["schemas"][name]["required"]:
+            if validator.is_valid({key: value for key, value in child.items() if key != field}):
+                raise AssertionError(f"{name}: omission of {field} must be rejected")
+    request = specification["components"]["schemas"]["UpdateClinicalTreatmentRequestDTO"]
+    if set(request.get("required", [])) != {"clientRequestId", "expectedVersion", "prescriptions", "controls"}:
+        raise AssertionError("Clinical treatment replacement requires both lists, a version and an idempotency key")
+    for method in ("get", "put"):
+        operation = specification["paths"]["/api/v1/clinical-encounters/{encounterId}/treatment"][method]
+        if {"bearerAuth": []} not in operation.get("security", []):
+            raise AssertionError("Clinical treatment requires bearer authentication")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", type=Path, default=Path("target/generated-openapi/openapi.json"))
@@ -328,6 +383,17 @@ def main() -> None:
         "appointment-notification-empty-page.json": "AppointmentNotificationPageResponseDTO",
         "appointment-notification-forbidden-error.json": "ApiErrorResponseDTO",
     }
+    examples.update({
+        "clinical-history.json": "ClinicalHistoryPageResponseDTO",
+        "clinical-history-empty.json": "ClinicalHistoryPageResponseDTO",
+        "clinical-finalized.json": "ClinicalEncounterResponseDTO",
+        "clinical-completed-appointment.json": "AppointmentResponseDTO",
+        "clinical-treatment.json": "ClinicalTreatmentResponseDTO",
+        "clinical-created.json": "ClinicalEncounterResponseDTO",
+        "clinical-updated.json": "ClinicalEncounterResponseDTO",
+        "clinical-conflict-error.json": "ApiErrorResponseDTO",
+        "clinical-not-found-error.json": "ApiErrorResponseDTO",
+    })
     responses = {}
     for filename, schema_name in examples.items():
         response = json.loads((args.examples / filename).read_text(encoding="utf-8"))
@@ -338,6 +404,35 @@ def main() -> None:
     validate_appointment_operation_responses(specification)
     validate_administrative_appointment_contract(specification, responses)
     validate_notification_contract(specification, responses)
+    validate_clinical_contract(specification, responses)
+    validate_clinical_treatment_contract(specification, responses)
+    if responses["clinical-finalized.json"]["status"] != "FINALIZED" or responses["clinical-finalized.json"]["finalizedAt"] is None:
+        raise AssertionError("Clinical finalization requires a real finalized response and timestamp")
+    if responses["clinical-completed-appointment.json"]["status"] != "COMPLETED":
+        raise AssertionError("Clinical finalization must complete its appointment")
+    history = responses["clinical-history.json"]
+    if not history["items"] or responses["clinical-history-empty.json"]["items"]:
+        raise AssertionError("Clinical history examples must include real populated and empty responses")
+    expected_page = {"items", "page", "size", "totalElements", "totalPages"}
+    history_schema = specification["components"]["schemas"]["ClinicalHistoryPageResponseDTO"]
+    if set(history_schema.get("required", [])) != expected_page:
+        raise AssertionError("Clinical history pagination contract is incomplete")
+    entry_validator = response_validator(specification, "ClinicalHistoryEntryResponseDTO")
+    required = specification["components"]["schemas"]["ClinicalHistoryEntryResponseDTO"]["required"]
+    for entry in history["items"]:
+        entry_validator.validate(entry)
+        for field in required:
+            if entry_validator.is_valid({key: value for key, value in entry.items() if key != field}):
+                raise AssertionError(f"Clinical history: omission of {field} must be rejected")
+    history_operation = specification["paths"]["/api/v1/pets/{petId}/clinical-history"]["get"]
+    if {"bearerAuth": []} not in history_operation.get("security", []):
+        raise AssertionError("Clinical history requires bearer authentication")
+    operation = specification["paths"]["/api/v1/clinical-encounters/{encounterId}/finalizations"]["post"]
+    if {"bearerAuth": []} not in operation.get("security", []):
+        raise AssertionError("Clinical finalization requires bearer authentication")
+    fields = specification["components"]["schemas"]["FinalizeClinicalEncounterRequestDTO"].get("required", [])
+    if set(fields) != {"clientRequestId", "expectedVersion", "expectedAppointmentVersion"}:
+        raise AssertionError("Clinical finalization requires both versions and an idempotency key")
     print(f"OpenAPI {specification['openapi']} valid; {len(examples)} HTTP response examples match their schemas; "
           f"required-field, integer and enum rejection checks passed for {len(AVAILABILITY_REQUIRED_FIELDS)} availability and "
           f"{len(APPOINTMENT_REQUIRED_FIELDS)} appointment schemas; appointment nullability, operation responses and "

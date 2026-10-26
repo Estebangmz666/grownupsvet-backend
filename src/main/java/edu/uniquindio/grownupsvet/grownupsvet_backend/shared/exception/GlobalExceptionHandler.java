@@ -13,6 +13,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.exception.ProfilePhot
 import edu.uniquindio.grownupsvet.grownupsvet_backend.staff.exception.StaffOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.exception.AvailabilityOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.exception.AppointmentOperationException;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.exception.ClinicalOperationException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +82,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AppointmentOperationException.class)
     public ResponseEntity<Object> handleAppointmentOperation(AppointmentOperationException exception) {
+        return problemResponse(apiErrorResponseFactory.create(exception.getStatus(), exception.getErrorCode(),
+                exception.getDetail()), privateNoStoreHeaders());
+    }
+
+    @ExceptionHandler(ClinicalOperationException.class)
+    public ResponseEntity<Object> handleClinicalOperation(ClinicalOperationException exception) {
         return problemResponse(apiErrorResponseFactory.create(exception.getStatus(), exception.getErrorCode(),
                 exception.getDetail()), privateNoStoreHeaders());
     }

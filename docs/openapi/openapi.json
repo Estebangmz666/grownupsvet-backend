@@ -2,12 +2,19 @@
   "openapi" : "3.1.0",
   "info" : {
     "title" : "GrownupsVet API",
-    "description" : "Contrato generado desde Java para usuarios, mascotas, acceso, recuperación durable, personal, disponibilidad y gestión administrativa de citas. Incluye avisos durables de confirmación, rechazo, cancelación y cambios de horario, y recordatorio de citas confirmadas 24 horas antes. SMTP se configura para Mailtrap Sandbox; SENT acredita aceptación SMTP, no recepción en buzón. La jornada usa APPOINTMENT_WORKDAY_START_TIME en America/Bogota. Atención clínica, tratamientos y recordatorios de medicamentos quedan fuera de esta entrega.",
-    "version" : "0.9.0"
+    "description" : "Contrato generado desde Java para usuarios, mascotas, acceso, recuperación durable, personal, disponibilidad, citas y atención clínica P3. Los borradores pertenecen a citas confirmadas y solo el veterinario asignado puede modificarlos. La finalización publica la atención inmutable y completa la cita en una transacción. Incluye historia propia/asignada, fórmula y controles, avisos durables de citas y recordatorios clínicos por correo con inicio y fin; SENT acredita aceptación SMTP, no recepción en buzón. La jornada y los horarios clínicos usan America/Bogota. Adendas, urgencias e inventario quedan fuera del alcance aprobado.",
+    "version" : "0.10.0"
   },
   "servers" : [ {
     "url" : "http://localhost:8080",
     "description" : "Generated server url"
+  } ],
+  "tags" : [ {
+    "name" : "Clinical encounters",
+    "description" : "Borradores y atenciones clínicas con autorización por recurso."
+  }, {
+    "name" : "Clinical history",
+    "description" : "Consulta autorizada de atenciones publicadas por mascota."
   } ],
   "paths" : {
     "/api/v1/veterinarians/{veterinarianId}/qualifications/{qualificationId}" : {
@@ -1351,6 +1358,390 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/clinical-encounters/{encounterId}" : {
+      "get" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Consultar una atención autorizada",
+        "description" : "Un borrador solo es visible al veterinario vigente de su cita CONFIRMED/ASSIGNED. Un finalizado es visible al propietario de su mascota, al veterinario con una cita CONFIRMED/ASSIGNED actual de esa mascota o al veterinario que lo finalizó. Sin asignación vigente, este último conserva únicamente sus propios finalizados; los roles administrativos no reciben contenido clínico.",
+        "operationId" : "getClinicalEncounter",
+        "parameters" : [ {
+          "name" : "encounterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o ajeno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Atención autorizada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Reemplazar campos de un borrador",
+        "description" : "Versión obligatoria y clientRequestId idempotente. Campos omitidos o blancos se limpian. El veterinario vigente puede continuar el borrador reasignado conservando su creador y la autoría de los eventos. Los finalizados son inmutables.",
+        "operationId" : "updateClinicalEncounter",
+        "parameters" : [ {
+          "name" : "encounterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateClinicalEncounterRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Solicitud inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o ajeno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Borrador guardado o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/clinical-encounters/{encounterId}/treatment" : {
+      "get" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Consultar fórmula y controles de una atención",
+        "description" : "Aplica la misma autorización que el detalle clínico. Devuelve la versión compartida de la atención y listas ordenadas. El borrador solo es visible al veterinario vigente de la cita.",
+        "operationId" : "getClinicalTreatment",
+        "parameters" : [ {
+          "name" : "encounterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Datos de tratamiento inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Atención inexistente o no visible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Fórmula y controles autorizados",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalTreatmentResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Reemplazar fórmula y controles del borrador",
+        "description" : "Reemplaza ambas listas completas, con máximo 50 elementos por lista e IDs únicos dentro de cada lista. Las listas vacías eliminan sus elementos. No modifica los textos clínicos; comparte expectedVersion con toda la atención. clientRequestId conserva la intención y repetirla devuelve el estado actual sin nuevos eventos. Dosis positiva con hasta 12 enteros y 6 decimales; intervalo de 1 a 168 horas; inicio y fin explícitos separados por un máximo de 366 días. Fechas con offset obligatorio, normalizadas a microsegundos UTC; la presentación de avisos usa America/Bogota. No calcula dosis ni exige que el inicio o los controles sean futuros. Los finalizados son inmutables.",
+        "operationId" : "updateClinicalTreatment",
+        "parameters" : [ {
+          "name" : "encounterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateClinicalTreatmentRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Datos de tratamiento inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Atención inexistente o no visible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Tratamiento guardado o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalTreatmentResponseDTO"
                 }
               }
             }
@@ -2840,6 +3231,211 @@
         } ]
       }
     },
+    "/api/v1/clinical-encounters" : {
+      "post" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Crear borrador desde cita confirmada",
+        "description" : "Solo veterinario asignado activo. Una atención por cita, datos de mascota y propietario derivados del servidor. clientRequestId conserva la intención original; repetirla no crea otra atención.",
+        "operationId" : "createClinicalEncounter",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateClinicalEncounterRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Borrador creado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Solicitud inválida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Recurso inexistente o ajeno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/clinical-encounters/{encounterId}/finalizations" : {
+      "post" : {
+        "tags" : [ "Clinical encounters" ],
+        "summary" : "Finalizar atención y completar cita atómicamente",
+        "description" : "Solo el veterinario asignado puede finalizar desde el inicio del turno. Requiere motivo, anamnesis, examen físico, diagnóstico, plan y ambas versiones. Publica la atención inmutable y completa la cita en una transacción; un replay equivalente no duplica auditoría ni programación clínica.",
+        "operationId" : "finalizeClinicalEncounter",
+        "parameters" : [ {
+          "name" : "encounterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FinalizeClinicalEncounterRequestDTO"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "400" : {
+            "description" : "Campos clínicos o solicitud incompletos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Atención inexistente o no visible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Versión, estado o intención incompatible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Atención finalizada o repetición equivalente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/auth/sessions" : {
       "post" : {
         "tags" : [ "Sesiones" ],
@@ -3395,7 +3991,7 @@
           "required" : false,
           "schema" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW" ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW", "COMPLETED" ]
           }
         }, {
           "name" : "page",
@@ -5677,6 +6273,131 @@
         } ]
       }
     },
+    "/api/v1/pets/{petId}/clinical-history" : {
+      "get" : {
+        "tags" : [ "Clinical history" ],
+        "summary" : "Consultar historia publicada de una mascota",
+        "description" : "Propietario activo de su mascota, incluso archivada. Un veterinario activo con cita CONFIRMED/ASSIGNED actual consulta antecedentes publicados; sin esa asignación consulta únicamente atenciones que él finalizó. Solo FINALIZED, orden finalizedAt e id descendentes. Vista viva page/size: nuevas publicaciones pueden desplazar páginas entre peticiones; recargar desde page 0. No incluye borradores ni concede lectura administrativa.",
+        "operationId" : "getPetClinicalHistory",
+        "parameters" : [ {
+          "name" : "petId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Historia publicada paginada, incluida una lista vacía",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalHistoryPageResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Identificador o paginación inválidos",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Sin permiso de historia clínica",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Mascota inexistente o no visible para la cuenta",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/hello" : {
+      "get" : {
+        "tags" : [ "Comprobación pública" ],
+        "summary" : "Comprobar acceso público al backend",
+        "description" : "Devuelve un saludo sin autenticación para comprobar el acceso HTTP al servicio. No valida la conexión con la base de datos ni sustituye las sondas de salud.",
+        "operationId" : "getHelloMessage",
+        "responses" : {
+          "200" : {
+            "description" : "Servicio HTTP accesible",
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string",
+                  "example" : "Hola Mundo, GrownUpsVet desde google cloud"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ ]
+      }
+    },
     "/api/v1/availability-slots" : {
       "get" : {
         "tags" : [ "Disponibilidad veterinaria" ],
@@ -6073,6 +6794,88 @@
         } ]
       }
     },
+    "/api/v1/appointments/{appointmentId}/clinical-encounter" : {
+      "get" : {
+        "tags" : [ "appointment-clinical-encounter-controller" ],
+        "summary" : "Consultar la atención de una cita",
+        "description" : "Descubrimiento autorizado con las mismas reglas que el detalle clínico. Los borradores no son visibles al propietario ni a veterinarios ajenos.",
+        "operationId" : "getAppointmentClinicalEncounter",
+        "parameters" : [ {
+          "name" : "appointmentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Atención autorizada",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClinicalEncounterResponseDTO"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Identificador inválido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Autenticación requerida",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "Permiso clínico requerido",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Atención inexistente o no visible",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Error interno",
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponseDTO"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/v1/auth/sessions/current" : {
       "delete" : {
         "tags" : [ "Sesiones" ],
@@ -6412,6 +7215,316 @@
         },
         "required" : [ "baseDegreeInstitution", "baseDegreeTitle", "biography", "createdAt", "email", "fullName", "id", "professionalPhoneNumber", "professionalRegistrationNumber", "qualifications", "status", "updatedAt" ]
       },
+      "UpdateClinicalEncounterRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Reemplazo de campos del borrador: omitir un campo clínico o enviarlo en blanco lo limpia. No cambia relaciones.",
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "anamnesis" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "physicalExamination" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "diagnosis" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "carePlan" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "clientRequestId", "expectedVersion" ]
+      },
+      "ClinicalEncounterResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "appointmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "petId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "ownerId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "createdBy" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "DRAFT", "FINALIZED" ]
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "reason" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000
+          },
+          "anamnesis" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000
+          },
+          "physicalExamination" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000
+          },
+          "diagnosis" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000
+          },
+          "carePlan" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 4000
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "finalizedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "anamnesis", "appointmentId", "carePlan", "createdAt", "createdBy", "diagnosis", "finalizedAt", "id", "ownerId", "petId", "physicalExamination", "reason", "status", "updatedAt", "version", "veterinarianId" ]
+      },
+      "ClinicalControlRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "scheduledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "id", "reason", "scheduledAt" ]
+      },
+      "ClinicalPrescriptionRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "medicationName" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "dose" : {
+            "type" : "number",
+            "maximum" : 1.0E12,
+            "minimum" : 1.0E-6
+          },
+          "doseUnit" : {
+            "type" : "string",
+            "maxLength" : 50,
+            "minLength" : 0
+          },
+          "administrationRoute" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "intervalHours" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 168,
+            "minimum" : 1
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "instructions" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 2000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "administrationRoute", "dose", "doseUnit", "endsAt", "id", "intervalHours", "medicationName", "startsAt" ]
+      },
+      "UpdateClinicalTreatmentRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Reemplazo completo de fórmula y controles; listas vacías eliminan sus elementos. Comparte la versión de la atención.",
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "prescriptions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClinicalPrescriptionRequestDTO"
+            },
+            "maxItems" : 50,
+            "minItems" : 0
+          },
+          "controls" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClinicalControlRequestDTO"
+            },
+            "maxItems" : 50,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "clientRequestId", "controls", "expectedVersion", "prescriptions" ]
+      },
+      "ClinicalControlResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "scheduledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 1000
+          }
+        },
+        "required" : [ "id", "reason", "scheduledAt" ]
+      },
+      "ClinicalPrescriptionResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "medicationName" : {
+            "type" : "string",
+            "maxLength" : 200
+          },
+          "dose" : {
+            "type" : "number",
+            "maximum" : 1.0E12,
+            "minimum" : 1.0E-6
+          },
+          "doseUnit" : {
+            "type" : "string",
+            "maxLength" : 50
+          },
+          "administrationRoute" : {
+            "type" : "string",
+            "maxLength" : 100
+          },
+          "intervalHours" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 168,
+            "minimum" : 1
+          },
+          "startsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endsAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "instructions" : {
+            "type" : [ "string", "null" ],
+            "maxLength" : 2000
+          }
+        },
+        "required" : [ "administrationRoute", "dose", "doseUnit", "endsAt", "id", "instructions", "intervalHours", "medicationName", "startsAt" ]
+      },
+      "ClinicalTreatmentResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "encounterId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "prescriptions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClinicalPrescriptionResponseDTO"
+            }
+          },
+          "controls" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClinicalControlResponseDTO"
+            }
+          }
+        },
+        "required" : [ "controls", "encounterId", "prescriptions", "version" ]
+      },
       "UpdateAdministratorRequestDTO" : {
         "type" : "object",
         "additionalProperties" : false,
@@ -6699,6 +7812,42 @@
           }
         },
         "required" : [ "active", "breed", "createdAt", "dateOfBirth", "dateOfBirthEstimated", "id", "name", "sex", "species", "updatedAt" ]
+      },
+      "CreateClinicalEncounterRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "appointmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "appointmentId", "clientRequestId" ]
+      },
+      "FinalizeClinicalEncounterRequestDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "properties" : {
+          "clientRequestId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "expectedVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "expectedAppointmentVersion" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "clientRequestId", "expectedAppointmentVersion", "expectedVersion" ]
       },
       "UserLoginRequestDTO" : {
         "type" : "object",
@@ -7028,7 +8177,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW" ]
+            "enum" : [ "REQUESTED", "CONFIRMED", "REJECTED", "CANCELLED", "NO_SHOW", "COMPLETED" ]
           },
           "assignmentStatus" : {
             "type" : "string",
@@ -7626,6 +8775,77 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/PetResponseDTO"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "minimum" : 0
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          }
+        },
+        "required" : [ "items", "page", "size", "totalElements", "totalPages" ]
+      },
+      "ClinicalHistoryEntryResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Resumen de una atención publicada; el contenido y tratamiento se consultan en el detalle autorizado.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "appointmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "petId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "veterinarianFullName" : {
+            "type" : "string",
+            "maxLength" : 150
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 4000
+          },
+          "finalizedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        },
+        "required" : [ "appointmentId", "finalizedAt", "id", "petId", "reason", "veterinarianFullName", "veterinarianId" ]
+      },
+      "ClinicalHistoryPageResponseDTO" : {
+        "type" : "object",
+        "additionalProperties" : false,
+        "description" : "Vista viva de atenciones publicadas, ordenada por finalizedAt e id descendentes. Totales y filas comparten una instantánea por respuesta; nuevas publicaciones pueden desplazar páginas entre solicitudes.",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ClinicalHistoryEntryResponseDTO"
             }
           },
           "page" : {

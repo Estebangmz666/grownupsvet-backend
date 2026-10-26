@@ -1,6 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.shared.configuration;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.security.ApiSecurityErrorHandler;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.controller.HelloController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.controller.UserSessionController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.recovery.controller.UserPasswordRecoveryController;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.controller.UserSignupController;
@@ -53,6 +54,9 @@ public class SecurityConfiguration {
                         .accessDeniedHandler(apiSecurityErrorHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .authorizeHttpRequests(access -> access
+                        // Metrics are served only by the opt-in loopback management chain.
+                        .requestMatchers("/actuator/prometheus", "/actuator/prometheus/**").denyAll()
+                        .requestMatchers(HttpMethod.GET, HelloController.HELLO_PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/account-activations",

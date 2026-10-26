@@ -1,6 +1,6 @@
 # Preparar datos ficticios para los procesos 1 y 2
 
-`scripts/create-demo-data.ps1` es un cliente de la **API local 0.9.0**. Crea datos nuevos y conserva una cita confirmada para el [guion de demostración](guion-demostracion-procesos-1-2.md). No ejecuta SQL, bootstrap, creación/activación de personal, cambios de permisos o despliegue; usa cuentas profesionales existentes.
+`scripts/create-demo-data.ps1` es un cliente de la **API local 0.9.0/0.10.0**. Crea datos nuevos y conserva una cita confirmada para el [guion de demostración](guion-demostracion-procesos-1-2.md). No ejecuta SQL, bootstrap, creación/activación de personal, cambios de permisos o despliegue; usa cuentas profesionales existentes.
 
 El script no se ha ejecutado sobre tu base `grownupsvet_dev` para preparar esta documentación. La prueba HTTP automatizada usa PostgreSQL aislado y correo ausente/simulado. **El helper no llama SMTP directamente, pero confirmar, cambiar y cancelar por la API puede activar los trabajadores del backend:** si tu instancia tiene Mailtrap configurado, puede enviar mensajes a su Sandbox.
 
@@ -8,7 +8,7 @@ El script no se ha ejecutado sobre tu base `grownupsvet_dev` para preparar esta 
 
 ## Prerrequisitos y alcance
 
-- Backend actual con Swagger/OpenAPI 0.9.0, configuración de PostgreSQL/JWT válida y zona de negocio `America/Bogota`. Comprobar instancia/puerto mediante la [guía Mailtrap](verificacion-mailtrap.md).
+- Backend actual con Swagger/OpenAPI 0.9.0 o 0.10.0, configuración de PostgreSQL/JWT válida y zona de negocio `America/Bogota`. Comprobar instancia/puerto mediante la [guía Mailtrap](verificacion-mailtrap.md).
 - Cuenta `ADMINISTRATOR` activa: obtener su `accessToken` mediante `POST /api/v1/auth/sessions`. `SUPER_ADMIN`, `VETERINARIAN` y `OWNER` no sustituyen ese permiso. No hay credenciales predeterminadas en este helper.
 - UUID de un veterinario ya **activo**, consultable por el administrador en `GET /api/v1/veterinarians/{id}`. Su perfil y activación deben estar preparados con los flujos de [personal](personal-e-invitaciones.md).
 - Dos horarios libres consecutivos de ese veterinario. Indicar el inicio del primero con offset explícito; el segundo se publica 30 minutos después. Ambos deben caer desde mañana en Colombia y no superar 60 días desde la ejecución, con minutos `:00`/`:30`, sin segundos/fracciones. Conviene elegir dos días después para evitar el cambio de fecha durante el recorrido.
@@ -39,7 +39,7 @@ Cambiar puerto/fecha/UUID por los valores elegidos. El script no escribe variabl
 
 | Fase | Acción mediante API | Resultado que comprueba el cliente |
 |---|---|---|
-| Precondiciones | OpenAPI, perfil sin token y lectura administrativa del veterinario | Contrato 0.9.0, rechazo sin autenticación (`401`), autorización vigente y veterinario activo antes de crear propietarios |
+| Precondiciones | OpenAPI, perfil sin token y lectura administrativa del veterinario | Contrato 0.9.0/0.10.0, rechazo sin autenticación (`401`), autorización vigente y veterinario activo antes de crear propietarios |
 | Proceso 1 | Registro/login de dos propietarios nuevos `demo-a-<RunId>@example.test` y `demo-b-<RunId>@example.test`; mascota propia para cada uno | UUID reales, rol `OWNER` asignado por servidor; B no lee la mascota de A (`404`) |
 | Disponibilidad | Administrador publica dos turnos; A consulta opciones | Rutas/horas/versiones devueltas por la API, turnos publicados y solicitables |
 | Solicitud A | Crear solicitud y repetir idéntica clave/cuerpo | `201`, luego `200` con mismo UUID/versión; B no consulta cita A (`404`) |

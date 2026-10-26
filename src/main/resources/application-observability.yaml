@@ -1,0 +1,27 @@
+# Opt in alongside dev/test/prod. The Cloud Run collector shares this loopback network.
+# Keep the API ingress port separate; never publish this port through a public proxy.
+spring:
+  config:
+    import: classpath:metrics-common.yaml
+management:
+  server:
+    port: 9091
+    address: 127.0.0.1
+  endpoints:
+    access:
+      default: none
+    web:
+      exposure:
+        include: health,prometheus
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    prometheus:
+      access: read-only
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+      probes:
+        add-additional-paths: true

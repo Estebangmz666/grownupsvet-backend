@@ -10,6 +10,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.Appoin
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentNotificationService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentEmailConfiguration;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.VeterinarianAvailabilitySlot;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.VeterinarianAvailabilitySlotRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.pet.model.Pet;
@@ -37,6 +38,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.Environment;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -48,9 +52,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
+import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -105,6 +111,7 @@ class AppointmentEmailDispatcherIntegrationTests {
     @Autowired private AppointmentService appointments;
     @Autowired private AppointmentNotificationService notifications;
     @Autowired private AppointmentProperties appointmentProperties;
+    @Autowired private Environment environment;
     @Autowired private JsonMapper mapper;
     @Autowired private MutableNotificationClock clock;
     @Autowired private UserRepository users;
@@ -179,6 +186,93 @@ class AppointmentEmailDispatcherIntegrationTests {
         submitted.getFirst().run();
         assertThat(taskStatus(task[0])).isEqualTo("SENT");
         assertThat(delivered).hasSize(1);
+    }
+
+    @Test
+    void rejectedBoundedExecutorPreservesCommittedWorkUntilTheNextPoll() {
+        try (var configuration = new AnnotationConfigApplicationContext(AppointmentEmailConfiguration.class)) {
+            ThreadPoolTaskExecutor bounded = configuration.getBean("appointmentEmailExecutor", ThreadPoolTaskExecutor.class);
+            assertThat(bounded.getCorePoolSize()).isEqualTo(1);
+            assertThat(bounded.getMaxPoolSize()).isEqualTo(1);
+            assertThat(bounded.getQueueCapacity()).isEqualTo(16);
+        }
+        Map<String, Object> businessState = jdbc.queryForMap("select * from appointments where id=?", fixture.appointmentId());
+        doThrow(new TaskRejectedException("Controlled executor saturation"))
+                .when(executor).execute(any(Runnable.class));
+        UUID[] task = new UUID[1];
+        transactions.executeWithoutResult(status -> {
+            task[0] = queueOwner(1);
+            events.publishEvent(new AppointmentNotificationsQueuedEvent(fixture.appointmentId()));
+        });
+        assertThat(taskStatus(task[0])).isEqualTo("PENDING");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, task[0])).isZero();
+        assertThat(jdbc.queryForMap("select * from appointments where id=?", fixture.appointmentId())).isEqualTo(businessState);
+        verifyNoInteractions(mailSender);
+
+        reset(executor);
+        doAnswer(invocation -> { submitted.add(invocation.getArgument(0)); return null; })
+                .when(executor).execute(any(Runnable.class));
+        doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            delivered.add(plainText((MimeMessage) invocation.getArgument(0)));
+            return null;
+        }).when(mailSender).send(any(MimeMessage.class));
+        dispatcher.pollPending();
+        assertThat(submitted).hasSize(1);
+        submitted.getFirst().run();
+        assertThat(taskStatus(task[0])).isEqualTo("SENT");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, task[0])).isEqualTo(1);
+        assertThat(delivered).hasSize(1);
+        assertThat(jdbc.queryForMap("select * from appointments where id=?", fixture.appointmentId())).isEqualTo(businessState);
+    }
+
+    @Test
+    void simulatedSmtpTimeoutKeepsDurableRetryAndRespectsConfiguredAttemptLimits() {
+        for (String timeout : List.of("connectiontimeout", "timeout", "writetimeout")) {
+            assertThat(environment.getProperty("spring.mail.properties.mail.smtp." + timeout, Integer.class))
+                    .as("configured SMTP %s in milliseconds", timeout).isEqualTo(5000);
+        }
+        UUID task = queueOwner(1);
+        Map<String, Object> businessState = jdbc.queryForMap("select * from appointments where id=?", fixture.appointmentId());
+        doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            throw new MailSendException("Controlled SMTP timeout", new SocketTimeoutException("Controlled socket timeout"));
+        }).when(mailSender).send(any(MimeMessage.class));
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(task)).isEqualTo("PENDING");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, task)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select last_error_code from appointment_email_tasks where id=?", String.class, task))
+                .isEqualTo("SMTP_DELIVERY_FAILED");
+        assertThat(jdbc.queryForObject("select next_attempt_at from appointment_email_tasks where id=?", java.sql.Timestamp.class, task).toInstant())
+                .isEqualTo(NOW.plusSeconds(60));
+        clock.set(NOW.plusSeconds(59));
+        dispatcher.dispatchPending();
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, task)).isEqualTo(1);
+        clock.set(NOW.plusSeconds(60));
+        successfulSmtp();
+        dispatcher.dispatchPending();
+        assertThat(taskStatus(task)).isEqualTo("SENT");
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, task)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select last_error_code from appointment_email_tasks where id=?", String.class, task)).isNull();
+        assertThat(delivered).hasSize(1);
+
+        UUID exhaustedTask = queueOwner(1);
+        doThrow(new MailSendException("Controlled SMTP timeout", new SocketTimeoutException("Controlled socket timeout")))
+                .when(mailSender).send(any(MimeMessage.class));
+        int maximumAttempts = appointmentProperties.getMaximumEmailAttempts();
+        assertThat(maximumAttempts).isGreaterThan(1);
+        for (int attempt = 1; attempt <= maximumAttempts; attempt++) {
+            clock.set(NOW.plusSeconds(60L * attempt));
+            dispatcher.dispatchPending();
+            assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, exhaustedTask))
+                    .isEqualTo(attempt);
+            assertThat(taskStatus(exhaustedTask)).isEqualTo(attempt == maximumAttempts ? "FAILED" : "PENDING");
+        }
+        clock.set(NOW.plusSeconds(60L * (maximumAttempts + 1)));
+        dispatcher.dispatchPending();
+        assertThat(jdbc.queryForObject("select attempt_count from appointment_email_tasks where id=?", Integer.class, exhaustedTask))
+                .isEqualTo(maximumAttempts);
+        assertThat(jdbc.queryForMap("select * from appointments where id=?", fixture.appointmentId())).isEqualTo(businessState);
     }
 
     @Test

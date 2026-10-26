@@ -1,0 +1,26 @@
+# Cloud Build uploads only the source needed by Dockerfile.
+# Review with: gcloud meta list-files-for-upload
+**
+!.gcloudignore
+!.dockerignore
+!Dockerfile
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.properties
+!src/
+!src/main/
+!src/main/**
+
+# Never upload credentials, even if accidentally placed under src/main.
+**/.env
+**/.env.*
+**/*.p12
+**/*.pfx
+**/*.pem
+**/*.key
+**/*.jks
+**/*.keystore
+**/*.pk8
+**/*.log

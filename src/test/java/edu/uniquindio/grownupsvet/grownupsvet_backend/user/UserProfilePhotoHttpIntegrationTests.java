@@ -126,6 +126,47 @@ class UserProfilePhotoHttpIntegrationTests {
     }
 
     @Test
+    void rejectsSizeSideAndPixelAreaLimitsWithoutReplacingThePreviousPhoto() throws Exception {
+        put(new MockMultipartFile("file", "previous.png", MediaType.IMAGE_PNG_VALUE, image("png", 20, 20)))
+                .andExpect(status().isNoContent());
+        byte[] previousPhoto = mockMvc.perform(get(OwnerProfileService.PROFILE_PHOTO_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, bearer()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.IMAGE_PNG))
+                .andReturn().getResponse().getContentAsByteArray();
+
+        put(new MockMultipartFile("file", "large.png", MediaType.IMAGE_PNG_VALUE,
+                new byte[2 * 1024 * 1024 + 1]))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value("PROFILE_PHOTO_TOO_LARGE"));
+        assertPreviousPhotoIsUnchanged(previousPhoto);
+
+        put(new MockMultipartFile("file", "wide.png", MediaType.IMAGE_PNG_VALUE, image("png", 8001, 1)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_PROFILE_PHOTO"));
+        assertPreviousPhotoIsUnchanged(previousPhoto);
+
+        byte[] excessivePixelArea = pngExceedingThePixelAreaLimit();
+        assertThat(excessivePixelArea.length).isLessThanOrEqualTo(2 * 1024 * 1024);
+        put(new MockMultipartFile("file", "excessive-area.png", MediaType.IMAGE_PNG_VALUE, excessivePixelArea))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_PROFILE_PHOTO"));
+        assertPreviousPhotoIsUnchanged(previousPhoto);
+
+        put(new MockMultipartFile("file", "replacement.png", MediaType.IMAGE_PNG_VALUE, image("png", 700, 350)))
+                .andExpect(status().isNoContent());
+        MvcResult replacement = mockMvc.perform(get(OwnerProfileService.PROFILE_PHOTO_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, bearer()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.IMAGE_PNG))
+                .andReturn();
+        BufferedImage stored = ImageIO.read(new ByteArrayInputStream(
+                replacement.getResponse().getContentAsByteArray()));
+        assertThat(stored.getWidth()).isEqualTo(512);
+        assertThat(stored.getHeight()).isEqualTo(256);
+    }
+
+    @Test
     void generatedContractContainsTheMultipartFieldAndAllPhotoOperations() throws Exception {
         JsonNode specification = jsonMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
@@ -169,4 +210,21 @@ class UserProfilePhotoHttpIntegrationTests {
     }
 
     private String bearer() { return "Bearer " + token; }
+
+    private void assertPreviousPhotoIsUnchanged(byte[] previousPhoto) throws Exception {
+        mockMvc.perform(get(OwnerProfileService.PROFILE_PHOTO_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, bearer()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(previousPhoto));
+    }
+
+    private byte[] pngExceedingThePixelAreaLimit() throws Exception {
+        // Both sides are valid; only the 20,005,000-pixel area exceeds the public limit.
+        // A binary raster keeps this genuine PNG fixture small without allocating an ARGB image.
+        BufferedImage image = new BufferedImage(5000, 4001, BufferedImage.TYPE_BYTE_BINARY);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        assertThat(ImageIO.write(image, "png", output)).isTrue();
+        return output.toByteArray();
+    }
 }

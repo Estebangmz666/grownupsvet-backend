@@ -1,6 +1,6 @@
 # GrownupsVet backend
 
-API REST académica para la gestión de usuarios, mascotas y citas veterinarias. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato funcional vigente es **0.9.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`.
+API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.10.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [informe de P3](docs/verificacion-backend-p3-2026-10-25.md) distingue pruebas, publicación Git y aceptación del despliegue.
 
 ## Alcance funcional
 
@@ -8,7 +8,7 @@ API REST académica para la gestión de usuarios, mascotas y citas veterinarias.
 |---|---|
 | **P1 · Registro y gestión de usuarios y mascotas** | Registro de propietarios, login y cierre de sesión, recuperación de contraseña, perfil y foto propios, mascotas, administración de personal e invitaciones, perfiles profesionales, títulos y diplomas. |
 | **P2 · Gestión de citas veterinarias** | Disponibilidad, solicitud y consulta de citas, confirmación/rechazo, cancelación, reprogramación, reasignación, inasistencia, corte diario, historial y avisos durables con recordatorio de 24 horas. |
-| **P3 · Atención veterinaria y gestión clínica** | **Pendiente de contrato e implementación**. No se incluyen historias clínicas, atención, fórmulas ni controles clínicos. |
+| **P3 · Atención veterinaria y gestión clínica** | Borradores por cita confirmada, fórmula y controles estructurados, finalización atómica con cita COMPLETED e historia publicada autorizada. Recordatorios clínicos durables por correo, con inicio/fin y omisión de ocurrencias vencidas; implementación local verificada por pruebas, aún sin evidencia del nuevo despliegue. Adendas fuera del alcance aprobado. |
 
 La implementación de una operación no significa que esté habilitada en todos los entornos. Recuperación, invitaciones y correo dependen de su configuración; la integración y evaluación de los frontends se verifican por separado.
 
@@ -20,16 +20,18 @@ Cada cuenta tiene un solo rol. Los roles tienen responsabilidades independientes
 
 | Rol | Responsabilidad implementada |
 |---|---|
-| `OWNER` | Gestionar su perfil, foto y mascotas; consultar veterinarios/opciones de turno y crear/consultar sus citas y avisos. |
-| `VETERINARIAN` | Consultar su disponibilidad y citas asignadas; acceder al correo del propietario mediante una operación puntual auditada; gestionar su propia foto. |
+| `OWNER` | Gestionar su perfil, foto y mascotas; consultar veterinarios/opciones de turno, crear/consultar sus citas y avisos y leer historia publicada de sus mascotas, incluidas las archivadas. |
+| `VETERINARIAN` | Consultar disponibilidad y citas asignadas, editar/finalizar su atención y leer antecedentes durante una asignación confirmada. Conserva lectura de lo que finalizó, sin acceso permanente a futuras atenciones ajenas. Acceso puntual auditado al correo y gestión de foto propios. |
 | `ADMINISTRATOR` | Gestionar veterinarios, perfiles profesionales, disponibilidad y cambios/estados de citas; gestionar su propia foto. |
 | `SUPER_ADMIN` | Crear y administrar cuentas de administradores; gestionar su propia foto. No hereda la gestión de veterinarios ni de citas. |
 
 La autenticación usa JWT Bearer RS256 de 24 horas, sin refresh token. Cada petición protegida comprueba cuenta, estado, rol, permisos y revocación en PostgreSQL. Las contraseñas se almacenan con Argon2id. Véase [usuarios y permisos](docs/arquitectura-usuarios-y-permisos.md).
 
-## Entorno académico desplegado
+Los permisos clínicos nuevos requieren un nuevo login de OWNER/VETERINARIAN al publicar P3. Administración conserva acceso a citas, sin contenido clínico. El [contrato clínico](docs/atenciones-clinicas.md) y el [plan de cierre por incrementos](docs/plan-cierre-ejecucion-2026-10-25.md) documentan las decisiones aprobadas, los límites y la evidencia. [CI](docs/integracion-continua.md) valida pruebas y contrato; [observabilidad](docs/observabilidad.md) prepara Prometheus/Grafana y distingue contadores operativos de indicadores académicos evaluados.
 
-Corte documentado: **15 de octubre de 2026**.
+## Entorno académico desplegado: corte histórico
+
+Corte documentado: **16 de octubre de 2026**.
 
 | Recurso | Dirección |
 |---|---|
@@ -37,17 +39,19 @@ Corte documentado: **15 de octubre de 2026**.
 | Swagger UI | [Abrir documentación interactiva](https://grownupsvet-backend-w5glrcsyda-uc.a.run.app/swagger-ui/index.html) |
 | OpenAPI JSON | [Consultar contrato](https://grownupsvet-backend-w5glrcsyda-uc.a.run.app/v3/api-docs) |
 
-El backend está desplegado en **Google Cloud Run**, región `us-central1`, conectado mediante TLS a **PostgreSQL 18 de Render Free**. Se verificaron salud, contrato y acceso por roles. El entorno tiene **7 cuentas ficticias activas** —1 superadministrador, 2 administradores, 2 veterinarios y 2 propietarios— y **4 mascotas de demostración**. Las credenciales se entregan por un archivo privado independiente.
+El backend está desplegado en **Google Cloud Run**, región `us-central1`, conectado mediante TLS a **PostgreSQL 18 de Render Free**. El corte del 15/10 verificó salud, contrato, acceso por roles, **7 cuentas ficticias activas** —1 superadministrador, 2 administradores, 2 veterinarios y 2 propietarios— y **4 mascotas de demostración**. El 16/10 se añadió un propietario de prueba autorizado para comprobar recuperación mediante Gmail. Las credenciales se conservan en archivos privados independientes.
 
-**El entorno desplegado incluye adaptaciones locales de despliegue que todavía no están versionadas en este repositorio.** Este README registra su estado observado; clonar el código publicado no reproduce por sí solo la configuración Cloud Run/Render. La ejecución de pruebas, el despliegue y la publicación de código tienen evidencias distintas.
+El corte histórico desplegado usó adaptaciones locales de configuración. Esta rama las consolida junto con P3 y sus controles de entrega; las variables privadas, secretos y configuración real del servicio siguen siendo necesarios. La ejecución de pruebas, la publicación Git y el despliegue tienen evidencias distintas.
 
-Condiciones actuales del entorno:
+Condiciones observadas en ese corte (deben verificarse de nuevo para entregar P3):
 
 - Los frontends y sus URLs de activación siguen pendientes de integración. No hay orígenes externos habilitados en CORS; Swagger utiliza el origen de la propia API.
 - Las invitaciones de personal están deshabilitadas. Crear personal nuevo o reenviar invitaciones requiere configurar y verificar el formulario real; las cuentas precargadas permiten evaluar los cuatro roles.
-- El correo usa **Mailtrap Sandbox**. Una tarea `SENT` acredita aceptación SMTP, no entrega ni lectura en un buzón real. Se verificó la aceptación SMTP de una solicitud de recuperación en nube.
+- El correo usa **Gmail SMTP** (`smtp.gmail.com:587`, STARTTLS). La revisión `grownupsvet-backend-00004-mzr` está lista y recibe el 100 % del tráfico. Una recuperación solicitada a la API en nube quedó `SENT` al primer intento y el usuario confirmó su recepción en **Recibidos**. Son evidencias distintas de aceptación SMTP y llegada al buzón. La evidencia del 15/10 corresponde históricamente a Mailtrap Sandbox.
 - La base gratuita de Render vence el **14 de noviembre de 2026** y no dispone de backups configurados. Conservar datos exige exportarlos y comprobar su restauración antes del vencimiento; recrear una base no conserva su contenido.
 - Las comprobaciones de demostración en nube no sustituyen la regresión completa, las pruebas de carga ni la evaluación de los portales en ese entorno.
+
+La [verificación de Gmail del 16/10/2026](docs/verificacion-gmail-2026-10-16.md) registra autenticación y backend local disponibles, recepción de una prueba SMTP directa y recepción del correo de recuperación generado en nube. Conserva imagen, revisión, resultados y límites; no se leyó el código de recuperación ni se restableció la contraseña. Consultar [Gmail local](docs/ejecucion-local.md#gmail-en-la-terminal-actual) y [Gmail en Cloud Run](docs/google-cloud.md#gmail-para-destinatarios-reales). Sandbox sigue disponible para pruebas aisladas.
 
 ## Contrato y documentación de la API
 
@@ -58,7 +62,7 @@ Con el backend local en su puerto predeterminado:
 - OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`.
 - Salud: `/actuator/health/liveness` y `/actuator/health/readiness`.
 
-El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.9.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
+El snapshot versionado conserva OpenAPI **3.1.0**, contrato **0.10.0**. Controladores, DTOs y anotaciones Java son la fuente editable: **no editar manualmente** [openapi.json](docs/openapi/openapi.json). El [procedimiento de regeneración y validación](docs/openapi/README.md) explica cómo comprobar contrato y ejemplos reales.
 
 Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores utilizan `application/problem+json`, con `errorCode` y `fieldErrors` para los clientes. Registro, autenticación y operaciones públicas tienen sus condiciones específicas en OpenAPI; la existencia de una ruta no concede acceso a datos ajenos.
 
@@ -73,6 +77,14 @@ Las rutas protegidas reciben `Authorization: Bearer <accessToken>`. Los errores 
 | [Datos de demostración](docs/datos-demostracion.md) | Helper reproducible para la API local con personal y credenciales aportados por el operador. |
 
 Estas guías conservan decisiones y verificaciones fechadas de cada incremento. Sus pendientes históricos deben interpretarse junto con el corte de entorno indicado arriba.
+
+### Avances posteriores al corte histórico
+
+El 25/10 el frontend compatible con `COMPLETED` se publicó en [Cloudflare Pages](https://grownupsvet-frontend.pages.dev/). El gateway existente usa la API desde el mismo origen; no requiere abrir CORS directo de Cloud Run. El CORE P3 pasó CI remoto y la [protección de main](docs/verificacion-proteccion-integracion-2026-10-25.md) bloqueó una prueba controlada con contrato divergente.
+
+Se obtuvo un [backup de Render y se comprobó su restauración](docs/verificacion-respaldo-render-2026-10-25.md), incluidas las migraciones clínicas. Quedó programada otra copia para el **13/11/2026 a las 09:00 de Bogotá**: requiere el computador y Codex encendidos. El respaldo y las credenciales permanecen fuera de Git.
+
+La [observabilidad elegida](docs/observabilidad.md) usa Grafana OSS y Prometheus locales, sin suscripción ni vencimiento. El perfil `monitoring` protege el scrape remoto con una credencial máquina independiente de los JWT humanos. La publicación de la imagen final y M1–M9 siguen sujetos a su verificación desplegada.
 
 ## Ejecución local en Windows
 
@@ -101,7 +113,8 @@ CREATE DATABASE grownupsvet_test;
 | `JWT_KEY_ALIAS` | Alias de la clave; el valor predeterminado es `grownupsvet-jwt-signing-2026-09`. |
 | `JWT_KEY_PASSWORD` | Solo si la clave tiene una contraseña distinta de la del almacén. |
 | `APPOINTMENT_WORKDAY_START_TIME` | **Obligatoria en `dev`**. Para esta entrega: `06:00`, en `America/Bogota`. |
-| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Necesarias para demostrar envío de avisos con Mailtrap Sandbox. `dev` tiene defaults de host Sandbox y puerto 2525. |
+| `MAIL_HOST`, `MAIL_PORT` | `dev` conserva Mailtrap Sandbox/2525 por defecto; para Gmail, `smtp.gmail.com`/587 con STARTTLS obligatorio. |
+| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Credenciales y remitente del proveedor elegido. Con Gmail: dirección completa, contraseña de aplicación y la misma dirección como remitente. |
 | `PASSWORD_RECOVERY_ENABLED` | Por defecto `false`; habilitarla requiere `PASSWORD_RECOVERY_HMAC_SECRET`, `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY` y el canal de correo configurado. |
 | `STAFF_INVITATIONS_ENABLED` | Por defecto `false`; habilitarla requiere `STAFF_INVITATION_ENCRYPTION_KEY`, correo y `STAFF_ACTIVATION_URL` del formulario real. |
 
@@ -120,6 +133,25 @@ $env:APPOINTMENT_WORKDAY_START_TIME = "06:00"
 ```
 
 El diagnóstico no arranca servicios ni valida credenciales PostgreSQL, firma JWT o entrega SMTP. La [guía de ejecución local](docs/ejecucion-local.md) explica sus resultados y límites.
+
+### Gmail en la terminal actual
+
+Desde PowerShell en Windows, guardar la cuenta y su contraseña de aplicación con entrada oculta:
+
+```powershell
+.\scripts\configure-gmail.ps1
+# Alternativa con formulario local: .\scripts\configure-gmail.ps1 -ShowWindow
+```
+
+El helper guarda una credencial `PSCredential` en `%USERPROFILE%\.grownupsvet\gmail\smtp-credential.clixml`, con la contraseña protegida mediante DPAPI para el usuario de Windows. No la guarda en Git ni en el registro de variables de entorno. Solo configura el correo del proceso actual; conserva DB, JWT y claves HMAC/cifrado. No envía mensajes ni despliega la nube.
+
+En cada terminal nueva, cargar la credencial privada antes del arranque normal:
+
+```powershell
+. .\scripts\configure-gmail.ps1 -UseSavedCredential
+```
+
+Arrancar el backend desde esa misma terminal. Cargar esta configuración no actualiza un backend ya iniciado ni un IDE abierto; la recepción se comprueba por separado con un flujo real autorizado. El procedimiento completo está en [ejecución local](docs/ejecucion-local.md#gmail-en-la-terminal-actual).
 
 ### Arranque
 
@@ -157,6 +189,7 @@ La regresión histórica local del 14/10 registró **541 pruebas JUnit satisfact
 
 Evidencias versionadas para ampliar la revisión:
 
+- [Gmail local y Cloud Run](docs/verificacion-gmail-2026-10-16.md): 20 pruebas del validador, 1 de generación OpenAPI, recepción real y metadatos del envío; los 41 ejemplos existentes se validaron sin repetir sus recorridos HTTP.
 - [Verificación del incremento 0.9.0](docs/verificacion-procesos-1-2-preparacion-google-cloud-2026-10-09.md): suite y contrato de publicación, contenedor y límites del corte histórico.
 - [Casos académicos de P1/P2](docs/evidencia-casos-academicos-procesos-1-2-2026-10-10.md): relación CP-001–CP-012 con pruebas; clínica prevista por separado.
 - [Verificación en Mailtrap](docs/verificacion-mailtrap.md) y [recordatorio con reloj real](docs/verificacion-recordatorio-real-2026-10-10.md): procedimientos y evidencias locales fechadas.
@@ -165,3 +198,8 @@ Evidencias versionadas para ampliar la revisión:
 ## Organización del código
 
 El proyecto se organiza por dominios: `authentication`, `user`, `pet`, `staff`, `availability`, `appointment` y `shared`, dentro de `edu.uniquindio.grownupsvet.grownupsvet_backend`. Los controladores reciben/devuelven DTOs, los servicios aplican reglas y transacciones, y los repositorios persisten los datos. La seguridad y los errores comunes se centralizan en `shared`.
+
+
+## Verificación de P3
+
+El [informe del 25/10/2026](docs/verificacion-backend-p3-2026-10-25.md) registra **695 pruebas aprobadas**, contrato y ejemplos HTTP validados, garantías de concurrencia y los pendientes operativos de producción. Los resultados históricos de otras secciones mantienen sus fechas de corte.

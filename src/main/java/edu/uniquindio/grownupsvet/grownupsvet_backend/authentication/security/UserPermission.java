@@ -21,7 +21,10 @@ public enum UserPermission {
     APPOINTMENT_READ_ASSIGNED,
     APPOINTMENT_READ_ALL,
     APPOINTMENT_MANAGE,
-    APPOINTMENT_OWNER_EMAIL_READ;
+    APPOINTMENT_OWNER_EMAIL_READ,
+    CLINICAL_ENCOUNTER_MANAGE_ASSIGNED,
+    CLINICAL_HISTORY_READ_SELF,
+    CLINICAL_HISTORY_READ_ASSIGNED;
 
     /** Compile-time strings for annotations, kept in one place with the enum values. */
     public static final class Constants {
@@ -45,6 +48,9 @@ public enum UserPermission {
         public static final String APPOINTMENT_READ_ALL = "APPOINTMENT_READ_ALL";
         public static final String APPOINTMENT_MANAGE = "APPOINTMENT_MANAGE";
         public static final String APPOINTMENT_OWNER_EMAIL_READ = "APPOINTMENT_OWNER_EMAIL_READ";
+        public static final String CLINICAL_ENCOUNTER_MANAGE_ASSIGNED = "CLINICAL_ENCOUNTER_MANAGE_ASSIGNED";
+        public static final String CLINICAL_HISTORY_READ_SELF = "CLINICAL_HISTORY_READ_SELF";
+        public static final String CLINICAL_HISTORY_READ_ASSIGNED = "CLINICAL_HISTORY_READ_ASSIGNED";
 
         private Constants() { }
     }

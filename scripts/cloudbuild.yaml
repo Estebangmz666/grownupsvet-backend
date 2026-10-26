@@ -1,0 +1,9 @@
+# _IMAGE_URI must identify the Artifact Registry image for this release.
+# Submit with the dedicated build service account and a private source bucket.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '--tag', '${_IMAGE_URI}', '.']
+images: ['${_IMAGE_URI}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

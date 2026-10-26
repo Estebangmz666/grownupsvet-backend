@@ -4,10 +4,16 @@ param(
     [string]$Region,
     [string]$ServiceName,
     [string]$ImageUri,
+    [ValidateSet('CloudSql', 'ExternalPostgres')]
+    [string]$DatabaseProvider = 'CloudSql',
     [string]$CloudSqlInstanceConnectionName,
+    [string]$ExternalDatabaseHost,
+    [int]$ExternalDatabasePort = 5432,
     [string]$ServiceAccountEmail,
     [string]$DatabaseName,
     [string]$DatabaseUsername,
+    [ValidateSet('Mailtrap', 'Gmail')]
+    [string]$MailProvider = 'Mailtrap',
     [string]$MailFrom,
     [decimal]$ApprovedMonthlyBudgetUsd,
     [hashtable]$SecretBindings = @{},
@@ -51,17 +57,33 @@ Assert-Matches $ProjectId '^[a-z][a-z0-9-]{4,28}[a-z0-9]$' 'ProjectId'
 Assert-Matches $Region '^[a-z]+-[a-z]+[0-9]+$' 'Region'
 Assert-Matches $ServiceName '^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$' 'ServiceName'
 Assert-Matches $ImageUri '^[a-z0-9-]+-docker\.pkg\.dev/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z0-9._/-]+(:[a-zA-Z0-9._-]+|@sha256:[a-f0-9]{64})$' 'ImageUri'
-Assert-Matches $CloudSqlInstanceConnectionName '^[a-z][a-z0-9-]{4,28}[a-z0-9]:[a-z0-9-]+:[a-z][a-z0-9-]{0,96}$' 'CloudSqlInstanceConnectionName'
 Assert-Matches $ServiceAccountEmail '^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$' 'ServiceAccountEmail'
 Assert-Matches $DatabaseName '^[a-z][a-z0-9_]{0,62}$' 'DatabaseName'
 Assert-Matches $DatabaseUsername '^[a-z][a-z0-9_]{0,62}$' 'DatabaseUsername'
 Assert-Matches $MailFrom '^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$' 'MailFrom'
 Assert-Matches $JwtKeyAlias '^[a-zA-Z0-9._-]+$' 'JwtKeyAlias'
 if ($ApprovedMonthlyBudgetUsd -le 0) { throw 'Indica el presupuesto mensual aprobado; esto no configura un corte automático de gasto.' }
-if ($CloudSqlInstanceConnectionName.Split(':')[0] -ne $ProjectId -or
-    $CloudSqlInstanceConnectionName.Split(':')[1] -ne $Region -or
-    -not $ServiceAccountEmail.EndsWith("@$ProjectId.iam.gserviceaccount.com")) {
-    throw 'Proyecto, región SQL y cuenta de servicio deben coincidir con el despliegue seleccionado.'
+if (-not $ServiceAccountEmail.EndsWith("@$ProjectId.iam.gserviceaccount.com")) {
+    throw 'La cuenta de servicio debe pertenecer al proyecto seleccionado.'
+}
+if ($DatabaseProvider -eq 'CloudSql') {
+    Assert-Matches $CloudSqlInstanceConnectionName '^[a-z][a-z0-9-]{4,28}[a-z0-9]:[a-z0-9-]+:[a-z][a-z0-9-]{0,96}$' 'CloudSqlInstanceConnectionName'
+    if ($CloudSqlInstanceConnectionName.Split(':')[0] -ne $ProjectId -or
+        $CloudSqlInstanceConnectionName.Split(':')[1] -ne $Region) {
+        throw 'Proyecto y región SQL deben coincidir con el despliegue seleccionado.'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExternalDatabaseHost)) {
+        throw 'CloudSql no admite un host PostgreSQL externo.'
+    }
+} else {
+    Assert-Matches $ExternalDatabaseHost '^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$' 'ExternalDatabaseHost'
+    if ($ExternalDatabaseHost -match '(^|\.)(localhost|local|internal|invalid|example|test|example\.(com|net|org))$' -or
+        $ExternalDatabasePort -lt 1 -or $ExternalDatabasePort -gt 65535) {
+        throw 'PostgreSQL externo requiere un hostname remoto real y un puerto válido.'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($CloudSqlInstanceConnectionName)) {
+        throw 'ExternalPostgres no admite una instancia Cloud SQL.'
+    }
 }
 if ([string]::IsNullOrWhiteSpace($TrustedProxyPattern) -or $TrustedProxyPattern.Contains('.*') -or
     $TrustedProxyPattern.Contains("`n") -or $TrustedProxyPattern.Contains("`r")) {
@@ -100,14 +122,17 @@ if (-not $EnableBootstrap -and ($SecretBindings.ContainsKey('SUPER_ADMIN_EMAIL')
     throw 'Incluye referencias de bootstrap únicamente al habilitar el aprovisionamiento inicial.'
 }
 
+$smtpEndpoint = switch ($MailProvider) {
+    'Mailtrap' { @{ Host = 'sandbox.smtp.mailtrap.io'; Port = '2525' } }
+    'Gmail' { @{ Host = 'smtp.gmail.com'; Port = '587' } }
+}
+
 $runtimeEnvironment = [ordered]@{
     SPRING_PROFILES_ACTIVE = 'prod'
     DB_NAME = $DatabaseName
     DB_USERNAME = $DatabaseUsername
-    CLOUD_SQL_INSTANCE_CONNECTION_NAME = $CloudSqlInstanceConnectionName
-    CLOUD_SQL_IP_TYPES = 'PUBLIC'
-    MAIL_HOST = 'sandbox.smtp.mailtrap.io'
-    MAIL_PORT = '2525'
+    MAIL_HOST = $smtpEndpoint.Host
+    MAIL_PORT = $smtpEndpoint.Port
     MAIL_FROM = $MailFrom
     JWT_KEYSTORE_PATH = $jwtMountPath
     JWT_KEY_ALIAS = $JwtKeyAlias
@@ -121,6 +146,13 @@ $runtimeEnvironment = [ordered]@{
     BACKEND_BASE_URL = $BackendBaseUrl
     TRUSTED_PROXY_PATTERN = $TrustedProxyPattern
 }
+if ($DatabaseProvider -eq 'CloudSql') {
+    $runtimeEnvironment.CLOUD_SQL_INSTANCE_CONNECTION_NAME = $CloudSqlInstanceConnectionName
+    $runtimeEnvironment.CLOUD_SQL_IP_TYPES = 'PUBLIC'
+} else {
+    $runtimeEnvironment.SPRING_PROFILES_ACTIVE = 'prod,external-postgres'
+    $runtimeEnvironment.SPRING_DATASOURCE_URL = "jdbc:postgresql://${ExternalDatabaseHost}:${ExternalDatabasePort}/${DatabaseName}"
+}
 
 if (-not $Execute) {
     [pscustomobject]@{
@@ -128,6 +160,10 @@ if (-not $Execute) {
         ProjectId = $ProjectId
         Region = $Region
         ServiceName = $ServiceName
+        DatabaseProvider = $DatabaseProvider
+        MailProvider = $MailProvider
+        MailHost = $smtpEndpoint.Host
+        MailPort = $smtpEndpoint.Port
         ApprovedMonthlyBudgetUsd = $ApprovedMonthlyBudgetUsd
         Cpu = 1
         Memory = '2Gi'

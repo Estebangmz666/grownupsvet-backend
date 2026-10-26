@@ -1,0 +1,94 @@
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Backend verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: grownupsvet_test
+          POSTGRES_USER: grownupsvet_ci
+          POSTGRES_PASSWORD: isolated-ci-fixture-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grownupsvet_ci -d grownupsvet_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DB_USERNAME: grownupsvet_ci
+      DB_PASSWORD: isolated-ci-fixture-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configure Java 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Configure Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: scripts/requirements-openapi.txt
+
+      - name: Require PowerShell for the demo integration tests
+        shell: bash
+        run: |
+          command -v pwsh
+          pwsh -NoLogo -NoProfile -NonInteractive -Command 'if ($PSVersionTable.PSVersion.Major -lt 7) { exit 1 }'
+
+      - name: Install contract validation dependencies
+        run: python -m pip install -r scripts/requirements-openapi.txt
+
+      - name: Compile, test and package against isolated PostgreSQL
+        run: bash ./mvnw -B -ntp clean verify
+
+      - name: Reject missing, failed or skipped test suites
+        if: ${{ !cancelled() }}
+        run: python scripts/check_ci_outputs.py reports
+
+      - name: Validate generated OpenAPI and real HTTP examples
+        run: python scripts/validate_generated_openapi.py
+
+      - name: Check the versioned OpenAPI snapshot
+        run: python scripts/check_ci_outputs.py contract
+
+      - name: Verify that the gates reject controlled failures
+        run: python scripts/verify_ci_failure_detection.py
+
+      - name: Preserve test diagnostics and generated contract
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/ci-reports/*.xml
+            target/generated-openapi/openapi.json
+          if-no-files-found: warn
+          retention-days: 7

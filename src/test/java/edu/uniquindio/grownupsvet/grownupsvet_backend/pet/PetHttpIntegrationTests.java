@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -27,11 +28,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -55,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Real PostgreSQL, bearer tokens and committed transactions exercise ownership and partial updates. */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import(TestJwtKeyConfiguration.class)
 class PetHttpIntegrationTests {
@@ -74,6 +78,7 @@ class PetHttpIntegrationTests {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private Clock clock;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     private final List<UUID> accountIds = new ArrayList<>();
     private User owner;
@@ -160,6 +165,81 @@ class PetHttpIntegrationTests {
         getPet(token, ownPetId).andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Luna"))
                 .andExpect(jsonPath("$.active").value(true));
+        listPets(anotherToken, "").andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(otherPetId));
+        assertThat(jdbcTemplate.queryForObject("SELECT owner_id FROM pets WHERE id = ?", UUID.class,
+                UUID.fromString(ownPetId))).isEqualTo(owner.getId());
+    }
+
+    @Test
+    void aRegisteredOwnerCreatesAPetWithMatchingAccountProfileAndPetForeignKeys() throws Exception {
+        String email = "pet-registration-" + UUID.randomUUID() + "@example.com";
+        JsonNode registration = response(mockMvc.perform(post("/api/v1/auth/registrations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(Map.of("email", email.toUpperCase(java.util.Locale.ROOT),
+                                "fullName", "  Persona Pruebas  ", "dateOfBirth", "1955-05-20",
+                                "phoneNumber", "+573001234569", "password", RAW_PASSWORD))))
+                .andExpect(status().isCreated()).andReturn());
+        UUID registeredOwnerId = UUID.fromString(registration.path("id").asText());
+        accountIds.add(registeredOwnerId);
+        User registeredOwner = userRepository.findById(registeredOwnerId).orElseThrow();
+        String registeredOwnerToken = login(registeredOwner);
+        JsonNode createdPet = response(createPet(registeredOwnerToken, MINIMAL_PET)
+                .andExpect(status().isCreated()).andReturn());
+        Map<String, Object> relation = jdbcTemplate.queryForMap("""
+                SELECT account.id AS account_id, profile.user_id AS profile_id, pet.owner_id AS pet_owner_id,
+                       account.email, account.role, account.status, profile.full_name,
+                       profile.date_of_birth, profile.phone_number, pet.name, pet.species
+                  FROM users account
+                  JOIN owner_profiles profile ON profile.user_id = account.id
+                  JOIN pets pet ON pet.owner_id = profile.user_id
+                 WHERE pet.id = ?
+                """, UUID.fromString(createdPet.path("id").asText()));
+        assertThat(relation).containsEntry("account_id", registeredOwnerId)
+                .containsEntry("profile_id", registeredOwnerId).containsEntry("pet_owner_id", registeredOwnerId)
+                .containsEntry("email", email).containsEntry("role", "OWNER").containsEntry("status", "ACTIVE")
+                .containsEntry("full_name", "Persona Pruebas").containsEntry("phone_number", "+573001234569")
+                .containsEntry("name", "Luna").containsEntry("species", "DOG");
+        assertThat(relation.get("date_of_birth").toString()).isEqualTo("1955-05-20");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pets WHERE owner_id = ?", Integer.class,
+                registeredOwnerId)).isEqualTo(1);
+    }
+
+    @Test
+    void twoOwnersReadTheirOwnProfilesAndAPetUpdateCannotChangeTheOtherOwner() throws Exception {
+        String firstPetId = createPetId(COMPLETE_PET);
+        User secondOwner = createAccount(UserRole.OWNER);
+        String secondToken = login(secondOwner);
+        String secondPetId = response(createPet(secondToken, "{\"name\":\"Nube\",\"species\":\"CAT\"}")
+                .andExpect(status().isCreated()).andReturn()).path("id").asText();
+        JsonNode firstProfile = response(mockMvc.perform(get("/api/v1/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(owner.getId().toString())).andReturn());
+        JsonNode secondProfile = response(mockMvc.perform(get("/api/v1/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + secondToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(secondOwner.getId().toString())).andReturn());
+        getPet(token, firstPetId).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(firstPetId));
+        JsonNode secondPet = response(getPet(secondToken, secondPetId).andExpect(status().isOk()).andReturn());
+        listPets(token, "").andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(firstPetId));
+        listPets(secondToken, "").andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(secondPetId));
+
+        updatePet(token, firstPetId, "{\"name\":\"Luna Actualizada\"}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Luna Actualizada"));
+        getPet(token, firstPetId).andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Luna Actualizada"));
+        assertThat(response(getPet(secondToken, secondPetId).andExpect(status().isOk()).andReturn())).isEqualTo(secondPet);
+        assertThat(response(mockMvc.perform(get("/api/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andReturn())).isEqualTo(firstProfile);
+        assertThat(response(mockMvc.perform(get("/api/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + secondToken))
+                .andExpect(status().isOk()).andReturn())).isEqualTo(secondProfile);
+        listPets(secondToken, "").andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(secondPetId));
+        assertThat(jdbcTemplate.queryForObject("SELECT owner_id FROM pets WHERE id = ?", UUID.class,
+                UUID.fromString(firstPetId))).isEqualTo(owner.getId());
+        assertThat(jdbcTemplate.queryForObject("SELECT owner_id FROM pets WHERE id = ?", UUID.class,
+                UUID.fromString(secondPetId))).isEqualTo(secondOwner.getId());
     }
 
     @Test
@@ -373,6 +453,37 @@ class PetHttpIntegrationTests {
     }
 
     @Test
+    void invalidForeignKeysDomainsAndNullNamesRollbackWithoutChangingValidPetData() throws Exception {
+        UUID petId = UUID.fromString(createPetId(COMPLETE_PET));
+        Map<String, Object> originalPet = jdbcTemplate.queryForMap("SELECT * FROM pets WHERE id = ?", petId);
+        Map<String, Object> originalProfile = jdbcTemplate.queryForMap("SELECT * FROM owner_profiles WHERE user_id = ?", owner.getId());
+        int constraintsBefore = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.table_constraints
+                 WHERE table_schema = current_schema() AND table_name IN ('pets', 'owner_profiles')
+                """, Integer.class);
+        UUID unknownOwnerId = UUID.randomUUID();
+        assertSqlConstraintRejectsAndRollsBack("23503", () -> jdbcTemplate.update(
+                "INSERT INTO pets (id,owner_id,name,species,created_at,updated_at) VALUES (?,?,'Sin perfil','DOG',?,?)",
+                UUID.randomUUID(), unknownOwnerId, java.sql.Timestamp.from(clock.instant()), java.sql.Timestamp.from(clock.instant())));
+        assertSqlConstraintRejectsAndRollsBack("23514", () -> jdbcTemplate.update(
+                "UPDATE pets SET species = ? WHERE id = ?", "DINOSAUR", petId));
+        assertSqlConstraintRejectsAndRollsBack("23502", () -> jdbcTemplate.update(
+                "UPDATE pets SET name = NULL WHERE id = ?", petId));
+        assertSqlConstraintRejectsAndRollsBack("23503", () -> jdbcTemplate.update("""
+                INSERT INTO owner_profiles (user_id, full_name, date_of_birth, phone_number)
+                VALUES (?, ?, ?, ?)
+                """, unknownOwnerId, "Persona Inexistente", java.sql.Date.valueOf("1955-05-20"), "+573001234568"));
+        assertThat(jdbcTemplate.queryForMap("SELECT * FROM pets WHERE id = ?", petId)).isEqualTo(originalPet);
+        assertThat(jdbcTemplate.queryForMap("SELECT * FROM owner_profiles WHERE user_id = ?", owner.getId())).isEqualTo(originalProfile);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM owner_profiles WHERE user_id = ?", Integer.class,
+                unknownOwnerId)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.table_constraints
+                 WHERE table_schema = current_schema() AND table_name IN ('pets', 'owner_profiles')
+                """, Integer.class)).isEqualTo(constraintsBefore);
+    }
+
+    @Test
     void concurrentPartialUpdatesRetainBothIndependentChanges() throws Exception {
         String petId = createPetId(MINIMAL_PET);
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -441,6 +552,15 @@ class PetHttpIntegrationTests {
             assertThat(schemas.path("PetPageResponseDTO").path("properties").path(numericField).path("type").asText())
                     .isEqualTo("integer");
         }
+    }
+
+    private void assertSqlConstraintRejectsAndRollsBack(String expectedSqlState, Runnable invalidWrite) {
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> invalidWrite.run()))
+                .isInstanceOfSatisfying(DataIntegrityViolationException.class, failure -> {
+                    assertThat(failure.getMostSpecificCause()).isInstanceOf(SQLException.class);
+                    assertThat(((SQLException) failure.getMostSpecificCause()).getSQLState()).isEqualTo(expectedSqlState);
+                });
     }
 
     private User createAccount(UserRole role) {

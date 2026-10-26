@@ -23,6 +23,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -66,7 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Real HTTP security, independent commits and PostgreSQL lock waits; no outer test transaction. */
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false"})
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import(TestJwtKeyConfiguration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -290,11 +291,59 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
         assertThat(results.stream().map(result -> result.getResponse().getStatus()).toList())
                 .containsExactlyInAnyOrder(201, 409);
         int winner = results.get(0).getResponse().getStatus() == 201 ? 0 : 1;
+        assertThat(body(results.get(winner)).path("status").asText()).isEqualTo("REQUESTED");
         assertThat(body(results.get(1 - winner)).path("errorCode").asText()).isEqualTo("APPOINTMENT_SLOT_OCCUPIED");
         inNewTransaction(() -> {
             assertThat(jdbc.queryForObject("SELECT count(*) FROM appointments WHERE current_slot_id=?", Integer.class, slotId)).isEqualTo(1);
             UUID appointmentId = jdbc.queryForObject("SELECT id FROM appointments WHERE current_slot_id=?", UUID.class, slotId);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_events WHERE appointment_id=? AND event_type='REQUESTED'", Integer.class, appointmentId)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_assignments WHERE appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
+            return null;
+        });
+    }
+
+    @Test
+    void concurrentRequestsForOnePetAndOverlappingVeterinariansCommitOnlyOneAppointment() throws Exception {
+        MvcResult firstPublished = createSlot(firstAdministratorToken, "09:00");
+        assertThat(firstPublished.getResponse().getStatus()).isEqualTo(201);
+        UUID firstSlotId = UUID.fromString(body(firstPublished).path("id").asText());
+        UUID[] secondVeterinarianAndPet = inNewTransaction(() -> {
+            User secondVeterinarian = account(UserRole.VETERINARIAN);
+            Instant now = clock.instant();
+            VeterinarianProfile profile = profiles.saveAndFlush(new VeterinarianProfile(secondVeterinarian,
+                    "Dra. Profesional Alternativa", "+573001234568", "MV-" + secondVeterinarian.getId(),
+                    "Perfil ficticio para solapamiento de mascota.", firstAdministratorId, now));
+            qualifications.saveAndFlush(new VeterinarianQualification(profile, QualificationType.UNDERGRADUATE,
+                    "Medicina veterinaria", "Universidad de Ejemplo", 2020, true, now));
+            Pet pet = pets.saveAndFlush(new Pet(ownerProfiles.findById(ownerId).orElseThrow(), "Luna", PetSpecies.DOG,
+                    null, null, null, false, now));
+            return new UUID[]{secondVeterinarian.getId(), pet.getId()};
+        });
+        UUID secondVeterinarianId = secondVeterinarianAndPet[0];
+        UUID petId = secondVeterinarianAndPet[1];
+        MvcResult secondPublished = mvc.perform(authenticated(post("/api/v1/veterinarians/" + secondVeterinarianId + "/availability-slots"),
+                firstAdministratorToken, Map.of("startsAt", start("09:00").toString()))).andReturn();
+        assertThat(secondPublished.getResponse().getStatus()).isEqualTo(201);
+        UUID secondSlotId = UUID.fromString(body(secondPublished).path("id").asText());
+        long firstVersion = jdbc.queryForObject("SELECT version FROM veterinarian_availability_slots WHERE id=?", Long.class, firstSlotId);
+        long secondVersion = jdbc.queryForObject("SELECT version FROM veterinarian_availability_slots WHERE id=?", Long.class, secondSlotId);
+
+        List<MvcResult> results = raceWhileAccountIsLocked(ownerId,
+                () -> requestAppointment(ownerToken, UUID.randomUUID(), petId, firstSlotId, firstVersion),
+                () -> requestAppointment(ownerToken, UUID.randomUUID(), petId, secondSlotId, secondVersion), false);
+        assertThat(results.stream().map(result -> result.getResponse().getStatus()).toList())
+                .containsExactlyInAnyOrder(201, 409);
+        int winner = results.get(0).getResponse().getStatus() == 201 ? 0 : 1;
+        assertThat(body(results.get(winner)).path("status").asText()).isEqualTo("REQUESTED");
+        assertThat(body(results.get(1 - winner)).path("errorCode").asText()).isEqualTo("APPOINTMENT_PET_ALREADY_SCHEDULED");
+        inNewTransaction(() -> {
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointments WHERE pet_id=?", Integer.class, petId)).isEqualTo(1);
+            UUID appointmentId = jdbc.queryForObject("SELECT id FROM appointments WHERE pet_id=?", UUID.class, petId);
+            assertThat(jdbc.queryForObject("SELECT current_slot_id FROM appointments WHERE id=?", UUID.class, appointmentId))
+                    .isIn(firstSlotId, secondSlotId);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_events WHERE appointment_id=? AND event_type='REQUESTED'",
+                    Integer.class, appointmentId)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_events WHERE appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM appointment_assignments WHERE appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
             return null;
         });
@@ -308,6 +357,11 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
 
     private List<MvcResult> raceWhileVeterinarianIsLocked(Callable<MvcResult> firstRequest,
             Callable<MvcResult> secondRequest, boolean preserveArrivalOrder) throws Exception {
+        return raceWhileAccountIsLocked(veterinarianId, firstRequest, secondRequest, preserveArrivalOrder);
+    }
+
+    private List<MvcResult> raceWhileAccountIsLocked(UUID lockedAccountId, Callable<MvcResult> firstRequest,
+            Callable<MvcResult> secondRequest, boolean preserveArrivalOrder) throws Exception {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<MvcResult> first;
             Future<MvcResult> second;
@@ -315,7 +369,7 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
                 blocker.setAutoCommit(false);
                 try {
                     try (var statement = blocker.prepareStatement("SELECT id FROM users WHERE id=? FOR UPDATE")) {
-                        statement.setObject(1, veterinarianId);
+                        statement.setObject(1, lockedAccountId);
                         try (var result = statement.executeQuery()) { assertThat(result.next()).isTrue(); }
                     }
                     int blockerId;
@@ -326,8 +380,7 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
                     first = executor.submit(firstRequest);
                     if (preserveArrivalOrder) { awaitBlockedRequests(blockerId, 1); }
                     second = executor.submit(secondRequest);
-                    // PostgreSQL, rather than thread timing, proves two distinct HTTP database
-                    // transactions are waiting on the veterinarian lock before we release it.
+                    // PostgreSQL proves distinct HTTP transactions wait on the shared participant.
                     awaitBlockedRequests(blockerId, 2);
                     blocker.commit();
                 } finally {
@@ -340,7 +393,7 @@ class VeterinarianAvailabilityConcurrencyIntegrationTests {
     }
 
     private void awaitBlockedRequests(int blockerId, int expectedCount) {
-        await().alias("independent PostgreSQL requests waiting on the veterinarian account")
+        await().alias("independent PostgreSQL requests waiting on a shared participant account")
                 .atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
                     Integer waiting = jdbc.queryForObject("""
                             WITH RECURSIVE waiting(pid) AS (

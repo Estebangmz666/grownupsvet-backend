@@ -1,0 +1,15 @@
+# Configuration for the Google-managed Cloud Run Prometheus sidecar, not a service manifest.
+# Mount this configuration at /etc/rungmp/config.yaml after reviewing IAM and resources.
+apiVersion: monitoring.googleapis.com/v1beta
+kind: RunMonitoring
+metadata:
+  name: grownupsvet-backend
+spec:
+  endpoints:
+    - port: 9091
+      path: /actuator/prometheus
+      interval: 30s
+  targetLabels:
+    metadata:
+      - service
+      - revision

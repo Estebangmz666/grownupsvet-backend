@@ -12,10 +12,14 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserReposi
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -41,6 +45,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +76,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "grownupsvet.security.password-recovery.email-encryption-key=YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODk=",
         "grownupsvet.security.password-recovery.sender-address=no-reply@example.test"
 })
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @ActiveProfiles("test")
 @Import({TestJwtKeyConfiguration.class, PasswordRecoveryHttpIntegrationTests.ControlledClockConfiguration.class})
 class PasswordRecoveryHttpIntegrationTests {
@@ -148,6 +153,63 @@ class PasswordRecoveryHttpIntegrationTests {
         mvc.perform(get("/api/v1/users/me/profile/photo").header(HttpHeaders.AUTHORIZATION, "Bearer " + newSession))
                 .andExpect(status().isNotFound());
         verify(sender, timeout(5000)).sendPasswordResetNotification(eq(user.getEmail()), any());
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void passwordResetReplacesSaltedArgon2idAndKeepsSecretsOutOfDiagnostics(CapturedOutput output) throws Exception {
+        String originalPassword = UUID.randomUUID() + "-" + UUID.randomUUID();
+        String replacementPassword = UUID.randomUUID() + "-" + UUID.randomUUID();
+        user.changePasswordHash(encoder.encode(originalPassword));
+        user = users.saveAndFlush(user);
+        String originalHash = jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?",
+                String.class, user.getId());
+
+        MvcResult request = mvc.perform(json(PASSWORD_RECOVERIES_PATH, Map.of("email", user.getEmail())))
+                .andExpect(status().isAccepted()).andReturn();
+        String code = sentCodes.poll(5, TimeUnit.SECONDS);
+        assertThat(code != null && code.matches("[0-9]{6}"))
+                .as("the simulated recovery sender must provide a six-digit code").isTrue();
+        MvcResult verification = mvc.perform(json(PASSWORD_RECOVERY_VERIFICATIONS_PATH, verificationBody(code)))
+                .andExpect(status().isOk()).andReturn();
+        String resetPermission = mapper.readTree(verification.getResponse().getContentAsString()).path("resetToken").asText();
+        assertThat(resetPermission.matches("[A-Za-z0-9_-]{43}"))
+                .as("verification must provide a reset permission").isTrue();
+        MvcResult reset = mvc.perform(json(PASSWORD_RESETS_PATH,
+                        resetBody(resetPermission, replacementPassword, replacementPassword)))
+                .andExpect(status().isNoContent()).andReturn();
+        String replacementHash = jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?",
+                String.class, user.getId());
+
+        assertThat(hasSaltedArgon2idEncoding(originalHash))
+                .as("the initial credential must have a valid salted Argon2id encoding").isTrue();
+        assertThat(hasSaltedArgon2idEncoding(replacementHash))
+                .as("reset must persist a valid salted Argon2id encoding").isTrue();
+        assertThat(!originalHash.equals(replacementHash)).as("reset must replace the previous hash").isTrue();
+        assertThat(!originalHash.split("\\$", -1)[4].equals(replacementHash.split("\\$", -1)[4]))
+                .as("reset must generate a different salt").isTrue();
+        assertThat(encoder.matches(replacementPassword, replacementHash))
+                .as("the stored hash must recognize the replacement password").isTrue();
+        assertThat(!encoder.matches(originalPassword, replacementHash))
+                .as("the stored hash must reject the previous password").isTrue();
+        assertThat(challengeCount() == 0).as("reset must consume the recovery challenge and permission").isTrue();
+        assertThat(reset.getResponse().getContentAsString().isEmpty())
+                .as("reset must return an empty response").isTrue();
+
+        List<String> responses = List.of(request.getResponse().getContentAsString(),
+                verification.getResponse().getContentAsString(), reset.getResponse().getContentAsString());
+        assertThat(responses.stream().noneMatch(response -> response.contains(originalPassword)
+                || response.contains(replacementPassword) || response.contains(originalHash) || response.contains(replacementHash)))
+                .as("recovery responses must omit passwords and persisted hashes").isTrue();
+        assertThat(dispatcher.awaitIdle(Duration.ofSeconds(5)))
+                .as("simulated recovery deliveries must finish before inspecting diagnostics").isTrue();
+        String diagnostics = output.getAll();
+        assertThat(!diagnostics.contains(originalPassword) && !diagnostics.contains(replacementPassword))
+                .as("diagnostics must omit both passwords").isTrue();
+        assertThat(!diagnostics.contains(code) && !diagnostics.contains(resetPermission))
+                .as("diagnostics must omit the recovery code and reset permission").isTrue();
+        assertThat(!diagnostics.contains(originalHash) && !diagnostics.contains(replacementHash))
+                .as("diagnostics must omit both persisted hashes").isTrue();
     }
 
     @Test
@@ -440,6 +502,19 @@ class PasswordRecoveryHttpIntegrationTests {
         MvcResult result = mvc.perform(json("/api/v1/auth/sessions", Map.of("email", user.getEmail(), "password", password)))
                 .andExpect(status().is(expectedStatus)).andReturn();
         return expectedStatus == 200 ? mapper.readTree(result.getResponse().getContentAsString()).path("accessToken").asText() : null;
+    }
+
+    private boolean hasSaltedArgon2idEncoding(String encodedPassword) {
+        if (encodedPassword == null || !encodedPassword.startsWith("{argon2id}$argon2id$")) return false;
+        String[] fields = encodedPassword.substring("{argon2id}".length()).split("\\$", -1);
+        if (fields.length != 6 || !fields[2].matches("v=[1-9][0-9]*")
+                || !fields[3].matches("m=[1-9][0-9]*,t=[1-9][0-9]*,p=[1-9][0-9]*")) return false;
+        try {
+            return Base64.getDecoder().decode(fields[4]).length > 0
+                    && Base64.getDecoder().decode(fields[5]).length > 0;
+        } catch (IllegalArgumentException invalidEncoding) {
+            return false;
+        }
     }
 
     @TestConfiguration(proxyBeanMethods = false)

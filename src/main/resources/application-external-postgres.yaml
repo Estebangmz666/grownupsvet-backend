@@ -1,0 +1,14 @@
+# Activate together with prod: SPRING_PROFILES_ACTIVE=prod,external-postgres.
+# Use the provider's external DNS hostname, without credentials or URL parameters.
+# The server certificate must chain to a CA trusted by the JRE (or a verified
+# custom Java truststore); never substitute a non-validating SSL factory.
+spring:
+  config:
+    activate:
+      on-profile: "prod & external-postgres"
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:}
+    hikari:
+      data-source-properties:
+        sslmode: verify-full
+        sslfactory: org.postgresql.ssl.DefaultJavaSSLFactory

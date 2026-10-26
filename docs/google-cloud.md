@@ -1,8 +1,10 @@
 # Backend de procesos 1 y 2 en Google Cloud
 
-Preparación para la entrega del 18 de octubre de 2026. Esta guía conserva Java 25, Spring Boot, PostgreSQL, JWT RS256 y **Mailtrap Sandbox**. Preparar los archivos no acredita que haya un proyecto, infraestructura, despliegue o acceso externo funcionando; registrar esos resultados después de ejecutarlos.
+**Decisión del 15/10/2026:** para la entrega académica se eligió Cloud Run con PostgreSQL gratuito de Render durante aproximadamente 30 días, dentro de los US$300 gratuitos totales y sin actualizar a una cuenta de pago. Consultar [la guía de esta alternativa](google-cloud-render.md). Esta página conserva la configuración de Cloud SQL; preparar archivos no significa que el despliegue se haya ejecutado.
 
-El **10/10/2026 Esteban aplazó el despliegue**. Esta guía queda preparada para retomarlo cuando disponga de cuenta/proyecto y presupuesto; no se crearon recursos de nube durante la publicación del backend.
+Preparación para la entrega del 18 de octubre de 2026. Esta guía conserva Java 25, Spring Boot, PostgreSQL y JWT RS256. **Mailtrap Sandbox** sigue como opción predeterminada del script; el entorno Cloud Run usa **Gmail SMTP** desde el 16/10/2026. La revisión `grownupsvet-backend-00004-mzr` está lista, recibe el 100 % del tráfico y produjo un correo de recuperación cuya llegada a Recibidos confirmó el usuario. Consultar la [verificación de Gmail](verificacion-gmail-2026-10-16.md); el registro del 15/10 conserva su evidencia histórica de Sandbox.
+
+Antecedente: el **10/10/2026 Esteban aplazó el despliegue**; no se crearon recursos de nube durante aquella publicación del backend. El despliegue posterior con Render se documenta por separado.
 
 ## 1. Comenzar sin una cuenta o proyecto preparado
 
@@ -39,8 +41,8 @@ Activar explícitamente `SPRING_PROFILES_ACTIVE=prod`. `dev` conserva PostgreSQL
 | `DB_MAXIMUM_POOL_SIZE` | 5 por defecto; revisar capacidad y revisiones solapadas antes de ampliarlo |
 | `JWT_KEYSTORE_PATH` | `/var/secrets/jwt/jwt-signing.p12`, archivo montado y legible por usuario 10001 |
 | `JWT_KEYSTORE_PASSWORD`, `JWT_KEY_PASSWORD` si difiere | Secret Manager. Conservar `JWT_KEY_ALIAS`, emisor y audiencia entre revisiones |
-| `MAIL_HOST`, `MAIL_PORT` | `sandbox.smtp.mailtrap.io`, 2525 para este canal acordado |
-| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Credenciales del Sandbox como secretos; remitente válido. STARTTLS obligatorio y timeouts 5 s |
+| `MAIL_HOST`, `MAIL_PORT` | Sandbox: `sandbox.smtp.mailtrap.io`, 2525. Gmail: `smtp.gmail.com`, 587 |
+| `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` | Sandbox: credenciales propias de Mailtrap y remitente válido. Gmail: dirección Gmail completa, contraseña de aplicación y esa misma dirección como remitente. Usuario/contraseña desde Secret Manager; STARTTLS obligatorio y timeouts 5 s |
 | `PASSWORD_RECOVERY_ENABLED` | Habilitar para completar P1 |
 | `PASSWORD_RECOVERY_HMAC_SECRET`, `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY` | Secretos independientes; clave de payload cifrado estable y distinta del HMAC |
 | `STAFF_INVITATIONS_ENABLED`, `STAFF_INVITATION_ENCRYPTION_KEY` | Habilitar cuando el formulario real esté listo; secreto estable entre revisiones |
@@ -52,7 +54,7 @@ Activar explícitamente `SPRING_PROFILES_ACTIVE=prod`. `dev` conserva PostgreSQL
 | `BACKEND_BASE_URL` | URL pública HTTPS de la API, opcional en primer despliegue. Fija el servidor OpenAPI y permite su propio origen para Swagger tras terminar TLS en el proxy |
 | `TRUSTED_PROXY_PATTERN` | `^$` inicialmente: no confiar en headers de un proxy no verificado. Configurar únicamente una cadena real comprobada |
 
-El perfil productivo rechaza SMTP incompleto, otro host no acordado, URLs de ejemplo/locales al usarlas, activación ausente con invitaciones habilitadas y confianza indiscriminada en proxies. Puede arrancar sin URL frontend y sin orígenes CORS; los avisos no agregan enlaces rotos. Invitar personal deshabilitado en esa primera revisión técnica **no acredita P1 completo**.
+El perfil productivo rechaza SMTP incompleto, hosts distintos de Mailtrap Sandbox o Gmail, URLs de ejemplo/locales al usarlas, activación ausente con invitaciones habilitadas y confianza indiscriminada en proxies. Gmail exige puerto 587 y que usuario y remitente identifiquen la misma cuenta; el script selecciona 2525 para Sandbox. Puede arrancar sin URL frontend y sin orígenes CORS; los avisos no agregan enlaces rotos. Invitar personal deshabilitado en esa primera revisión técnica **no acredita P1 completo**.
 
 CORS resuelve preflight antes de JWT y autoriza métodos/headers del contrato, incluido `Authorization`; no usa cookies ni `Access-Control-Allow-Credentials`. Un origen permitido no otorga sesión o permisos. `BACKEND_BASE_URL` permite solo el origen de la propia API, no un wildcard.
 
@@ -74,13 +76,36 @@ Salud pública limitada a **GET** `/actuator/health/liveness` y `/actuator/healt
 
 `scripts/deploy-google-cloud.ps1` requiere identificadores, imagen existente, remitente, presupuesto aprobado y **referencias** de secretos `nombre:versión-numérica`, nunca sus valores. Sin `-Execute` solo valida localmente; `-ValidateOnly` explicita ese modo y no requiere `gcloud`, autenticación o red.
 
-Preparar una hashtable de parámetros con `ProjectId`, `Region`, `ServiceName`, `ImageUri`, `CloudSqlInstanceConnectionName`, `ServiceAccountEmail`, `DatabaseName`, `DatabaseUsername`, `MailFrom`, `ApprovedMonthlyBudgetUsd` y `SecretBindings`. Los nombres de bindings necesarios son:
+Preparar una hashtable de parámetros con `ProjectId`, `Region`, `ServiceName`, `ImageUri`, `CloudSqlInstanceConnectionName`, `ServiceAccountEmail`, `DatabaseName`, `DatabaseUsername`, `MailFrom`, `ApprovedMonthlyBudgetUsd` y `SecretBindings`. `MailProvider` admite `Mailtrap` (predeterminado, Sandbox 2525) o `Gmail` (SMTP 587); no modifica el proveedor de base de datos. Los nombres de bindings necesarios son:
 
 - `DB_PASSWORD`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `JWT_KEYSTORE_PASSWORD` y `/var/secrets/jwt/jwt-signing.p12`.
 - Con recuperación habilitada: `PASSWORD_RECOVERY_HMAC_SECRET`, `PASSWORD_RECOVERY_EMAIL_ENCRYPTION_KEY`.
 - Con `-EnableInvitations`: `STAFF_INVITATION_ENCRYPTION_KEY` y `StaffActivationUrl` real.
 - Con `-EnableBootstrap`: `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`; sin esa opción, no incluir esos bindings.
 - `JWT_KEY_PASSWORD` es opcional si la clave usa otra contraseña; `JwtKeyAlias` debe coincidir con el PKCS12.
+
+### Gmail para destinatarios reales
+
+1. Usar la cuenta Gmail acordada con verificación en dos pasos activa y una contraseña de aplicación. Guardar la dirección completa y la contraseña de aplicación directamente como secretos de Secret Manager, fuera de Git y del chat; no usar la contraseña normal de Google. Mantener el acceso de la cuenta de servicio limitado a esos secretos.
+2. Referenciar las **versiones numéricas** creadas mediante `SecretBindings['MAIL_USERNAME']` y `SecretBindings['MAIL_PASSWORD']`, con formato `nombre-secreto:version`. Conservar los secretos Sandbox para poder seleccionar ese canal posteriormente. No reemplazar referencias por valores ni usar `latest`.
+3. Establecer `MailProvider = 'Gmail'` y `MailFrom` con la **misma dirección Gmail** guardada en el secreto del usuario. El script selecciona `smtp.gmail.com:587`; la aplicación mantiene autenticación y STARTTLS obligatorio.
+4. Construir/publicar una imagen que incluya el validador compatible con Gmail, validar los parámetros offline y desplegar la revisión autorizada. Cambiar solo secretos/variables no elimina las restricciones de una imagen anterior.
+5. Comprobar salud y un flujo de correo con un destinatario de prueba acordado. Registrar aceptación SMTP y recepción real en el buzón (incluida la carpeta de spam) como evidencias distintas. Hasta completar esa comprobación, no declarar entregas reales verificadas.
+
+Ejemplo de selección sobre la hashtable privada ya preparada; los nombres y versiones son referencias ilustrativas, no credenciales:
+
+```powershell
+$deploymentParameters.MailProvider = 'Gmail'
+$deploymentParameters.MailFrom = $gmailAddress # dirección real de la cuenta acordada
+$deploymentParameters.SecretBindings['MAIL_USERNAME'] = 'grownupsvet-mail-username:2'
+$deploymentParameters.SecretBindings['MAIL_PASSWORD'] = 'grownupsvet-mail-password:2'
+```
+
+Para pruebas aisladas, `MailProvider = 'Mailtrap'` conserva Sandbox y exige sus propias referencias de usuario/contraseña y un remitente válido. No mezclar las credenciales de ambos proveedores. El modo `ValidateOnly` comprueba los parámetros/referencias y muestra proveedor, host y puerto; no lee secretos, autentica SMTP ni envía mensajes.
+
+**Resultado del 16/10/2026:** Gmail se activó con versiones numéricas `2` de los dos secretos SMTP existentes, sin permisos IAM nuevos. Se preservaron las demás variables y los recursos de Cloud Run: 1 vCPU, 2 GiB, mínimo 1, máximo 1 y concurrencia 8. Readiness/liveness respondieron `200 UP`, OpenAPI `200` con contrato `0.9.0` y 41 rutas, y mascotas sin JWT respondió `401`. La recuperación en nube respondió `202`, quedó `SENT` al primer intento y el usuario confirmó recepción real. Detalles, digest y límites en el [registro de verificación](verificacion-gmail-2026-10-16.md).
+
+Fuentes oficiales: [Gmail SMTP y TLS](https://developers.google.com/workspace/gmail/imap/imap-smtp), [contraseñas de aplicación](https://support.google.com/accounts/answer/185833?hl=es), [Secret Manager en Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets). Google revoca las contraseñas de aplicación al cambiar la contraseña de la cuenta; si ocurre, crear una nueva versión del secreto y actualizar la referencia de la revisión.
 
 Una vez preparada esa hashtable local, las invocaciones son:
 
@@ -103,17 +128,17 @@ Bootstrap inicial debe acordarse con identidad real y ejecutarse una sola vez. A
 1. Construcción/pruebas del commit y OpenAPI generado/validado, y ejecución del contenedor con configuración aislada. Registrar resultados; no sustituirlos por la presencia del Dockerfile.
 2. HTTPS público, health 200 sin detalles, petición protegida sin JWT 401 y permisos/propiedad conservados. Servidor OpenAPI apunta a la URL pública configurada.
 3. CORS de los dos orígenes/preflight y rechazo de un tercero; prueba inicial con frontend vacío y actualización posterior sin rebuild.
-4. Registro/login/mascota, recuperación y activación en Sandbox; comprobar códigos/uso único/revocación y que el formulario realmente consuma el token de activación.
-5. Agenda/cambios de citas, destinatarios, recordatorio real preparado 24 horas antes, inactividad HTTP y reinicio con pendientes; mostrar captura de Sandbox, no atribuir recepción de buzón.
+4. Registro/login/mascota, recuperación y activación con el proveedor elegido; comprobar códigos/uso único/revocación y que el formulario realmente consuma el token de activación. Con Gmail, verificar recepción en un buzón real; con Sandbox, registrar únicamente captura de prueba.
+5. Agenda/cambios de citas, destinatarios, recordatorio real preparado 24 horas antes, inactividad HTTP y reinicio con pendientes; identificar el proveedor y distinguir aceptación SMTP de recepción en el buzón. Una captura de Sandbox no acredita entrega externa.
 6. Comprobar IP del cliente detrás del proxy y que un `X-Forwarded-For` arbitrario no permite eludir cuotas. Hasta identificar una cadena confiable se ignoran forwarded headers; no tomar el primer valor enviado por el cliente.
 7. Backup y restauración aislada; preparar rollback únicamente hacia una revisión **0.9 compatible** con el esquema, tipos de tareas y secretos vigentes. Los workers **0.8 no reconocen los nuevos tipos P12 de V17 ni procesan la outbox de recuperación V18**: no volver genéricamente a esa imagen cuando existen trabajos nuevos, ni mantener un worker antiguo consumiendo esas colas. No borrar tablas ni deshacer V17/V18 para degradar la aplicación; conservar Flyway y probar la revisión compatible antes de cambiar tráfico.
 8. Integración y accesibilidad pertinentes de ambos portales, revisión de los tres integrantes, guion y datos ficticios. Conservar commit/digest/revisión Cloud Run, resultados y limitaciones, sin publicar secretos o tokens reales.
 
 El cierre de infraestructura requiere proyecto/presupuesto y despliegue externo comprobados; el cierre P1/P2 requiere además portales y aceptación. La clínica permanece fuera del alcance del 18.
 
-## 7. Evidencia local disponible y pendientes externos
+## 7. Evidencia histórica de la preparación inicial
 
-La comprobación central de esta implementación produjo los siguientes resultados; no son pruebas de un servicio Google Cloud:
+La comprobación central de la preparación del 09/10/2026 produjo los siguientes resultados; no son pruebas de un servicio Google Cloud ni verificaciones de Gmail. Para las verificaciones posteriores de Cloud Run con Render, consultar el [registro del 15/10/2026](verificacion-despliegue-cloud-run-render-2026-10-15.md) y la [transición a Gmail del 16/10/2026](verificacion-gmail-2026-10-16.md):
 
 | Comprobación | Resultado y límite |
 |---|---|

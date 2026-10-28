@@ -22,6 +22,7 @@ Se conserva el alcance de nueve incrementos del plan del 23/10. El usuario exclu
 - [Monitoreo desplegado](verificacion-monitoreo-desplegado-2026-10-28.md) y [ahorro posterior](verificacion-ahorro-post-pruebas-2026-10-28.md): estados históricos distintos, sin vigilancia permanente ni promesa de gasto total cero.
 - [Causa y corrección de fixtures de correo](plan-codificacion-correos-2026-10-28.md): datos ficticios recodificados antes de JSON; no se reescribe la atención inmutable ni se recodifican datos de usuarios mediante heurísticas.
 - Primer focal de rendimiento/autenticación/MIME: **149 pruebas, ocho suites, cero fallos/errores/omitidas**. Se archivaron XML y hashes fuera de Git antes de la siguiente modificación. Incluye cinco pruebas MIME y once de snapshot/revocación con PostgreSQL; no es la regresión completa del código posterior.
+- [Regresión completa posterior](verificacion-rendimiento-regresion-2026-10-28.md): **762 pruebas, 65 suites, cero fallos/errores/omitidas**, contrato/snapshot y gates negativos correctos. Incluye las escrituras agrupadas y el cierre del replay de DRAFT inelegible. La validación desplegada de ese código continúa pendiente.
 - Checker de monitoreo: 18 fixtures aislados; colector: 24 pruebas offline; workflow verificado con actionlint. Los mensajes de rechazo de los fixtures negativos son resultados previstos.
 
 ## Alcance y precauciones para cerrar

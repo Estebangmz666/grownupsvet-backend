@@ -53,11 +53,12 @@ public class AppointmentService {
             rs.getString("reason"), rs.getTimestamp("starts_at").toInstant(), rs.getTimestamp("ends_at").toInstant(),
             rs.getLong("version"), rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant(), "America/Bogota");
 
-    private static final String APPOINTMENT_SELECT = "select a.id, a.owner_id, op.full_name owner_full_name, op.phone_number owner_phone_number, " +
+    private static final String APPOINTMENT_PROJECTION = "select a.id, a.owner_id, op.full_name owner_full_name, op.phone_number owner_phone_number, " +
             "a.pet_id, p.name pet_name, s.veterinarian_id, vp.full_name veterinarian_full_name, a.status, a.assignment_status, " +
-            "a.reason, a.starts_at, a.ends_at, a.version, a.created_at, a.updated_at " +
-            "from appointments a join owner_profiles op on op.user_id=a.owner_id join pets p on p.id=a.pet_id " +
+            "a.reason, a.starts_at, a.ends_at, a.version, a.created_at, a.updated_at ";
+    private static final String APPOINTMENT_JOINS = "join owner_profiles op on op.user_id=a.owner_id join pets p on p.id=a.pet_id " +
             "join veterinarian_availability_slots s on s.id=a.current_slot_id join veterinarian_profiles vp on vp.user_id=s.veterinarian_id ";
+    private static final String APPOINTMENT_SELECT = APPOINTMENT_PROJECTION + "from appointments a " + APPOINTMENT_JOINS;
 
     public record AppointmentCreationResult(AppointmentResponseDTO appointment, boolean created) { }
 
@@ -76,7 +77,7 @@ public class AppointmentService {
         String reason = requiredReason(request.reason());
         String fingerprint = fingerprint(request.petId(), request.availabilitySlotId(),
                 request.expectedAvailabilitySlotVersion(), reason);
-        AppointmentResponseDTO replay = replay(ownerId, request.clientRequestId(), fingerprint);
+        AppointmentResponseDTO replay = replay(owner, request.clientRequestId(), fingerprint);
         if (replay != null) { return new AppointmentCreationResult(replay, false); }
 
         Pet pet = lockPet(request.petId());
@@ -103,25 +104,17 @@ public class AppointmentService {
         }
 
         UUID appointmentId = UUID.randomUUID();
-        List<UUID> inserted = jdbc.query("insert into appointments(id,owner_id,pet_id,current_slot_id,status,assignment_status,reason,starts_at,ends_at,confirmation_cutoff_at,client_request_id,request_fingerprint,version,created_at,updated_at) " +
-                        "values(:id,:owner,:pet,:slot,'REQUESTED','ASSIGNED',:reason,:start,:end,:cutoff,:requestId,:fingerprint,0,:now,:now) " +
-                        "on conflict do nothing returning id",
-                new MapSqlParameterSource().addValue("id", appointmentId).addValue("owner", ownerId).addValue("pet", pet.id())
-                        .addValue("slot", slot.id()).addValue("reason", reason).addValue("start", dbTime(slot.startsAt()))
-                        .addValue("end", dbTime(slot.endsAt())).addValue("cutoff", dbTime(cutoff)).addValue("requestId", request.clientRequestId())
-                        .addValue("fingerprint", fingerprint).addValue("now", dbTime(now)), (rs,row)->rs.getObject(1,UUID.class));
+        List<AppointmentResponseDTO> inserted = writeNewAppointment(appointmentId, ownerId, pet.id(), slot,
+                cutoff, request.clientRequestId(), fingerprint, reason, now);
         if (inserted.isEmpty()) {
-            AppointmentResponseDTO duplicate = replay(ownerId, request.clientRequestId(), fingerprint);
+            AppointmentResponseDTO duplicate = replay(owner, request.clientRequestId(), fingerprint);
             if (duplicate != null) { return new AppointmentCreationResult(duplicate, false); }
             Boolean occupied = jdbc.queryForObject("select exists(select 1 from appointments where current_slot_id=:slot and status in ('REQUESTED','CONFIRMED'))",Map.of("slot",slot.id()),Boolean.class);
             if (occupied) { throw conflict("APPOINTMENT_SLOT_OCCUPIED", "Otra solicitud ocupó el turno. Elige otro horario."); }
             throw conflict("APPOINTMENT_PET_ALREADY_SCHEDULED", "La mascota ya tiene otra cita en ese horario.");
         }
-        insertAssignment(appointmentId, slot, ownerId, now, "Solicitud de cita");
-        insertEvent(appointmentId, 0, "REQUESTED", null, "REQUESTED", null, "ASSIGNED", null,
-                slot.id(), ownerId, "HUMAN", now, reason, null, null, null);
         eventPublisher.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.APPOINTMENT_CREATE));
-        return new AppointmentCreationResult(get(ownerId, appointmentId), true);
+        return new AppointmentCreationResult(inserted.getFirst(), true);
     }
 
     public AppointmentPageResponseDTO list(UUID actorId, LocalDate from, LocalDate to, AppointmentStatus status, int page, int size) {
@@ -140,9 +133,12 @@ public class AppointmentService {
     }
 
     public AppointmentResponseDTO get(UUID actorId, UUID appointmentId) {
-        Account actor = account(actorId);
+        return readAppointmentResponse(account(actorId), appointmentId);
+    }
+
+    private AppointmentResponseDTO readAppointmentResponse(Account actor, UUID appointmentId) {
         return jdbc.query(APPOINTMENT_SELECT + "where a.id=:id and " + accessPredicate(actor.role()),
-                Map.of("id", appointmentId, "actor", actorId), APPOINTMENT_ROW).stream().findFirst().orElseThrow(AppointmentService::notFound);
+                Map.of("id", appointmentId, "actor", actor.id()), APPOINTMENT_ROW).stream().findFirst().orElseThrow(AppointmentService::notFound);
     }
 
     public AppointmentEventPageResponseDTO events(UUID actorId, UUID appointmentId, int page, int size) {
@@ -193,7 +189,7 @@ public class AppointmentService {
         if (request.expectedVersion() != null && request.expectedVersion() < Long.MAX_VALUE
                 && appointment.version() == request.expectedVersion()+1 && appointment.status() == target
                 && matchesStatusTransition(appointmentId, appointment.version(), target, actorId, reason)) {
-            return get(actorId,appointmentId);
+            return readAppointmentResponse(actor, appointmentId);
         }
         requireVersion(appointment.version(), request.expectedVersion());
         if (!allowsStatusTransition(appointment.status(), target)) {
@@ -214,13 +210,17 @@ public class AppointmentService {
                     "join veterinarian_availability_slots s on s.id=a.current_slot_id join users v on v.id=s.veterinarian_id where a.id=:id",
                     Map.of("id", appointmentId), Boolean.class);
             if (!eligible) { throw conflict("APPOINTMENT_PARTICIPANT_INACTIVE", "El propietario, la mascota o el veterinario ya no están activos."); }
+            AppointmentStatusWriteResult confirmed = writeConfirmedAppointment(appointment, actorId, reason, now);
+            notifications.recordEvent(appointmentId, confirmed.version(), "CONFIRMED", now);
+            if (confirmed.appointment() == null) { throw notFound(); }
+            return confirmed.appointment();
         }
         jdbc.update("update appointments set status=:status,version=version+1,updated_at=:now where id=:id",
                 Map.of("status", target.name(), "now", dbTime(now), "id", appointmentId));
         insertEvent(appointmentId, appointment.version()+1, target.name(), appointment.status().name(), target.name(),
                 appointment.assignmentStatus().name(), appointment.assignmentStatus().name(), appointment.slotId(), appointment.slotId(),
                 actorId, "HUMAN", now, reason, null, null, null);
-        return get(actorId, appointmentId);
+        return readAppointmentResponse(actor, appointmentId);
     }
 
     @Transactional
@@ -492,15 +492,90 @@ public class AppointmentService {
         eventPublisher.publishEvent(new AppointmentNotificationsQueuedEvent(example.id()));
     }
 
-    private AppointmentResponseDTO replay(UUID owner, UUID requestId, String fingerprint) {
-        List<UUID> ids = jdbc.query("select id from appointments where owner_id=:owner and client_request_id=:requestId",
-                Map.of("owner",owner,"requestId",requestId),(rs,row)->rs.getObject(1,UUID.class));
-        if (ids.isEmpty()) { return null; }
-        String existing = jdbc.queryForObject("select request_fingerprint from appointments where id=:id",Map.of("id",ids.getFirst()),String.class);
-        if (!MessageDigest.isEqual(existing.getBytes(StandardCharsets.US_ASCII),fingerprint.getBytes(StandardCharsets.US_ASCII))) {
+    private List<AppointmentResponseDTO> writeNewAppointment(UUID id, UUID ownerId, UUID petId, Slot slot,
+            Instant cutoff, UUID requestId, String fingerprint, String reason, Instant now) {
+        String statement = """
+                with inserted_appointment as (
+                    insert into appointments(id,owner_id,pet_id,current_slot_id,status,assignment_status,reason,
+                        starts_at,ends_at,confirmation_cutoff_at,client_request_id,request_fingerprint,version,created_at,updated_at)
+                    values(:id,:owner,:pet,:slot,'REQUESTED','ASSIGNED',:reason,:start,:end,:cutoff,:requestId,:fingerprint,0,:now,:now)
+                    on conflict do nothing returning *
+                ), inserted_assignment as (
+                    insert into appointment_assignments(id,appointment_id,slot_id,veterinarian_id,starts_at,ends_at,
+                        assigned_at,actor_id,actor_type,reason)
+                    select :assignmentId,a.id,a.current_slot_id,:veterinarian,a.starts_at,a.ends_at,:now,:owner,'HUMAN','Solicitud de cita'
+                    from inserted_appointment a returning appointment_id
+                ), inserted_event as (
+                    insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status,
+                        previous_assignment_status,new_assignment_status,previous_slot_id,new_slot_id,actor_id,actor_type,
+                        occurred_at,reason,agreement_channel,agreement_contacted_at,agreement_note)
+                    select :eventId,a.id,a.version,'REQUESTED',null,a.status,null,a.assignment_status,null,a.current_slot_id,
+                        :owner,'HUMAN',:now,:reason,null,null,null
+                    from inserted_appointment a join inserted_assignment assignment on assignment.appointment_id=a.id
+                    returning appointment_id
+                )
+                select response.*,(select count(*) from inserted_assignment) assignment_count,
+                    (select count(*) from inserted_event) event_count
+                from inserted_appointment persisted
+                left join lateral (
+                """ + APPOINTMENT_PROJECTION + "from inserted_appointment a " + APPOINTMENT_JOINS +
+                "where a.id=persisted.id) response on true";
+        var parameters = new MapSqlParameterSource().addValue("id", id).addValue("owner", ownerId).addValue("pet", petId)
+                .addValue("slot", slot.id()).addValue("veterinarian", slot.veterinarianId()).addValue("reason", reason)
+                .addValue("start", dbTime(slot.startsAt())).addValue("end", dbTime(slot.endsAt())).addValue("cutoff", dbTime(cutoff))
+                .addValue("requestId", requestId).addValue("fingerprint", fingerprint).addValue("now", dbTime(now))
+                .addValue("assignmentId", UUID.randomUUID()).addValue("eventId", UUID.randomUUID());
+        return jdbc.query(statement, parameters, (result, row) -> {
+            if (result.getLong("assignment_count") != 1 || result.getLong("event_count") != 1) {
+                throw new DataIntegrityViolationException("Appointment creation requires its assignment and initial event.");
+            }
+            if (result.getObject("id", UUID.class) == null) { throw notFound(); }
+            return APPOINTMENT_ROW.mapRow(result, row);
+        });
+    }
+
+    private AppointmentStatusWriteResult writeConfirmedAppointment(AppointmentRow appointment, UUID actorId,
+            String reason, Instant now) {
+        String statement = """
+                with updated_appointment as (
+                    update appointments set status='CONFIRMED',version=version+1,updated_at=:now where id=:id returning *
+                ), inserted_event as (
+                    insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status,
+                        previous_assignment_status,new_assignment_status,previous_slot_id,new_slot_id,actor_id,actor_type,
+                        occurred_at,reason,agreement_channel,agreement_contacted_at,agreement_note)
+                    select :eventId,a.id,a.version,'CONFIRMED',:previousStatus,a.status,:previousAssignment,a.assignment_status,
+                        :previousSlot,a.current_slot_id,:actor,'HUMAN',:now,:reason,null,null,null
+                    from updated_appointment a returning appointment_id
+                )
+                select persisted.version persisted_version,response.*,(select count(*) from inserted_event) event_count
+                from updated_appointment persisted
+                left join lateral (
+                """ + APPOINTMENT_PROJECTION + "from updated_appointment a " + APPOINTMENT_JOINS +
+                "where a.id=persisted.id) response on true";
+        var parameters = new MapSqlParameterSource().addValue("id", appointment.id()).addValue("actor", actorId)
+                .addValue("previousStatus", appointment.status().name()).addValue("previousAssignment", appointment.assignmentStatus().name())
+                .addValue("previousSlot", appointment.slotId()).addValue("reason", reason).addValue("now", dbTime(now))
+                .addValue("eventId", UUID.randomUUID());
+        return jdbc.query(statement, parameters, (result, row) -> {
+            if (result.getLong("event_count") != 1) {
+                throw new DataIntegrityViolationException("Appointment confirmation requires its status event.");
+            }
+            AppointmentResponseDTO response = result.getObject("id", UUID.class) == null ? null : APPOINTMENT_ROW.mapRow(result, row);
+            return new AppointmentStatusWriteResult(result.getLong("persisted_version"), response);
+        }).stream().findFirst().orElseThrow(AppointmentService::notFound);
+    }
+
+    private AppointmentResponseDTO replay(Account owner, UUID requestId, String fingerprint) {
+        List<AppointmentCreationIntent> intentions = jdbc.query(
+                "select id,request_fingerprint from appointments where owner_id=:owner and client_request_id=:requestId",
+                Map.of("owner",owner.id(),"requestId",requestId),
+                (rs,row)->new AppointmentCreationIntent(rs.getObject("id",UUID.class),rs.getString("request_fingerprint")));
+        if (intentions.isEmpty()) { return null; }
+        AppointmentCreationIntent intention = intentions.getFirst();
+        if (!MessageDigest.isEqual(intention.fingerprint().getBytes(StandardCharsets.US_ASCII),fingerprint.getBytes(StandardCharsets.US_ASCII))) {
             throw conflict("APPOINTMENT_IDEMPOTENCY_CONFLICT","La clave de solicitud ya se usó con otros datos.");
         }
-        return get(owner,ids.getFirst());
+        return readAppointmentResponse(owner, intention.appointmentId());
     }
 
     private void insertAssignment(UUID appointmentId, Slot slot, UUID actor, Instant now, String reason) {
@@ -692,6 +767,8 @@ public class AppointmentService {
     private static final RowMapper<Slot> SLOT_ROW=(rs,row)->new Slot(rs.getObject("id",UUID.class),rs.getObject("veterinarian_id",UUID.class),rs.getTimestamp("starts_at").toInstant(),rs.getTimestamp("ends_at").toInstant(),rs.getString("status"),rs.getLong("version"));
     private static final RowMapper<AppointmentRow> APPOINTMENT_LOCK_ROW=(rs,row)->new AppointmentRow(rs.getObject("id",UUID.class),rs.getObject("owner_id",UUID.class),rs.getObject("pet_id",UUID.class),rs.getObject("current_slot_id",UUID.class),AppointmentStatus.valueOf(rs.getString("status")),AppointmentAssignmentStatus.valueOf(rs.getString("assignment_status")),rs.getTimestamp("starts_at").toInstant(),rs.getTimestamp("ends_at").toInstant(),rs.getTimestamp("confirmation_cutoff_at").toInstant(),rs.getLong("version"),rs.getObject("veterinarian_id",UUID.class));
     private record Account(UUID id,UserRole role,boolean active) { }
+    private record AppointmentCreationIntent(UUID appointmentId,String fingerprint) { }
+    private record AppointmentStatusWriteResult(long version,AppointmentResponseDTO appointment) { }
     private record Pet(UUID id,UUID ownerId,boolean active) { }
     private record Slot(UUID id,UUID veterinarianId,Instant startsAt,Instant endsAt,String status,long version) { }
     private record AppointmentRow(UUID id,UUID ownerId,UUID petId,UUID slotId,AppointmentStatus status,AppointmentAssignmentStatus assignmentStatus,Instant startsAt,Instant endsAt,Instant cutoffAt,long version,UUID veterinarianId) { }

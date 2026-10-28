@@ -16,6 +16,7 @@
 3. Actualizar esta rama a main mediante fast-forward si es compatible con los pendientes. Ante un solapamiento, conservar ambas versiones y resolver expresamente el contenido, sin reset destructivo, stash global ni edición en el worktree de auditoría.
    El único solapamiento localizado es el parsing de `lastScrape` en `Test-LocalMonitoring.ps1`: auditoría añadió DateTime/DateTimeOffset y cultura invariante; el pendiente local añade además compatibilidad con fracciones Go de nanosegundos. Registrar los pendientes propios en un commit local de esta rama todavía no publicada, rebasarlo sobre main y conservar la versión que cubre ambas condiciones. Ejecutar la suite de 14 casos de auditoría y añadir el caso real de fracción de nueve dígitos antes de publicar.
 4. Revisar los helpers de monitoreo pendientes y el cambio de parsing de fechas, preservando el dashboard fuente y las guardas de archivos/procesos. Ejecutar únicamente su verificación pertinente; la regresión Java ya acreditada en CI se repite solo si cambia código Java/configuración o aparece una preocupación concreta.
+5. Incorporar a CI la suite portátil del comprobador de monitoreo (18 casos tras la ampliación), que usa fronteras aisladas y no accede a procesos, nube o credenciales reales. Añadir también la suite stdlib del colector de latencias cuando se implemente, sin introducir dependencias nuevas. La regresión Java completa que exige la protección de main se mantiene en CI.
 
 ## Incremento R2: cerrar aceptación real del despliegue vigente
 

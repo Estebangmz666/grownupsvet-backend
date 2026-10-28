@@ -45,3 +45,7 @@ build/
 .env
 .env.*
 !.env.example
+
+### Generated Python validation caches ###
+__pycache__/
+*.py[cod]

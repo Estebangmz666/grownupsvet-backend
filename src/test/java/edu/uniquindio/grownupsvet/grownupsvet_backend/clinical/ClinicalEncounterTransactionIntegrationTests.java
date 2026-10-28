@@ -56,6 +56,10 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -68,8 +72,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -84,10 +91,12 @@ import java.util.Map;
 import java.util.EnumMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -95,6 +104,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 
 /** Owns a UUID schema, commits fixtures and observes races/rollback through independent PostgreSQL connections. */
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false",
@@ -127,6 +141,7 @@ class ClinicalEncounterTransactionIntegrationTests {
     @Autowired private PetRepository pets;
     @Autowired private VeterinarianAvailabilitySlotRepository slots;
     @MockitoSpyBean private JdbcTemplate jdbc;
+    @MockitoSpyBean private NamedParameterJdbcTemplate namedJdbc;
     @Autowired private DataSource dataSource;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private MutableClinicalClock clock;
@@ -762,11 +777,81 @@ class ClinicalEncounterTransactionIntegrationTests {
             }
             long beforeRead = preparedOperationInvocations();
             assertThat(saved).isEqualTo(clinicalTreatments.get(veterinarian.getId(), encounterId));
-            assertThat(preparedOperationInvocations() - beforeRead).isEqualTo(3);
+            assertThat(preparedOperationInvocations() - beforeRead).isEqualTo(2);
             assertThat(clinicalTreatments.update(veterinarian.getId(), encounterId, request)).isEqualTo(saved);
             version++;
         }
         assertDurableAudit(encounterId, version, 7, 7);
+    }
+
+    @Test
+    void treatmentReadKeepsItsParentVersionAndBothListsWhileAnotherVersionCommits() throws Exception {
+        UUID encounterId = completeDraft();
+        var previous = clinicalTreatments.update(veterinarian.getId(), encounterId, treatment(1, "Fórmula anterior"));
+        CountDownLatch firstRow = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            String sql = invocation.getArgument(0);
+            if (!sql.startsWith("with current_reader")) { return invocation.callRealMethod(); }
+            Map<String, ?> parameters = invocation.getArgument(1);
+            ResultSetExtractor<Object> extractor = invocation.getArgument(2);
+            // Delegate every value to PostgreSQL; pause only after the real first row exists.
+            return namedJdbc.query(sql, new MapSqlParameterSource(parameters), (ResultSetExtractor<Object>) rows -> {
+                AtomicBoolean observed = new AtomicBoolean();
+                ResultSet coordinated = (ResultSet) Proxy.newProxyInstance(ResultSet.class.getClassLoader(), new Class<?>[] {ResultSet.class},
+                        (proxy, method, arguments) -> {
+                            Object value;
+                            try { value = method.invoke(rows, arguments); }
+                            catch (InvocationTargetException failure) { throw failure.getCause(); }
+                            if (method.getName().equals("next") && Boolean.TRUE.equals(value) && observed.compareAndSet(false, true)) {
+                                firstRow.countDown();
+                                if (!release.await(20, TimeUnit.SECONDS)) { throw new SQLException("Treatment snapshot coordination timed out."); }
+                            }
+                            return value;
+                        });
+                return extractor.extractData(coordinated);
+            });
+        }).when(namedJdbc).query(anyString(), anyMap(), any(ResultSetExtractor.class));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var reader = executor.submit(() -> clinicalTreatments.get(veterinarian.getId(), encounterId));
+            try {
+                assertThat(firstRow.await(10, TimeUnit.SECONDS)).isTrue();
+                var updated = clinicalTreatments.update(veterinarian.getId(), encounterId, treatment(2, "Fórmula posterior"));
+                release.countDown();
+                assertThat(reader.get(20, TimeUnit.SECONDS)).isEqualTo(previous);
+                assertThat(clinicalTreatments.get(veterinarian.getId(), encounterId)).isEqualTo(updated);
+            } finally { release.countDown(); }
+        } finally { reset(namedJdbc); }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"DISABLED", "ROLE_CHANGED"})
+    void treatmentReadRevalidatesTheAccountAfterItsInitialReaderCheck(String change) throws Exception {
+        UUID encounterId = completeDraft();
+        CountDownLatch checked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            Object result = invocation.callRealMethod();
+            if (invocation.getArgument(0, String.class).equals("select role,status from users where id=:id")) {
+                checked.countDown();
+                if (!release.await(20, TimeUnit.SECONDS)) { throw new SQLException("Clinical reader coordination timed out."); }
+            }
+            return result;
+        }).when(namedJdbc).query(anyString(), anyMap(), any(RowMapper.class));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var reader = executor.submit(() -> clinicalTreatments.get(veterinarian.getId(), encounterId));
+            try {
+                assertThat(checked.await(10, TimeUnit.SECONDS)).isTrue();
+                inNewTransaction(() -> jdbc.update("DISABLED".equals(change)
+                        ? "update users set status='DISABLED' where id=?" : "update users set role='OWNER' where id=?", veterinarian.getId()));
+                release.countDown();
+                Throwable failure = catchThrowable(() -> reader.get(20, TimeUnit.SECONDS));
+                assertThat(failure).hasCauseInstanceOf(ClinicalOperationException.class);
+                var denied = (ClinicalOperationException) failure.getCause();
+                assertThat(denied.getStatus().value()).isEqualTo(403);
+                assertThat(denied.getErrorCode()).isEqualTo("CLINICAL_ACCESS_DENIED");
+            } finally { release.countDown(); }
+        } finally { reset(namedJdbc); }
     }
 
     @ParameterizedTest

@@ -134,7 +134,7 @@ public class ClinicalEncounterService {
         return "(e.status='FINALIZED' and (e.veterinarian_id=:actor or " + confirmedPetAssignmentPredicate("e.pet_id") + "))";
     }
 
-    private String encounterReadPredicate(ClinicalReaderContext reader) {
+    String encounterReadPredicate(ClinicalReaderContext reader) {
         String published = publishedReadPredicate(reader);
         if (reader.owner()) { return published; }
         return "(" + published + " or (e.status='DRAFT' and exists " +
@@ -252,10 +252,15 @@ public class ClinicalEncounterService {
         }
     }
 
-    private ClinicalReaderContext requireClinicalReader(UUID actorId) {
+    ClinicalReaderContext requireClinicalReader(UUID actorId) {
         ClinicalAccount account = account(actorId, false);
         if (!"OWNER".equals(account.role()) && !"VETERINARIAN".equals(account.role())) { throw accessDenied(); }
         return new ClinicalReaderContext(actorId, "OWNER".equals(account.role()));
+    }
+
+    void requireUnchangedClinicalReader(ClinicalReaderContext reader, String role, String status) {
+        String expectedRole = reader.owner() ? "OWNER" : "VETERINARIAN";
+        if (!"ACTIVE".equals(status) || !expectedRole.equals(role)) { throw accessDenied(); }
     }
 
     private ClinicalAccount account(UUID actorId, boolean lock) {
@@ -393,7 +398,7 @@ public class ClinicalEncounterService {
         return conflict("CLINICAL_IDEMPOTENCY_CONFLICT", "La clave de la solicitud ya se utilizó con otros datos.");
     }
 
-    private static ClinicalOperationException notFound() {
+    static ClinicalOperationException notFound() {
         return new ClinicalOperationException(HttpStatus.NOT_FOUND, "CLINICAL_ENCOUNTER_NOT_FOUND", "La atención no existe o no está disponible para tu cuenta.");
     }
 

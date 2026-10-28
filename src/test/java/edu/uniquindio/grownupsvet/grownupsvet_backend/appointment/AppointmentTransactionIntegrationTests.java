@@ -1,13 +1,16 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.appointment;
 
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.configuration.AppointmentProperties;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.CreateAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.ReassignAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.RescheduleAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.UpdateAppointmentStatusRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.exception.AppointmentOperationException;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentNotificationsQueuedEvent;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentCutoffScheduler;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentEmailDispatcher;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentNotificationService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentService;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.model.VeterinarianAvailabilitySlot;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.VeterinarianAvailabilitySlotRepository;
@@ -26,14 +29,20 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -42,9 +51,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import javax.sql.DataSource;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -58,12 +72,19 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /** Committed fixtures and separate PostgreSQL connections; deliberately no outer test transaction. */
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false",
@@ -96,6 +117,11 @@ class AppointmentTransactionIntegrationTests {
     @Autowired private DataSource dataSource;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private MutableAppointmentClock clock;
+    @Autowired private AppointmentProperties appointmentProperties;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private ApplicationEventPublisher eventPublisher;
+    @Autowired private AppointmentEmailDispatcher emailDispatcher;
+    @Autowired private MeterRegistry metrics;
 
     private User administrator;
     private User secondAdministrator;
@@ -146,6 +172,197 @@ class AppointmentTransactionIntegrationTests {
             assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(1);
             return null;
         });
+    }
+
+    @Test
+    void creationAndTerminalReplayKeepCurrentResponseWithinTheirStatementBudgets() {
+        CreateAppointmentRequestDTO request = request(slot);
+        var created = measureStatements(service -> service.create(owner.getId(), request));
+        assertThat(created.statements()).isBetween(1, 11);
+        assertThat(created.value().created()).isTrue();
+        UUID id = created.value().appointment().id();
+        assertThat(created.value().appointment()).isEqualTo(appointments.get(owner.getId(), id));
+
+        var cancelled = appointments.updateStatus(administrator.getId(), id,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CANCELLED, 0L, "Cancelación acordada."));
+        var replay = measureStatements(service -> service.create(owner.getId(), request));
+        assertThat(replay.statements()).isBetween(1, 3);
+        assertThat(replay.value().created()).isFalse();
+        assertThat(replay.value().appointment()).isEqualTo(cancelled).isEqualTo(appointments.get(owner.getId(), id));
+        assertThat(jdbc.queryForObject("select count(*) from appointments where owner_id=?", Integer.class, owner.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(2);
+    }
+
+    @Test
+    void changedCreationIntentKeepsConflictAndDoesNotWrite() {
+        CreateAppointmentRequestDTO request = request(slot);
+        UUID id = appointments.create(owner.getId(), request).appointment().id();
+        var altered = new CreateAppointmentRequestDTO(request.clientRequestId(), request.petId(),
+                request.availabilitySlotId(), request.expectedAvailabilitySlotVersion(), "Motivo diferente.");
+        var rejected = measureStatements(service -> {
+            assertFailure(() -> service.create(owner.getId(), altered), "APPOINTMENT_IDEMPOTENCY_CONFLICT");
+            return true;
+        });
+        assertThat(rejected.statements()).isBetween(1, 2);
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, id)).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {23, 24})
+    void confirmationAndReplayKeepResponsesAndDurableNoticesWithinTheirStatementBudgets(long hoursUntilStart) {
+        VeterinarianAvailabilitySlot target = hoursUntilStart == 24 ? slot
+                : newSlot(veterinarian, INITIAL_TIME.plusSeconds(hoursUntilStart * 3600));
+        UUID id = appointments.create(owner.getId(), request(target)).appointment().id();
+        var request = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null);
+        var confirmed = measureStatements(service -> service.updateStatus(administrator.getId(), id, request));
+        assertThat(confirmed.statements()).isBetween(1, hoursUntilStart == 24 ? 15 : 14);
+        assertThat(confirmed.value().status()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(confirmed.value().version()).isEqualTo(1);
+        assertThat(confirmed.value()).isEqualTo(appointments.get(administrator.getId(), id));
+
+        var replay = measureStatements(service -> service.updateStatus(administrator.getId(), id, request));
+        assertThat(replay.statements()).isBetween(1, 9);
+        assertThat(replay.value()).isEqualTo(confirmed.value());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_CONFIRMED'",
+                Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=? and task_type='OWNER_REMINDER'",
+                Integer.class, id)).isEqualTo(hoursUntilStart == 24 ? 1 : 0);
+    }
+
+    @Test
+    void publicReadStillLoadsTheCurrentAccountAndAppliesItsCurrentRole() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        var visible = measureStatements(service -> service.get(administrator.getId(), id));
+        assertThat(visible.statements()).isEqualTo(2);
+        assertThat(visible.value()).isEqualTo(appointments.get(owner.getId(), id));
+        inNewTransaction(() -> jdbc.update("update users set role='SUPER_ADMIN' where id=?", administrator.getId()));
+
+        var denied = measureStatements(service -> {
+            assertFailure(() -> service.get(administrator.getId(), id), "ACCESS_DENIED");
+            return true;
+        });
+        assertThat(denied.statements()).isEqualTo(1);
+        assertFailure(() -> appointments.get(administrator.getId(), id), "ACCESS_DENIED");
+        assertFailure(() -> appointments.get(replacement.getId(), id), "APPOINTMENT_NOT_FOUND");
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {23, 24})
+    void groupedCreationAndConfirmationMeetTheirSmallerStatementBudgetsWithTheSameStoredSnapshots(long hoursUntilStart) throws Exception {
+        VeterinarianAvailabilitySlot target = hoursUntilStart == 24 ? slot
+                : newSlot(veterinarian, INITIAL_TIME.plusSeconds(hoursUntilStart * 3600));
+        var created = measureStatements(service -> service.create(owner.getId(), request(target)));
+        assertThat(created.statements()).isBetween(1, 8);
+        UUID id = created.value().appointment().id();
+        assertThat(created.value().appointment()).isEqualTo(appointments.get(owner.getId(), id));
+        var confirmed = measureStatements(service -> service.updateStatus(administrator.getId(), id,
+                new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, "Confirmación acordada.")));
+        assertThat(confirmed.statements()).isBetween(1, 12);
+        assertThat(confirmed.value()).isEqualTo(appointments.get(owner.getId(), id));
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and " +
+                "appointment_version=1 and event_type='CONFIRMED' and previous_status='REQUESTED' and new_status='CONFIRMED' " +
+                "and previous_slot_id=? and new_slot_id=? and actor_id=? and reason='Confirmación acordada.'",
+                Integer.class, id, target.getId(), target.getId(), administrator.getId())).isEqualTo(1);
+        var notices = jdbc.queryForList("select event_key,payload::text payload,task_type,scheduled_at,next_attempt_at from appointment_email_tasks " +
+                "where appointment_id=? order by task_type", id);
+        assertThat(notices).hasSize(hoursUntilStart == 24 ? 2 : 1);
+        UUID eventId = jdbc.queryForObject("select id from appointment_events where appointment_id=? and appointment_version=1", UUID.class, id);
+        for (var notice : notices) {
+            assertThat(notice.get("event_key")).isEqualTo(eventId);
+            var payload = objectMapper.readTree((String) notice.get("payload"));
+            assertThat(payload.get("eventVersion").asLong()).isEqualTo(1);
+            assertThat(payload.get("eventType").asString()).isEqualTo("CONFIRMED");
+            assertThat(payload.get("startsAt").asString()).isEqualTo(target.getStartsAt().toString());
+            assertThat(payload.get("availabilitySlotId").asString()).isEqualTo(target.getId().toString());
+            assertThat(notice.get("scheduled_at")).isEqualTo(notice.get("next_attempt_at"));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"appointment_assignments", "appointment_events"})
+    void groupedCreationRollsBackEveryRowWhenAssignmentOrEventFailsAndTheSameIntentCanRetry(String table) {
+        CreateAppointmentRequestDTO request = request(slot);
+        double commitsBefore = appointmentCreationCommits();
+        String trigger = installInsertFailure(table, "NEW.actor_id='" + owner.getId() + "'::uuid");
+        try {
+            assertThatThrownBy(() -> appointments.create(owner.getId(), request)).isInstanceOf(DataAccessException.class);
+        } finally { removeInsertFailure(table, trigger); }
+        assertThat(jdbc.queryForObject("select count(*) from appointments where owner_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where actor_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where actor_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where recipient_id=?", Integer.class, owner.getId())).isZero();
+        assertThat(appointmentCreationCommits()).isEqualTo(commitsBefore);
+        assertThat(appointments.create(owner.getId(), request).created()).isTrue();
+        assertThat(appointmentCreationCommits()).isEqualTo(commitsBefore + 1);
+    }
+
+    @Test
+    void groupedConfirmationEventFailureRestoresTheRequestedAppointmentAndAllowsRetry() {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        var before = appointments.get(owner.getId(), id);
+        var request = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null);
+        String trigger = installInsertFailure("appointment_events", "NEW.appointment_id='" + id + "'::uuid AND NEW.event_type='CONFIRMED'");
+        try {
+            assertThatThrownBy(() -> appointments.updateStatus(administrator.getId(), id, request)).isInstanceOf(DataAccessException.class);
+        } finally { removeInsertFailure("appointment_events", trigger); }
+        assertThat(appointments.get(owner.getId(), id)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, id)).isZero();
+        assertThat(appointments.updateStatus(administrator.getId(), id, request).version()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"OWNER_CONFIRMED", "OWNER_REMINDER"})
+    void groupedNoticeFailureRestoresTheAppointmentAuditAndPreviousLeaseWithoutDispatch(String failedTaskType) {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        var before = appointments.get(owner.getId(), id);
+        UUID oldTaskId = UUID.randomUUID();
+        UUID oldEventId = jdbc.queryForObject("select id from appointment_events where appointment_id=?", UUID.class, id);
+        inNewTransaction(() -> jdbc.update("insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type," +
+                        "payload,status,attempt_count,scheduled_at,next_attempt_at,lease_token,last_error_code,created_at) " +
+                        "values(?,?,?,?,?,'OWNER_REJECTED','{}'::jsonb,'SENDING',1,?,?,?,'SMTP_DELIVERY_FAILED',?)",
+                oldTaskId, id, oldEventId, owner.getId(), owner.getEmail(), Timestamp.from(clock.instant()),
+                Timestamp.from(clock.instant()), UUID.randomUUID(), Timestamp.from(clock.instant())));
+        var oldTask = jdbc.queryForMap("select * from appointment_email_tasks where id=?", oldTaskId);
+        var request = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null);
+        clearInvocations(emailDispatcher);
+        String trigger = installInsertFailure("appointment_email_tasks", "NEW.appointment_id='" + id +
+                "'::uuid AND NEW.task_type='" + failedTaskType + "'");
+        try {
+            assertThatThrownBy(() -> appointments.updateStatus(administrator.getId(), id, request)).isInstanceOf(DataAccessException.class);
+        } finally { removeInsertFailure("appointment_email_tasks", trigger); }
+        verify(emailDispatcher, never()).notificationsQueued(any(AppointmentNotificationsQueuedEvent.class));
+        assertThat(appointments.get(owner.getId(), id)).isEqualTo(before);
+        assertThat(jdbc.queryForMap("select * from appointment_email_tasks where id=?", oldTaskId)).isEqualTo(oldTask);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, id)).isEqualTo(1);
+        assertThat(appointments.updateStatus(administrator.getId(), id, request).version()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select status from appointment_email_tasks where id=?", String.class, oldTaskId)).isEqualTo("SUPERSEDED");
+        assertThat(jdbc.queryForObject("select lease_token from appointment_email_tasks where id=?", UUID.class, oldTaskId)).isNull();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, id)).isEqualTo(3);
+    }
+
+    @Test
+    void occupiedSlotCreatesNoChildRowsOrCommitMetricForTheOtherOwner() {
+        UUID reserved = appointments.create(owner.getId(), request(slot)).appointment().id();
+        User otherOwner = inNewTransaction(() -> account(UserRole.OWNER));
+        Pet otherPet = inNewTransaction(() -> {
+            var profile = owners.saveAndFlush(new OwnerProfile(otherOwner, "Otra propietaria",
+                    LocalDate.of(1955, 5, 20), "+573001234567"));
+            return pets.saveAndFlush(new Pet(profile, "Otra mascota", PetSpecies.CAT, null, null, null, false, clock.instant()));
+        });
+        double commitsBefore = appointmentCreationCommits();
+        var occupied = new CreateAppointmentRequestDTO(UUID.randomUUID(), otherPet.getId(), slot.getId(), slot.getVersion(), "Otra consulta.");
+        assertFailure(() -> appointments.create(otherOwner.getId(), occupied), "APPOINTMENT_SLOT_OCCUPIED");
+        assertThat(jdbc.queryForObject("select count(*) from appointments where owner_id=?", Integer.class, otherOwner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where actor_id=?", Integer.class, otherOwner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where actor_id=?", Integer.class, otherOwner.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, reserved)).isEqualTo(1);
+        assertThat(appointmentCreationCommits()).isEqualTo(commitsBefore);
     }
 
     @Test
@@ -658,6 +875,69 @@ class AppointmentTransactionIntegrationTests {
     private CreateAppointmentRequestDTO request(VeterinarianAvailabilitySlot target) {
         return new CreateAppointmentRequestDTO(UUID.randomUUID(), pet.getId(), target.getId(), target.getVersion(), "Consulta de prueba.");
     }
+
+    private double appointmentCreationCommits() {
+        return metrics.get("grownupsvet.business.commits").tag("operation", "appointment_create").counter().count();
+    }
+
+    private String installInsertFailure(String table, String fixturePredicate) {
+        requireFailureTable(table);
+        String name = "appointment_failure_" + UUID.randomUUID().toString().replace("-", "");
+        jdbc.execute("CREATE FUNCTION " + name + "() RETURNS trigger AS $$ BEGIN IF " + fixturePredicate +
+                " THEN RAISE EXCEPTION 'Injected appointment write failure'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql");
+        jdbc.execute("CREATE TRIGGER " + name + " BEFORE INSERT ON " + table + " FOR EACH ROW EXECUTE FUNCTION " + name + "()");
+        return name;
+    }
+
+    private void removeInsertFailure(String table, String name) {
+        requireFailureTable(table);
+        if (!name.matches("appointment_failure_[0-9a-f]{32}")) { throw new IllegalArgumentException("Unexpected trigger name"); }
+        jdbc.execute("DROP TRIGGER IF EXISTS " + name + " ON " + table);
+        jdbc.execute("DROP FUNCTION IF EXISTS " + name + "()");
+    }
+
+    private void requireFailureTable(String table) {
+        if (!List.of("appointment_assignments", "appointment_events", "appointment_email_tasks").contains(table)) {
+            throw new IllegalArgumentException("Unexpected failure table");
+        }
+    }
+
+    /** Counts actual application statements on the existing transaction connection; no SQL or bind values are retained. */
+    private <T> StatementMeasurement<T> measureStatements(Function<AppointmentService, T> operation) {
+        return inNewTransaction(() -> {
+            AtomicInteger statements = new AtomicInteger();
+            Connection connection = DataSourceUtils.getConnection(dataSource);
+            try {
+                Connection measured = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                        new Class<?>[]{Connection.class}, (proxy, method, arguments) -> {
+                            Object result = invokeJdbc(method, connection, arguments);
+                            if (result instanceof PreparedStatement prepared && method.getName().equals("prepareStatement")) {
+                                return Proxy.newProxyInstance(PreparedStatement.class.getClassLoader(),
+                                        new Class<?>[]{PreparedStatement.class}, (statementProxy, statementMethod, statementArguments) -> {
+                                            if (statementMethod.getName().startsWith("execute")) { statements.incrementAndGet(); }
+                                            return invokeJdbc(statementMethod, prepared, statementArguments);
+                                        });
+                            }
+                            return result;
+                        });
+                var measuredJdbc = new NamedParameterJdbcTemplate(new SingleConnectionDataSource(measured, true));
+                var measuredNotifications = new AppointmentNotificationService(measuredJdbc, appointmentProperties, objectMapper, eventPublisher);
+                var measuredAppointments = new AppointmentService(measuredJdbc, appointmentProperties, clock, objectMapper,
+                        eventPublisher, measuredNotifications);
+                T value = operation.apply(measuredAppointments);
+                return new StatementMeasurement<>(value, statements.get());
+            } finally {
+                DataSourceUtils.releaseConnection(connection, dataSource);
+            }
+        });
+    }
+
+    private static Object invokeJdbc(Method method, Object target, Object[] arguments) throws Throwable {
+        try { return method.invoke(target, arguments); }
+        catch (InvocationTargetException failure) { throw failure.getCause(); }
+    }
+
+    private record StatementMeasurement<T>(T value, int statements) { }
 
     private <T> T inNewTransaction(Supplier<T> action) {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);

@@ -1,0 +1,17 @@
+# Plan previo: controles de escritorio para el monitoreo local
+
+25/10/2026, America/Bogota. Decisión explícita: encender/apagar **solo Grafana y Prometheus locales**. La API permanecerá accesible y no se modifican Cloud Run, CPU, escalado o instancias mínimas.
+
+## Implementación prevista antes de escribir código
+
+1. Resolver el escritorio mediante Known Folder (`Environment.SpecialFolder.DesktopDirectory`) y el ejecutable confiable de PowerShell de la sesión actual (`$PSHOME/pwsh.exe`). Inventariar antes de escribir los tres nombres: `Encender monitoreo GrownupsVet`, `Apagar monitoreo GrownupsVet` y `Abrir panel GrownupsVet`. Si existe un enlace que no coincide con el registro propio anterior, abortar sin sobrescribirlo.
+2. Añadir un instalador PowerShell y un wrapper pequeño, sin interfaz compleja ni dependencia del frontend. Copiar los seis helpers locales actuales y el wrapper a una versión privada bajo `%USERPROFILE%\.grownupsvet\monitoring\controls\versions`. Identificar la versión por hashes del contenido, escribir en staging privado y promocionar mediante renombrado. ACL de usuario/SYSTEM, rutas sin reparse points y manifiesto con SHA-256 por archivo; no copiar secretos ni credenciales. El checkout deja de ser necesario para usar los botones.
+3. Crear los `.lnk` con COM WScript.Shell, apuntando al PowerShell real y a `-File` de la copia privada. Argumentos públicos correctamente entrecomillados, `-NoProfile`, sin cmd, comandos compuestos, ejecución de texto o secretos. Ventana PowerShell oculta. Volver a leer cada enlace y comprobar target, argumentos, directorio y estilo; registrar propiedad de esos tres enlaces en manifiesto privado.
+4. El wrapper valida todos los hashes antes de ejecutar. Encender llama al **Start existente**, que comprueba herramientas, puertos y procesos propios, y después abre visiblemente el panel local mediante el navegador predeterminado. Apagar llama al **Stop existente**, preservando su comprobación PID+ejecutable+hora y sus datos. Abrir panel verifica Grafana local disponible y abre solo `http://127.0.0.1:3000/d/grownupsvet-observability`; nunca Grafana Cloud. No se reimplementa la terminación de procesos.
+5. Guardar el último resultado saneado de la acción en el árbol privado. Si falla una acción, mostrar un aviso genérico al usuario; no silenciar el fallo ni presentar stdout/stderr privados. Parámetros explícitos `-NoBrowser`/`-NoDialog` permiten probar sin abrir ventanas durante automatización. Un mutex de usuario evita que dos doble clics simultáneos compitan entre start/stop.
+6. La opción `-Uninstall` elimina exclusivamente enlaces propios cuyos campos todavía coincidan con el manifiesto; no detiene la API, no elimina datos/secretos ni borra enlaces modificados por terceros. No instalar servicios, tareas, autostart o SDK.
+7. Validar sintaxis/COM sin pulsar los accesos; ejecutar las copias estables de stop/start con opciones sin navegador/diálogo, confirmar parada exclusiva del monitoreo, nuevo arranque y sockets loopback. Conservarlo encendido para la futura prueba de scrape remoto. Ensayar guardas de colisión/manifiesto mediante datos sintéticos o verificación de funciones, sin tocar accesos ajenos. No Java/Maven, commit/push o despliegue.
+
+## Resultado esperado para el usuario
+
+Tres accesos en el escritorio, utilizables con doble clic. Apagar interrumpe la recolección local y la visualización de Grafana; mantiene disponible el backend. Encender reanuda los procesos y abre el panel. No ofrece un botón de apagado de infraestructura ni modifica su costo base.

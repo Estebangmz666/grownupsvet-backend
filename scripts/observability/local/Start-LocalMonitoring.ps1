@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'MonitoringRuntime.Common.ps1')
 $started = @()
 $retained = @()
+$maximumStartupWaitSeconds = 90
 try {
     $manifest = Get-MonitoringManifest
     Assert-MonitoringInstalledFiles $manifest
@@ -32,7 +33,7 @@ try {
         $started += Start-MonitoringOwnedProcess 'grafana' $executable @('server','--homepath',$grafanaHomeDirectory,'--config',(Get-MonitoringPath 'config\grafana.ini')) $grafanaHomeDirectory
         Write-MonitoringProcessState @($retained + $started)
     }
-    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(45)
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($maximumStartupWaitSeconds)
     $ready = $false
     do {
         try {

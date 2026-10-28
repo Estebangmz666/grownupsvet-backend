@@ -2,6 +2,7 @@ package edu.uniquindio.grownupsvet.grownupsvet_backend.clinical;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.CreateAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.UpdateAppointmentStatusRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.dto.ReassignAppointmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.model.AppointmentStatus;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentCutoffScheduler;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.appointment.service.AppointmentEmailDispatcher;
@@ -11,6 +12,8 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.availability.repository.Ve
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.CreateClinicalEncounterRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.ClinicalControlRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.ClinicalPrescriptionRequestDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.ClinicalPrescriptionResponseDTO;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.ClinicalControlResponseDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.UpdateClinicalEncounterRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.UpdateClinicalTreatmentRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.dto.FinalizeClinicalEncounterRequestDTO;
@@ -42,6 +45,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -50,11 +55,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -70,6 +77,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.EnumMap;
@@ -85,6 +94,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mockito.mockingDetails;
 
 /** Owns a UUID schema, commits fixtures and observes races/rollback through independent PostgreSQL connections. */
 @SpringBootTest(properties = {"grownupsvet.staff.bootstrap.enabled=false", "grownupsvet.staff.invitations.enabled=false",
@@ -116,7 +126,7 @@ class ClinicalEncounterTransactionIntegrationTests {
     @Autowired private VeterinarianProfileRepository veterinarians;
     @Autowired private PetRepository pets;
     @Autowired private VeterinarianAvailabilitySlotRepository slots;
-    @Autowired private JdbcTemplate jdbc;
+    @MockitoSpyBean private JdbcTemplate jdbc;
     @Autowired private DataSource dataSource;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private MutableClinicalClock clock;
@@ -685,6 +695,202 @@ class ClinicalEncounterTransactionIntegrationTests {
         for (BusinessOperation operation : BusinessOperation.values()) {
             assertThat(after.get(operation) - before.get(operation)).as("committed %s", operation).isEqualTo(expected);
         }
+    }
+
+    @Test
+    void parentMutationResponsesMatchCommittedRowsIncludingDatabaseTimestampPrecision() {
+        clock.set(CURRENT_TIME.plusNanos(123456789));
+        var creation = creation(appointmentId);
+        var created = clinicalEncounters.create(veterinarian.getId(), creation).encounter();
+        assertThat(created).isEqualTo(clinicalEncounters.get(veterinarian.getId(), created.id()));
+        assertThat(created.createdAt().getNano() % 1000).isZero();
+        assertThat(clinicalEncounters.create(veterinarian.getId(), creation).encounter()).isEqualTo(created);
+
+        clock.set(CURRENT_TIME.plusSeconds(1).plusNanos(987654321));
+        var request = update(UUID.randomUUID(), 0, "Diagnóstico Unicode de prueba");
+        var updated = clinicalEncounters.update(veterinarian.getId(), created.id(), request);
+        assertThat(updated).isEqualTo(clinicalEncounters.get(veterinarian.getId(), created.id()));
+        assertThat(updated.updatedAt().getNano() % 1000).isZero();
+        assertThat(clinicalEncounters.update(veterinarian.getId(), created.id(), request)).isEqualTo(updated);
+
+        clock.set(appointmentSlot.getStartsAt().plusNanos(123456789));
+        var finalization = finalization(1);
+        var finalized = clinicalFinalizations.finalizeEncounter(veterinarian.getId(), created.id(), finalization);
+        assertThat(finalized).isEqualTo(clinicalEncounters.get(veterinarian.getId(), created.id()));
+        assertThat(finalized.finalizedAt().getNano() % 1000).isZero();
+        assertThat(clinicalFinalizations.finalizeEncounter(veterinarian.getId(), created.id(), finalization)).isEqualTo(finalized);
+        assertThat(jdbc.queryForObject("select count(*) from clinical_reminder_schedules where encounter_id=?", Integer.class, created.id())).isZero();
+    }
+
+    @Test
+    void mutationIdentityLookupKeepsRoleValidationBeforeInvalidRequestsOrMissingResources() {
+        UUID missingEncounter = UUID.randomUUID();
+        assertThatThrownBy(() -> clinicalEncounters.update(owner.getId(), missingEncounter, null))
+                .isInstanceOfSatisfying(ClinicalOperationException.class, failure -> assertThat(failure.getStatus().value()).isEqualTo(403));
+        assertThatThrownBy(() -> clinicalEncounters.update(veterinarian.getId(), missingEncounter, null))
+                .isInstanceOfSatisfying(ClinicalOperationException.class, failure -> assertThat(failure.getStatus().value()).isEqualTo(400));
+        assertThatThrownBy(() -> clinicalEncounters.update(veterinarian.getId(), missingEncounter,
+                update(UUID.randomUUID(), 0, "No debe guardarse")))
+                .isInstanceOfSatisfying(ClinicalOperationException.class, failure -> assertThat(failure.getStatus().value()).isEqualTo(404));
+        assertThat(jdbc.queryForObject("select count(*) from clinical_encounters where appointment_id=?", Integer.class, appointmentId)).isZero();
+    }
+
+    @Test
+    void zeroOneAndFiftyChildrenKeepOrderDatabaseValuesAndBoundedPreparedOperations() {
+        UUID encounterId = completeDraft();
+        long version = 1;
+        long oneChildOperations = 0;
+        for (int count : List.of(1, 50, 0)) {
+            var request = treatmentWithChildren(version, count);
+            long before = preparedOperationInvocations();
+            var saved = clinicalTreatments.update(veterinarian.getId(), encounterId, request);
+            long operations = preparedOperationInvocations() - before;
+            assertThat(operations).isPositive();
+            if (count == 1) { oneChildOperations = operations; }
+            if (count == 50) { assertThat(operations).isEqualTo(oneChildOperations); }
+            if (count == 0) { assertThat(operations).isLessThan(oneChildOperations); }
+            assertThat(saved.prescriptions()).extracting(ClinicalPrescriptionResponseDTO::id)
+                    .containsExactlyElementsOf(request.prescriptions().stream().map(ClinicalPrescriptionRequestDTO::id).toList());
+            assertThat(saved.controls()).extracting(ClinicalControlResponseDTO::id)
+                    .containsExactlyElementsOf(request.controls().stream().map(ClinicalControlRequestDTO::id).toList());
+            for (var prescription : saved.prescriptions()) {
+                assertThat(prescription.dose()).isEqualTo(new BigDecimal("1.000000"));
+                assertThat(prescription.dose().scale()).isEqualTo(6);
+                assertThat(prescription.startsAt()).isEqualTo(request.prescriptions().getFirst().startsAt().toInstant().truncatedTo(ChronoUnit.MICROS));
+            }
+            assertThat(saved).isEqualTo(clinicalTreatments.get(veterinarian.getId(), encounterId));
+            assertThat(clinicalTreatments.update(veterinarian.getId(), encounterId, request)).isEqualTo(saved);
+            version++;
+        }
+        assertDurableAudit(encounterId, version, 5, 5);
+    }
+
+    @Test
+    void secondChildGroupFailureRestoresPreviousTreatmentVersionAuditAndCommitMetrics() {
+        UUID encounterId = completeDraft();
+        var previous = clinicalTreatments.update(veterinarian.getId(), encounterId, treatment(1, "Tratamiento original"));
+        Map<BusinessOperation, Double> before = commitCounts();
+        jdbc.execute("CREATE FUNCTION reject_test_bulk_control() RETURNS trigger AS $$ BEGIN " +
+                "RAISE EXCEPTION 'Controlled second child group failure'; END; $$ LANGUAGE plpgsql");
+        jdbc.execute("CREATE TRIGGER tr_test_bulk_control_failure BEFORE INSERT ON clinical_controls " +
+                "FOR EACH ROW EXECUTE FUNCTION reject_test_bulk_control()");
+        try {
+            assertThatThrownBy(() -> clinicalTreatments.update(veterinarian.getId(), encounterId, treatmentWithChildren(2, 50)))
+                    .isInstanceOf(DataAccessException.class);
+            assertThat(clinicalTreatments.get(veterinarian.getId(), encounterId)).isEqualTo(previous);
+            assertDurableAudit(encounterId, 2, 3, 3);
+            assertThat(commitCounts()).isEqualTo(before);
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS tr_test_bulk_control_failure ON clinical_controls");
+            jdbc.execute("DROP FUNCTION IF EXISTS reject_test_bulk_control()");
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CANCELLED", "OWNER_INACTIVE", "PET_INACTIVE", "REASSIGNED"})
+    void sameIntentDraftReplaysCannotExposeContentAfterEligibilityOrAssignmentIsLost(String change) {
+        var creation = creation(appointmentId);
+        UUID encounterId = clinicalEncounters.create(veterinarian.getId(), creation).encounter().id();
+        var save = update(UUID.randomUUID(), 0, "Diagnóstico del borrador");
+        clinicalEncounters.update(veterinarian.getId(), encounterId, save);
+        var treatment = treatment(1, "Tratamiento del borrador");
+        clinicalTreatments.update(veterinarian.getId(), encounterId, treatment);
+        String expectedCode;
+        if ("CANCELLED".equals(change)) {
+            appointments.updateStatus(administrator.getId(), appointmentId,
+                    new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CANCELLED, 1L, "Cancelación de ensayo"));
+            expectedCode = "CLINICAL_APPOINTMENT_NOT_ELIGIBLE";
+        } else if ("REASSIGNED".equals(change)) {
+            var replacement = inNewTransaction(() -> {
+                User nextVeterinarian = veterinaryAccount();
+                return slots.saveAndFlush(new VeterinarianAvailabilitySlot(nextVeterinarian.getId(), appointmentSlot.getStartsAt(),
+                        appointmentSlot.getEndsAt(), administrator.getId(), CURRENT_TIME));
+            });
+            inNewTransaction(() -> {
+                jdbc.queryForObject("select id from users where id=? for update", UUID.class, veterinarian.getId());
+                jdbc.update("update users set status='DISABLED' where id=?", veterinarian.getId());
+                appointments.markVeterinarianDisabled(veterinarian.getId(), administrator.getId());
+                return null;
+            });
+            long appointmentVersion = jdbc.queryForObject("select version from appointments where id=?", Long.class, appointmentId);
+            appointments.reassign(administrator.getId(), appointmentId, new ReassignAppointmentRequestDTO(UUID.randomUUID(),
+                    replacement.getId(), replacement.getVersion(), appointmentVersion, "Reasignación de ensayo", null, null, null));
+            jdbc.update("update users set status='ACTIVE' where id=?", veterinarian.getId());
+            expectedCode = "CLINICAL_ENCOUNTER_NOT_FOUND";
+        } else {
+            if ("OWNER_INACTIVE".equals(change)) { jdbc.update("update users set status='DISABLED' where id=?", owner.getId()); }
+            else { jdbc.update("update pets set active=false where id=?", pet.getId()); }
+            expectedCode = "CLINICAL_PARTICIPANT_INACTIVE";
+        }
+        var before = replaySnapshot(encounterId);
+        var replays = List.<Supplier<?>>of(() -> clinicalEncounters.create(veterinarian.getId(), creation),
+                () -> clinicalEncounters.update(veterinarian.getId(), encounterId, save),
+                () -> clinicalTreatments.update(veterinarian.getId(), encounterId, treatment));
+        for (var replay : replays) {
+            assertThatThrownBy(replay::get).isInstanceOfSatisfying(ClinicalOperationException.class, failure -> {
+                assertThat(failure.getErrorCode()).isEqualTo(expectedCode);
+                assertThat(failure.getStatus().value()).isEqualTo("REASSIGNED".equals(change) ? 404 : 409);
+            });
+            assertThat(replaySnapshot(encounterId)).isEqualTo(before);
+        }
+        if (!"REASSIGNED".equals(change)) {
+            assertThatThrownBy(() -> clinicalEncounters.update(veterinarian.getId(), encounterId,
+                    update(save.clientRequestId(), 0, "Payload distinto")))
+                    .isInstanceOfSatisfying(ClinicalOperationException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo("CLINICAL_IDEMPOTENCY_CONFLICT"));
+            assertThat(replaySnapshot(encounterId)).isEqualTo(before);
+        }
+    }
+
+    @Test
+    void originalCreationTextAndTreatmentIntentionsStillReplayAfterFinalization() {
+        var creation = creation(appointmentId);
+        UUID encounterId = clinicalEncounters.create(veterinarian.getId(), creation).encounter().id();
+        var save = update(UUID.randomUUID(), 0, "Diagnóstico publicado");
+        clinicalEncounters.update(veterinarian.getId(), encounterId, save);
+        var treatment = treatment(1, "Tratamiento publicado");
+        clinicalTreatments.update(veterinarian.getId(), encounterId, treatment);
+        clock.set(appointmentSlot.getStartsAt());
+        var finalized = clinicalFinalizations.finalizeEncounter(veterinarian.getId(), encounterId, finalization(2));
+        var before = replaySnapshot(encounterId);
+
+        var replayedCreation = clinicalEncounters.create(veterinarian.getId(), creation);
+        assertThat(replayedCreation.created()).isFalse();
+        assertThat(replayedCreation.encounter()).isEqualTo(finalized);
+        assertThat(clinicalEncounters.update(veterinarian.getId(), encounterId, save)).isEqualTo(finalized);
+        assertThat(clinicalTreatments.update(veterinarian.getId(), encounterId, treatment))
+                .isEqualTo(clinicalTreatments.get(veterinarian.getId(), encounterId));
+        assertThat(replaySnapshot(encounterId)).isEqualTo(before);
+        assertDurableAudit(encounterId, 3, 4, 4);
+    }
+
+    private Map<String, Object> replaySnapshot(UUID encounterId) {
+        return Map.of("encounter", jdbc.queryForMap("select * from clinical_encounters where id=?", encounterId),
+                "appointment", jdbc.queryForMap("select * from appointments where id=?", appointmentId),
+                "prescriptions", jdbc.queryForList("select * from clinical_prescriptions where encounter_id=? order by position", encounterId),
+                "controls", jdbc.queryForList("select * from clinical_controls where encounter_id=? order by position", encounterId),
+                "events", jdbc.queryForList("select * from clinical_encounter_events where encounter_id=? order by encounter_version", encounterId),
+                "operations", jdbc.queryForList("select * from clinical_encounter_operations where encounter_id=? order by resulting_version", encounterId),
+                "metrics", commitCounts());
+    }
+
+    private long preparedOperationInvocations() {
+        // Count prepared JDBC operations, not SQL text/parameters or driver wire packets.
+        return mockingDetails(jdbc).getInvocations().stream().filter(invocation ->
+                List.of("query", "update", "execute").contains(invocation.getMethod().getName())
+                        && invocation.getArguments().length > 0 && invocation.getArguments()[0] instanceof PreparedStatementCreator).count();
+    }
+
+    private UpdateClinicalTreatmentRequestDTO treatmentWithChildren(long version, int count) {
+        List<ClinicalPrescriptionRequestDTO> prescriptions = new ArrayList<>();
+        List<ClinicalControlRequestDTO> controls = new ArrayList<>();
+        OffsetDateTime startsAt = OffsetDateTime.parse("2026-10-06T09:00:00.123456789-05:00");
+        for (int position = 0; position < count; position++) {
+            prescriptions.add(new ClinicalPrescriptionRequestDTO(UUID.randomUUID(), "Medicamento " + position, BigDecimal.ONE,
+                    "mg", "Oral", 1, startsAt, startsAt.plusDays(1), position % 2 == 0 ? null : "Instrucción " + position));
+            controls.add(new ClinicalControlRequestDTO(UUID.randomUUID(), startsAt.plusHours(2), "Control " + position));
+        }
+        return new UpdateClinicalTreatmentRequestDTO(UUID.randomUUID(), version, prescriptions, controls);
     }
 
     private UUID completeDraft() {

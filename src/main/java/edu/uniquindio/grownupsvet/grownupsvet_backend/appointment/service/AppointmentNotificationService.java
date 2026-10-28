@@ -63,15 +63,36 @@ public class AppointmentNotificationService {
         Instant startsAt = ((Timestamp) source.get("starts_at")).toInstant();
         String payload = mapper.writeValueAsString(Map.of("eventVersion", version, "eventType", eventType,
                 "startsAt", startsAt.toString(), "availabilitySlotId", source.get("current_slot_id").toString()));
-        enqueue(appointmentId, eventId, source, taskType, payload, occurredAt, occurredAt);
-        if ("CONFIRMED".equals(source.get("status"))) {
-            Instant scheduledAt = startsAt.minus(properties.getReminderAdvance());
-            // Equality is eligible; late confirmations/changes never create a retroactive reminder.
-            if (!scheduledAt.isBefore(occurredAt)) {
-                enqueue(appointmentId, eventId, source, "OWNER_REMINDER", payload, scheduledAt, occurredAt);
+        if ("CONFIRMED".equals(eventType)) {
+            enqueueConfirmation(appointmentId, eventId, source, payload, startsAt, occurredAt);
+        } else {
+            enqueue(appointmentId, eventId, source, taskType, payload, occurredAt, occurredAt);
+            if ("CONFIRMED".equals(source.get("status"))) {
+                Instant scheduledAt = startsAt.minus(properties.getReminderAdvance());
+                // Equality is eligible; late confirmations/changes never create a retroactive reminder.
+                if (!scheduledAt.isBefore(occurredAt)) {
+                    enqueue(appointmentId, eventId, source, "OWNER_REMINDER", payload, scheduledAt, occurredAt);
+                }
             }
         }
         events.publishEvent(new AppointmentNotificationsQueuedEvent(appointmentId));
+    }
+
+    private void enqueueConfirmation(UUID appointmentId, UUID eventId, Map<String, Object> source,
+            String payload, Instant startsAt, Instant now) {
+        Instant reminderAt = startsAt.minus(properties.getReminderAdvance());
+        boolean reminderEligible = "CONFIRMED".equals(source.get("status")) && !reminderAt.isBefore(now);
+        String statement = "insert into appointment_email_tasks(id,appointment_id,event_key,recipient_id,recipient_email,task_type,payload," +
+                "status,attempt_count,scheduled_at,next_attempt_at,created_at) " +
+                "values(:id,:appointment,:event,:recipient,:email,'OWNER_CONFIRMED',cast(:payload as jsonb),'PENDING',0,:now,:now,:now)";
+        var parameters = new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("appointment", appointmentId)
+                .addValue("event", eventId).addValue("recipient", source.get("owner_id")).addValue("email", source.get("email"))
+                .addValue("payload", payload).addValue("now", Timestamp.from(now));
+        if (reminderEligible) {
+            statement += ",(:reminderId,:appointment,:event,:recipient,:email,'OWNER_REMINDER',cast(:payload as jsonb),'PENDING',0,:reminder,:reminder,:now)";
+            parameters.addValue("reminderId", UUID.randomUUID()).addValue("reminder", Timestamp.from(reminderAt));
+        }
+        jdbc.update(statement + " on conflict(event_key,recipient_id,task_type) do nothing", parameters);
     }
 
     private void enqueue(UUID appointmentId, UUID eventId, Map<String, Object> source, String type,

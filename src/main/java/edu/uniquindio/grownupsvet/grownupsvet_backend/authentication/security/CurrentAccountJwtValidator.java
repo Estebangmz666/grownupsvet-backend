@@ -1,9 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.security;
 
-import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.model.RevokedAccessTokenId;
-import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.repository.RevokedAccessTokenRepository;
-import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.User;
-import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.UserRepository;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.model.CurrentAccountAuthenticationSnapshot;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.authentication.repository.CurrentAccountAuthenticationRepository;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
@@ -21,15 +19,12 @@ public class CurrentAccountJwtValidator implements OAuth2TokenValidator<Jwt> {
     private static final OAuth2Error INVALID_TOKEN = new OAuth2Error(
             "invalid_token", "The access token is no longer valid.", null);
 
-    private final UserRepository userRepository;
-    private final RevokedAccessTokenRepository revokedAccessTokenRepository;
+    private final CurrentAccountAuthenticationRepository currentAccountAuthenticationRepository;
     private final UserPermissionResolver permissionResolver;
 
-    public CurrentAccountJwtValidator(UserRepository userRepository,
-                                      RevokedAccessTokenRepository revokedAccessTokenRepository,
+    public CurrentAccountJwtValidator(CurrentAccountAuthenticationRepository currentAccountAuthenticationRepository,
                                       UserPermissionResolver permissionResolver) {
-        this.userRepository = userRepository;
-        this.revokedAccessTokenRepository = revokedAccessTokenRepository;
+        this.currentAccountAuthenticationRepository = currentAccountAuthenticationRepository;
         this.permissionResolver = permissionResolver;
     }
 
@@ -43,28 +38,28 @@ public class CurrentAccountJwtValidator implements OAuth2TokenValidator<Jwt> {
             return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
         }
 
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null || !user.isActive()
+        CurrentAccountAuthenticationSnapshot user = currentAccountAuthenticationRepository
+                .findCurrentAccount(userId, issuer, jwtId).orElse(null);
+        if (user == null || !user.active() || user.revoked()
                 || !hasCurrentAuthenticationVersion(jwt, user)
-                || !user.getEmail().equals(jwt.getClaimAsString("email"))
-                || !user.getRole().name().equals(jwt.getClaimAsString("role"))) {
+                || !user.email().equals(jwt.getClaimAsString("email"))
+                || !user.role().name().equals(jwt.getClaimAsString("role"))) {
             return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
         }
 
         List<String> tokenPermissions = jwt.getClaimAsStringList("permissions");
-        List<String> currentPermissions = permissionResolver.resolve(user.getRole());
+        List<String> currentPermissions = permissionResolver.resolve(user.role());
         if (tokenPermissions == null || tokenPermissions.size() != currentPermissions.size()
-                || !new HashSet<>(tokenPermissions).equals(new HashSet<>(currentPermissions))
-                || revokedAccessTokenRepository.existsById(new RevokedAccessTokenId(issuer, jwtId))) {
+                || !new HashSet<>(tokenPermissions).equals(new HashSet<>(currentPermissions))) {
             return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
         }
         return OAuth2TokenValidatorResult.success();
     }
 
-    private boolean hasCurrentAuthenticationVersion(Jwt jwt, User user) {
+    private boolean hasCurrentAuthenticationVersion(Jwt jwt, CurrentAccountAuthenticationSnapshot user) {
         Object value = jwt.getClaims().get("authenticationVersion");
         return value instanceof Number number
-                && number.longValue() == user.getAuthenticationVersion()
+                && number.longValue() == user.authenticationVersion()
                 && number.doubleValue() == number.longValue();
     }
 

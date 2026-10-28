@@ -30,9 +30,10 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class ClinicalEncounterService {
-    private static final String ENCOUNTER_SELECT = "select e.id,e.appointment_id,e.pet_id,e.owner_id,e.veterinarian_id," +
+    private static final String ENCOUNTER_COLUMNS = "e.id,e.appointment_id,e.pet_id,e.owner_id,e.veterinarian_id," +
             "e.created_by,e.status,e.version,e.reason,e.anamnesis,e.physical_examination,e.diagnosis,e.care_plan," +
-            "e.created_at,e.updated_at,e.finalized_at from clinical_encounters e ";
+            "e.created_at,e.updated_at,e.finalized_at";
+    private static final String ENCOUNTER_SELECT = "select " + ENCOUNTER_COLUMNS + " from clinical_encounters e ";
 
     private static final RowMapper<ClinicalEncounterResponseDTO> ENCOUNTER_ROW = (resultSet, rowNumber) -> {
         Timestamp finalizedAt = resultSet.getTimestamp("finalized_at");
@@ -72,7 +73,9 @@ public class ClinicalEncounterService {
             throw idempotencyConflict();
         }
         if (existingOperation != null) {
-            return new CreationResult(readEncounter(existingOperation.encounterId()), false);
+            ClinicalMutationContext replay = new ClinicalMutationContext(lockEncounter(existingOperation.encounterId()), appointment);
+            requireEligibleReplay(replay);
+            return new CreationResult(replay.encounter(), false);
         }
         requireEligibleAppointment(appointment);
         Boolean alreadyExists = jdbc.queryForObject("select exists(select 1 from clinical_encounters where appointment_id=:appointment)",
@@ -83,15 +86,15 @@ public class ClinicalEncounterService {
 
         Instant now = clock.instant();
         UUID encounterId = UUID.randomUUID();
-        jdbc.update("insert into clinical_encounters(id,appointment_id,pet_id,owner_id,veterinarian_id,created_by,status,version,created_at,updated_at) " +
-                        "values(:id,:appointment,:pet,:owner,:veterinarian,:veterinarian,'DRAFT',0,:now,:now)",
+        ClinicalEncounterResponseDTO created = jdbc.queryForObject("insert into clinical_encounters as e(id,appointment_id,pet_id,owner_id,veterinarian_id,created_by,status,version,created_at,updated_at) " +
+                        "values(:id,:appointment,:pet,:owner,:veterinarian,:veterinarian,'DRAFT',0,:now,:now) returning " + ENCOUNTER_COLUMNS,
                 new MapSqlParameterSource().addValue("id", encounterId).addValue("appointment", appointment.id())
                         .addValue("pet", appointment.petId()).addValue("owner", appointment.ownerId())
-                        .addValue("veterinarian", actorId).addValue("now", Timestamp.from(now)));
+                        .addValue("veterinarian", actorId).addValue("now", Timestamp.from(now)), ENCOUNTER_ROW);
         insertEvent(encounterId, 0, "CREATED", actorId, null, now);
         insertOperation(encounterId, actorId, "CREATE", request.clientRequestId(), requestFingerprint, 0, now);
         events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.CLINICAL_DRAFT_CREATE));
-        return new CreationResult(readEncounter(encounterId), true);
+        return new CreationResult(created, true);
     }
 
     public ClinicalEncounterResponseDTO get(UUID actorId, UUID encounterId) {
@@ -158,46 +161,63 @@ public class ClinicalEncounterService {
                 normalize(request.physicalExamination()), normalize(request.diagnosis()), normalize(request.carePlan()));
         String requestFingerprint = fingerprint(encounterId.toString(), request.expectedVersion().toString(),
                 content.reason(), content.anamnesis(), content.physicalExamination(), content.diagnosis(), content.carePlan());
-        ClinicalMutationContext context = lockForMutation(actorId, encounterId);
+        ClinicalMutationContext context = lockForValidatedVeterinarian(actorId, encounterId);
         ClinicalEncounterResponseDTO encounter = context.encounter();
-        if (isMutationReplay(actorId, "UPDATE", request.clientRequestId(), requestFingerprint, encounterId)) { return encounter; }
+        if (isMutationReplay(actorId, "UPDATE", request.clientRequestId(), requestFingerprint, context)) { return encounter; }
         requireMutableDraft(context, request.expectedVersion());
 
         Instant now = clock.instant();
         long nextVersion = encounter.version() + 1;
-        jdbc.update("update clinical_encounters set reason=:reason,anamnesis=:anamnesis,physical_examination=:examination," +
-                        "diagnosis=:diagnosis,care_plan=:plan,veterinarian_id=:veterinarian,version=:version,updated_at=:now where id=:id",
+        ClinicalEncounterResponseDTO updated = jdbc.queryForObject("update clinical_encounters as e set reason=:reason,anamnesis=:anamnesis,physical_examination=:examination," +
+                        "diagnosis=:diagnosis,care_plan=:plan,veterinarian_id=:veterinarian,version=:version,updated_at=:now where id=:id returning " + ENCOUNTER_COLUMNS,
                 new MapSqlParameterSource().addValue("id", encounterId).addValue("reason", content.reason())
                         .addValue("anamnesis", content.anamnesis()).addValue("examination", content.physicalExamination())
                         .addValue("diagnosis", content.diagnosis()).addValue("plan", content.carePlan())
-                        .addValue("veterinarian", actorId).addValue("version", nextVersion).addValue("now", Timestamp.from(now)));
+                        .addValue("veterinarian", actorId).addValue("version", nextVersion).addValue("now", Timestamp.from(now)), ENCOUNTER_ROW);
         recordMutationAudit(actorId, context, "UPDATED", "UPDATE", request.clientRequestId(), requestFingerprint, now);
         events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.CLINICAL_DRAFT_SAVE));
-        return readEncounter(encounterId);
+        return updated;
     }
 
     // Internal mutation support; public callers provide the encompassing transaction.
     ClinicalMutationContext lockForMutation(UUID actorId, UUID encounterId) {
         requireVeterinarian(actorId, false);
-        UUID appointmentId = jdbc.query("select appointment_id from clinical_encounters where id=:id",
-                Map.of("id", encounterId), (resultSet, rowNumber) -> resultSet.getObject(1, UUID.class))
+        return lockForValidatedVeterinarian(actorId, encounterId);
+    }
+
+    private ClinicalMutationContext lockForValidatedVeterinarian(UUID actorId, UUID encounterId) {
+        ClinicalAppointmentIdentity snapshot = jdbc.query("select e.appointment_id,a.owner_id,a.pet_id from clinical_encounters e " +
+                        "join appointments a on a.id=e.appointment_id join veterinarian_availability_slots s on s.id=a.current_slot_id " +
+                        "where e.id=:encounter and s.veterinarian_id=:actor",
+                Map.of("encounter", encounterId, "actor", actorId), (resultSet, rowNumber) ->
+                        new ClinicalAppointmentIdentity(resultSet.getObject("appointment_id", UUID.class),
+                                resultSet.getObject("owner_id", UUID.class), resultSet.getObject("pet_id", UUID.class)))
                 .stream().findFirst().orElseThrow(ClinicalEncounterService::notFound);
-        ClinicalAppointment appointment = lockClinicalParticipants(actorId, appointmentId);
+        ClinicalAppointment appointment = lockClinicalParticipants(actorId, snapshot);
         return new ClinicalMutationContext(lockEncounter(encounterId), appointment);
     }
 
-    /** Only an already-authorized mutation with this locked context can read its committed response. */
-    ClinicalEncounterResponseDTO readMutationResult(ClinicalMutationContext context) {
-        return readEncounter(context.encounter().id());
+    /** The caller validates the locked context; transaction completion still precedes the HTTP response. */
+    ClinicalEncounterResponseDTO finalizeLockedEncounter(UUID actorId, ClinicalMutationContext context, Instant now) {
+        return jdbc.queryForObject("update clinical_encounters as e set status='FINALIZED',finalized_at=:now,updated_at=:now," +
+                        "veterinarian_id=:actor,version=version+1 where id=:id returning " + ENCOUNTER_COLUMNS,
+                Map.of("now", Timestamp.from(now), "actor", actorId, "id", context.encounter().id()), ENCOUNTER_ROW);
     }
 
-    boolean isMutationReplay(UUID actorId, String operationType, UUID clientRequestId, String requestFingerprint, UUID encounterId) {
+    boolean isMutationReplay(UUID actorId, String operationType, UUID clientRequestId, String requestFingerprint, ClinicalMutationContext context) {
         StoredOperation existingOperation = operation(actorId, operationType, clientRequestId);
         if (existingOperation == null) { return false; }
-        if (!existingOperation.encounterId().equals(encounterId) || !existingOperation.fingerprint().equals(requestFingerprint)) {
+        if (!existingOperation.encounterId().equals(context.encounter().id()) || !existingOperation.fingerprint().equals(requestFingerprint)) {
             throw idempotencyConflict();
         }
+        requireEligibleReplay(context);
         return true;
+    }
+
+    private void requireEligibleReplay(ClinicalMutationContext context) {
+        if (context.encounter().status() == ClinicalEncounterStatus.DRAFT) {
+            requireEligibleAppointment(context.appointment());
+        }
     }
 
     void requireMutableDraft(ClinicalMutationContext context, Long expectedVersion) {
@@ -262,16 +282,21 @@ public class ClinicalEncounterService {
     }
 
     private ClinicalAppointment lockClinicalParticipants(UUID actorId, UUID appointmentId) {
-        ClinicalAppointmentIdentity snapshot = jdbc.query("select a.owner_id,a.pet_id from appointments a " +
+        ClinicalAppointmentIdentity snapshot = jdbc.query("select a.id appointment_id,a.owner_id,a.pet_id from appointments a " +
                         "join veterinarian_availability_slots s on s.id=a.current_slot_id " +
                         "where a.id=:appointment and s.veterinarian_id=:actor",
                 Map.of("appointment", appointmentId, "actor", actorId), (resultSet, rowNumber) ->
-                        new ClinicalAppointmentIdentity(resultSet.getObject("owner_id", UUID.class), resultSet.getObject("pet_id", UUID.class)))
+                        new ClinicalAppointmentIdentity(resultSet.getObject("appointment_id", UUID.class),
+                                resultSet.getObject("owner_id", UUID.class), resultSet.getObject("pet_id", UUID.class)))
                 .stream().findFirst().orElseThrow(ClinicalEncounterService::notFound);
+        return lockClinicalParticipants(actorId, snapshot);
+    }
+
+    private ClinicalAppointment lockClinicalParticipants(UUID actorId, ClinicalAppointmentIdentity snapshot) {
         jdbc.queryForObject("select id from users where id=:owner for update", Map.of("owner", snapshot.ownerId()), UUID.class);
         jdbc.queryForObject("select id from pets where id=:pet for update", Map.of("pet", snapshot.petId()), UUID.class);
         requireVeterinarian(actorId, true);
-        ClinicalAppointment appointment = lockAppointment(actorId, appointmentId);
+        ClinicalAppointment appointment = lockAppointment(actorId, snapshot.appointmentId());
         if (!appointment.ownerId().equals(snapshot.ownerId()) || !appointment.petId().equals(snapshot.petId())) {
             throw conflict("CONCURRENT_UPDATE", "La cita cambió. Actualiza sus datos e inténtalo de nuevo.");
         }
@@ -286,11 +311,6 @@ public class ClinicalEncounterService {
                 || !appointment.ownerId().equals(appointment.petOwnerId())) {
             throw conflict("CLINICAL_PARTICIPANT_INACTIVE", "El propietario o la mascota ya no están activos para esta atención.");
         }
-    }
-
-    private ClinicalEncounterResponseDTO readEncounter(UUID encounterId) {
-        return jdbc.query(ENCOUNTER_SELECT + "where e.id=:id", Map.of("id", encounterId), ENCOUNTER_ROW)
-                .stream().findFirst().orElseThrow(ClinicalEncounterService::notFound);
     }
 
     private ClinicalEncounterResponseDTO lockEncounter(UUID encounterId) {
@@ -370,7 +390,7 @@ public class ClinicalEncounterService {
 
     private record ClinicalAccount(String role, String status) { }
     record ClinicalReaderContext(UUID actorId, boolean owner) { }
-    private record ClinicalAppointmentIdentity(UUID ownerId, UUID petId) { }
+    private record ClinicalAppointmentIdentity(UUID appointmentId, UUID ownerId, UUID petId) { }
     record ClinicalAppointment(UUID id, UUID petId, UUID ownerId, String status, String assignmentStatus,
             boolean petActive, UUID petOwnerId, String ownerStatus, String ownerRole,
             long version, Instant startsAt, UUID currentSlotId) { }

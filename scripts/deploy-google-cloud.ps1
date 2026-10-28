@@ -34,6 +34,7 @@ param(
     [string]$ExpectedContractVersion,
     [string]$CurrentServiceConfigurationPath,
     [string]$OutputPlanPath,
+    [switch]$ActivateRevision,
     [switch]$ValidateOnly,
     [switch]$Execute
 )
@@ -100,10 +101,64 @@ function Get-PreservedConfiguration([hashtable]$Service) {
     return @{ ContainerSpecification = $copy; TemplateAnnotations = $templateAnnotations; ServiceAnnotations = $serviceAnnotations }
 }
 
-function Get-ConfigurationFingerprint([hashtable]$Service) {
-    $canonical = ConvertTo-CanonicalValue (Get-PreservedConfiguration $Service)
+function Get-CanonicalFingerprint([object]$Value) {
+    $canonical = ConvertTo-CanonicalValue $Value
     $bytes = [Text.Encoding]::UTF8.GetBytes(($canonical | ConvertTo-Json -Depth 100 -Compress))
     return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+}
+
+function Get-ConfigurationFingerprint([hashtable]$Service) {
+    return Get-CanonicalFingerprint (Get-PreservedConfiguration $Service)
+}
+
+function Get-TrafficState([hashtable]$Service) {
+    if (-not $Service.spec.ContainsKey('traffic') -or -not $Service.status.ContainsKey('traffic')) {
+        throw 'Se requieren asignaciones de tráfico completas en spec y status.'
+    }
+    $state = @{}
+    foreach ($part in @('spec', 'status')) {
+        $state[$part] = @($Service[$part].traffic | ForEach-Object {
+            @{ Revision = [string]$_['revisionName']; Latest = [bool]$_['latestRevision'];
+                Percent = [int]$_['percent']; Tag = [string]$_['tag'] }
+        })
+    }
+    return $state
+}
+
+function Assert-SingleTrafficAssignment([hashtable]$Service) {
+    $traffic = Get-TrafficState $Service
+    foreach ($part in @('spec', 'status')) {
+        if ($traffic[$part].Count -ne 1 -or $traffic[$part][0].Percent -ne 100 -or $traffic[$part][0].Tag -ne '') {
+            throw 'ImageOnly requiere una única asignación de tráfico 100% sin tags.'
+        }
+    }
+    $desired = $traffic.spec[0]
+    if (($desired.Latest -and $desired.Revision -ne '') -or
+            (-not $desired.Latest -and $desired.Revision -eq '') -or $traffic.status[0].Revision -eq '' -or
+            (-not $desired.Latest -and $desired.Revision -ne $traffic.status[0].Revision)) {
+        throw 'La intención y el estado del tráfico no son verificables.'
+    }
+}
+
+function Get-DeploymentStateFingerprint([hashtable]$Service) {
+    return Get-CanonicalFingerprint @{
+        ServiceName = [string]$Service.metadata.name; Generation = [string]$Service.metadata['generation']
+        Configuration = Get-ConfigurationFingerprint $Service
+        Image = [string]$Service.spec.template.spec.containers[0].image
+        Created = [string]$Service.status.latestCreatedRevisionName; Ready = [string]$Service.status.latestReadyRevisionName
+        Traffic = Get-TrafficState $Service
+    }
+}
+
+function Test-RevisionTraffic([hashtable]$Service, [string]$Revision, [switch]$RequirePinned) {
+    $traffic = Get-TrafficState $Service
+    if ($traffic.spec.Count -ne 1 -or $traffic.status.Count -ne 1) { return $false }
+    $desired = $traffic.spec[0]
+    $desiredMatches = (-not $desired.Latest -and $desired.Revision -eq $Revision) -or
+        (-not $RequirePinned -and $desired.Latest -and $desired.Revision -eq '')
+    return $traffic.spec.Count -eq 1 -and $traffic.status.Count -eq 1 -and $desiredMatches -and
+        $desired.Percent -eq 100 -and $desired.Tag -eq '' -and $traffic.status[0].Percent -eq 100 -and
+        $traffic.status[0].Tag -eq '' -and $traffic.status[0].Revision -eq $Revision
 }
 
 function Get-EnvironmentValue([object[]]$Environment, [string]$Name) {
@@ -192,6 +247,8 @@ function Get-SanitizedServiceManifest([hashtable]$Service) {
         })
         LatestReadyRevision = $Service.status.latestReadyRevisionName
         LatestCreatedRevision = $Service.status.latestCreatedRevisionName
+        Generation = $Service.metadata['generation']
+        DesiredTraffic = $Service.spec['traffic']
         Traffic = $Service.status.traffic
     }
 }
@@ -225,13 +282,15 @@ if ($OutputPlanPath) {
     if ($OutputPlanPath.StartsWith($repositoryPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'El plan y las evidencias deben quedar fuera del repositorio.'
     }
-    foreach ($path in @($OutputPlanPath, "$OutputPlanPath.before.json", "$OutputPlanPath.after.json", "$OutputPlanPath.result.json")) {
+    foreach ($path in @($OutputPlanPath, "$OutputPlanPath.before.json", "$OutputPlanPath.image.json", "$OutputPlanPath.pre-activation.json",
+            "$OutputPlanPath.activation.json", "$OutputPlanPath.after.json", "$OutputPlanPath.result.json")) {
         if (Test-Path -LiteralPath $path) { throw 'Usa rutas de evidencia nuevas; no se sobrescribe un expediente anterior.' }
     }
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($OutputPlanPath))
 }
 
 if ($Execute -and $ValidateOnly) { throw 'Elige Execute o ValidateOnly.' }
+if ($ActivateRevision -and $DeploymentMode -ne 'ImageOnly') { throw 'ActivateRevision solo se admite en ImageOnly.' }
 Assert-Matches $ProjectId '^[a-z][a-z0-9-]{4,28}[a-z0-9]$' 'ProjectId'
 Assert-Matches $Region '^[a-z]+-[a-z]+[0-9]+$' 'Region'
 Assert-Matches $ServiceName '^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$' 'ServiceName'
@@ -247,6 +306,7 @@ if ($DeploymentMode -eq 'ImageOnly') {
     if ($ExpectedContractVersion) { Assert-Matches $ExpectedContractVersion '^\d+\.\d+\.\d+$' 'ExpectedContractVersion' }
     $plan = [ordered]@{ Validation = 'OK'; Mode = 'ImageOnly'; ProjectId = $ProjectId; Region = $Region;
         ServiceName = $ServiceName; ImageUri = $ImageUri; ExpectedContractVersion = $ExpectedContractVersion;
+        ActivateRevision = [bool]$ActivateRevision;
         PreservedConfiguration = 'Environment, secret references, profiles, probes, CPU, resources, max=1, identity, JWT, TLS';
         CloudActionsExecuted = $false }
     $approvedService = $null
@@ -268,6 +328,7 @@ if ($DeploymentMode -eq 'ImageOnly') {
     $describeArguments = @('run', 'services', 'describe', $ServiceName, '--project', $ProjectId, '--region', $Region, '--format=json')
     $before = Invoke-GcloudJson $gcloudCommand $describeArguments
     Assert-ExistingConfiguration $before
+    Assert-SingleTrafficAssignment $before
     if ([string]$before.metadata.name -ne $ServiceName) { throw 'La descripción no corresponde al servicio seleccionado.' }
     $beforeFingerprint = Get-ConfigurationFingerprint $before
     if ($approvedService -and $beforeFingerprint -ne (Get-ConfigurationFingerprint $approvedService)) {
@@ -276,25 +337,104 @@ if ($DeploymentMode -eq 'ImageOnly') {
     $beforeContract = Get-PublicContract $before
     Write-DeploymentEvidence $OutputPlanPath $plan
     Write-DeploymentEvidence "$OutputPlanPath.before.json" @{ Service = Get-SanitizedServiceManifest $before; Contract = $beforeContract }
-    # Only the image changes. No env/secrets/resource/IAM flags or historical template can reach this command.
-    $null = Invoke-GcloudJson $gcloudCommand @('run', 'services', 'update', $ServiceName, '--project', $ProjectId,
-        '--region', $Region, '--image', $ImageUri, '--quiet', '--format=json')
-    $after = Invoke-GcloudJson $gcloudCommand $describeArguments
-    Write-DeploymentEvidence "$OutputPlanPath.after.json" (Get-SanitizedServiceManifest $after)
-    Assert-ExistingConfiguration $after
-    $configurationPreserved = $beforeFingerprint -eq (Get-ConfigurationFingerprint $after)
-    $imageVerified = [string]$after.spec.template.spec.containers[0].image -eq $ImageUri
-    $revisionReady = [string]$after.status.latestReadyRevisionName -eq [string]$after.status.latestCreatedRevisionName
-    $activeTraffic = @($after.status.traffic | Where-Object { $_.ContainsKey('percent') -and [int]$_.percent -gt 0 })
-    $trafficVerified = $activeTraffic.Count -eq 1 -and [int]$activeTraffic[0].percent -eq 100 -and
-        [string]$activeTraffic[0].revisionName -eq [string]$after.status.latestReadyRevisionName
-    $afterContract = Get-PublicContract $after
-    $verified = $configurationPreserved -and $imageVerified -and $revisionReady -and $trafficVerified -and $afterContract.Version -eq $ExpectedContractVersion
-    Write-DeploymentEvidence "$OutputPlanPath.result.json" @{ CloudActionsExecuted = $true; Verified = $verified;
-        ConfigurationPreserved = $configurationPreserved; ImageVerified = $imageVerified; RevisionReady = $revisionReady;
-        TrafficVerified = $trafficVerified; Contract = $afterContract }
-    if (-not $verified) { throw 'La revisión no superó la verificación; conserva el expediente y revisa sin aplicar un rollback histórico automático.' }
-    [pscustomobject]@{ Validation = 'OK'; Mode = 'ImageOnly'; CloudActionsExecuted = $true; Verified = $true }
+    $verification = @{ CloudActionsExecuted = $false; Verified = $false; ActivateRevision = [bool]$ActivateRevision;
+        ActivationAttempted = $false; ConfigurationPreserved = $false; ImageVerified = $false; RevisionReady = $false;
+        TrafficVerified = $false; Contract = $null; Stage = 'BeforeImageUpdate'; Revision = '' }
+    $lastObserved = $before
+    try {
+        $preUpdate = Invoke-GcloudJson $gcloudCommand $describeArguments
+        $lastObserved = $preUpdate
+        if ((Get-DeploymentStateFingerprint $before) -ne (Get-DeploymentStateFingerprint $preUpdate)) {
+            throw 'El servicio cambió durante la preparación; no se actualiza la imagen.'
+        }
+        # Only the image changes. No env/secrets/resource/IAM flags can reach this command.
+        $verification.CloudActionsExecuted = $true
+        $verification.Stage = 'ImageUpdate'
+        $updated = Invoke-GcloudJson $gcloudCommand @('run', 'services', 'update', $ServiceName, '--project', $ProjectId,
+            '--region', $Region, '--image', $ImageUri, '--quiet', '--format=json')
+        $after = Invoke-GcloudJson $gcloudCommand $describeArguments
+        $lastObserved = $after
+        Write-DeploymentEvidence "$OutputPlanPath.image.json" (Get-SanitizedServiceManifest $after)
+        Assert-ExistingConfiguration $after
+        Assert-SingleTrafficAssignment $after
+        $verification.ConfigurationPreserved = $beforeFingerprint -eq (Get-ConfigurationFingerprint $after)
+        $verification.ImageVerified = [string]$after.spec.template.spec.containers[0].image -eq $ImageUri
+        $revision = [string]$updated.status.latestCreatedRevisionName
+        $verification.Revision = $revision
+        $verification.RevisionReady = $revision -match '^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$' -and
+            $revision.StartsWith($ServiceName + '-', [StringComparison]::Ordinal) -and
+            [string]$updated.status.latestReadyRevisionName -eq $revision -and
+            [string]$after.status.latestCreatedRevisionName -eq $revision -and [string]$after.status.latestReadyRevisionName -eq $revision
+        if (-not $verification.ConfigurationPreserved -or -not $verification.ImageVerified -or -not $verification.RevisionReady -or
+                [string]$after.metadata.name -ne $ServiceName -or
+                (Get-DeploymentStateFingerprint $updated) -ne (Get-DeploymentStateFingerprint $after)) {
+            throw 'La imagen, revisión o configuración posterior no coincide con la actualización verificada.'
+        }
+        $beforeTraffic = Get-TrafficState $before
+        $afterTraffic = Get-TrafficState $after
+        if ((Get-CanonicalFingerprint $beforeTraffic.spec) -ne (Get-CanonicalFingerprint $afterTraffic.spec) -or
+                (-not $beforeTraffic.spec[0].Latest -and
+                    (Get-CanonicalFingerprint $beforeTraffic.status) -ne (Get-CanonicalFingerprint $afterTraffic.status)) -or
+                ($beforeTraffic.spec[0].Latest -and -not (Test-RevisionTraffic $after $revision))) {
+            throw 'El tráfico cambió durante la actualización de imagen; no se activa otra revisión.'
+        }
+        $verification.TrafficVerified = Test-RevisionTraffic $after $revision
+        if (-not $verification.TrafficVerified) {
+            if (-not $ActivateRevision) { throw 'La revisión no recibe el tráfico esperado; ActivateRevision requiere una decisión explícita.' }
+            $verification.Stage = 'BeforeActivation'
+            $preActivation = Invoke-GcloudJson $gcloudCommand $describeArguments
+            $lastObserved = $preActivation
+            Write-DeploymentEvidence "$OutputPlanPath.pre-activation.json" (Get-SanitizedServiceManifest $preActivation)
+            if ((Get-DeploymentStateFingerprint $after) -ne (Get-DeploymentStateFingerprint $preActivation)) {
+                throw 'El servicio cambió antes de activar; no se modifica el tráfico.'
+            }
+            $verification.ActivationAttempted = $true
+            $verification.Stage = 'Activation'
+            $activated = Invoke-GcloudJson $gcloudCommand @('run', 'services', 'update-traffic', $ServiceName,
+                '--project', $ProjectId, '--region', $Region, '--to-revisions', ($revision + '=100'), '--quiet', '--format=json')
+            $after = Invoke-GcloudJson $gcloudCommand $describeArguments
+            $lastObserved = $after
+            Write-DeploymentEvidence "$OutputPlanPath.activation.json" (Get-SanitizedServiceManifest $after)
+            if ((Get-DeploymentStateFingerprint $activated) -ne (Get-DeploymentStateFingerprint $after) -or
+                    (Get-ConfigurationFingerprint $after) -ne $beforeFingerprint -or
+                    [string]$after.metadata.name -ne $ServiceName -or
+                    [string]$after.spec.template.spec.containers[0].image -ne $ImageUri -or
+                    [string]$after.status.latestCreatedRevisionName -ne $revision -or
+                    [string]$after.status.latestReadyRevisionName -ne $revision -or
+                    -not (Test-RevisionTraffic $after $revision -RequirePinned)) {
+                throw 'La activación no conservó revisión, imagen, configuración y tráfico exactos.'
+            }
+        }
+        $verification.Stage = 'ContractVerification'
+        $afterContract = Get-PublicContract $after
+        $final = Invoke-GcloudJson $gcloudCommand $describeArguments
+        $lastObserved = $final
+        if ((Get-DeploymentStateFingerprint $after) -ne (Get-DeploymentStateFingerprint $final)) {
+            throw 'El servicio cambió durante la comprobación del contrato.'
+        }
+        $verification.TrafficVerified = Test-RevisionTraffic $final $revision -RequirePinned:([bool]$verification.ActivationAttempted)
+        $verification.Contract = $afterContract
+        if (-not $verification.TrafficVerified -or $afterContract.Version -ne $ExpectedContractVersion) {
+            throw 'La revisión no superó la verificación del tráfico o contrato esperado.'
+        }
+        $verification.Verified = $true
+        $verification.Stage = 'Verified'
+    } catch {
+        $verification.ConfigurationPreserved = $beforeFingerprint -eq (Get-ConfigurationFingerprint $lastObserved)
+        $verification.ImageVerified = [string]$lastObserved.spec.template.spec.containers[0].image -eq $ImageUri
+        $verification.RevisionReady = $verification.Revision -ne '' -and
+            [string]$lastObserved.status.latestReadyRevisionName -eq $verification.Revision -and
+            [string]$lastObserved.status.latestCreatedRevisionName -eq $verification.Revision
+        $verification.TrafficVerified = $verification.Revision -ne '' -and
+            (Test-RevisionTraffic $lastObserved $verification.Revision -RequirePinned:([bool]$verification.ActivationAttempted))
+        Write-DeploymentEvidence "$OutputPlanPath.after.json" (Get-SanitizedServiceManifest $lastObserved)
+        Write-DeploymentEvidence "$OutputPlanPath.result.json" $verification
+        throw
+    }
+    Write-DeploymentEvidence "$OutputPlanPath.after.json" (Get-SanitizedServiceManifest $lastObserved)
+    Write-DeploymentEvidence "$OutputPlanPath.result.json" $verification
+    [pscustomobject]@{ Validation = 'OK'; Mode = 'ImageOnly'; CloudActionsExecuted = $true; Verified = $true;
+        ActivationAttempted = $verification.ActivationAttempted; Revision = $revision }
     return
 }
 if ($Execute) { throw 'ConfigurationTemplate solo prepara/valida. No puede reemplazar un servicio existente; usa ImageOnly.' }

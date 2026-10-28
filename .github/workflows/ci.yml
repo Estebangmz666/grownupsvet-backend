@@ -70,6 +70,10 @@ jobs:
         shell: pwsh
         run: ./scripts/tests/LocalMonitoring.Tests.ps1
 
+      - name: Verify image deployment and activation with isolated SDK fixtures
+        shell: pwsh
+        run: ./scripts/tests/DeployGoogleCloud.Tests.ps1
+
       - name: Verify Cloud Run latency correlation without provider access
         run: python -B -m unittest discover -s scripts/tests -p test_collect_cloud_run_latencies.py -v
 

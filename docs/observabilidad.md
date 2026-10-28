@@ -24,9 +24,16 @@ comparación de configuración antes/después. No crea nube, IAM ni sidecars.
 
 La [guía de despliegue](google-cloud.md#5-script-de-despliegue-y-validación-offline)
 describe el plan y los manifiestos saneados fuera de Git. El helper falla
-si no verifica imagen, configuración, revisión lista, tráfico y contrato;
-no cambia el tráfico por su cuenta ni vuelve automáticamente a una imagen
-vieja. La plantilla completa queda restringida a validación offline y admite
+si no verifica imagen, configuración, revisión lista, tráfico y contrato.
+Por omisión no ejecuta cambios de tráfico adicionales. La opción explícita
+`-ActivateRevision`, exclusiva de ImageOnly, permite una sola asignación100%
+a la revisión exacta capturada y verificada después de actualizar la imagen;
+nunca utiliza `--to-latest`/`LATEST` como destino ni elimina tags. Las guardas comparan estado antes y
+después y abortan ante divergencias observadas, sin reintentar ni restaurar
+una imagen vieja. El [plan de activación](plan-activacion-revision-cloud-run-2026-10-28.md)
+explica los checkpoints y la ventana residual entre llamadas CLI. La
+activación conserva el mínimo0/máximo1 y el perfil de monitoring; la
+verificación del scrape continúa siendo independiente. La plantilla completa queda restringida a validación offline y admite
 referencias numéricas `MONITORING_TOKEN_SHA256` y
 `LOGIN_RATE_LIMIT_HMAC_SECRET`; la activación real se prepara como cambio
 separado. El token Bearer original de monitoring permanece solo en el equipo,

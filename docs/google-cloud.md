@@ -100,6 +100,8 @@ $imageUpdate = @{
 # Tras CI, revisión de imagen/configuración y autorización de la publicación:
 # elegir otra ruta de plan nueva si la validación anterior ya escribió una.
 .\scripts\deploy-google-cloud.ps1 @imageUpdate -Execute
+# O bien, si se autoriza activar la revisión exacta cuando el tráfico está fijado:
+# .\scripts\deploy-google-cloud.ps1 @imageUpdate -Execute -ActivateRevision
 ```
 
 Execute exige digest y versión de contrato esperada. Consulta el servicio
@@ -107,8 +109,10 @@ existente, valida un contenedor, perfiles productivos, máximo 1, CPU fuera
 de solicitudes, probes e identidad explícita y referencias numéricas de
 Secret Manager. Si se aporta una descripción revisada, contrasta su huella
 con la configuración viva antes de actualizar. Lee el contrato público
-antes y después y ejecuta únicamente `gcloud run services update --image`.
-No añade flags de entorno, secretos, recursos o IAM.
+antes y después. Por omisión, la única mutación es
+`gcloud run services update --image`. No añade flags de entorno, secretos,
+recursos o IAM. `-ActivateRevision` es una opción adicional exclusiva de
+ImageOnly; sin Execute registra la intención y permanece offline.
 
 Requiere PowerShell 7.2 o posterior. El límite se interpreta por nivel:
 `run.googleapis.com/maxScale=1` del servicio puede coexistir con
@@ -118,20 +122,45 @@ aplica el menor. El helper acepta y conserva ambos valores, sin cambiar el
 exige cap de revisión 1. El manifiesto saneado muestra los dos valores por
 separado. [Máximos de servicio y revisión](https://docs.cloud.google.com/run/docs/configuring/max-instances).
 
-El expediente `.before.json`, `.after.json` y `.result.json` omite valores
+El expediente `.before.json`, `.image.json`, `.after.json` y `.result.json` omite valores
 de entorno y secretos; conserva nombres/referencias y una huella de la
 configuración. La comparación incluye perfiles, variables, secretos,
 montajes, probes, recursos, CPU, límites, identidad y configuración de
 conexión/JWT/TLS. Solo ignora imagen y anotaciones identificadas del cliente
 de despliegue. Se exige imagen esperada, revisión lista, 100 % del tráfico
 en esa revisión y contrato esperado. Si el tráfico está fijado a una
-revisión anterior o algo difiere, falla la verificación y conserva evidencia;
-no cambia tráfico ni aplica un rollback histórico automáticamente.
+revisión anterior, el modo predeterminado falla y conserva evidencia sin
+ejecutar una activación. Si el servicio ya dirigía tráfico a latest, Cloud
+Run conserva esa política al actualizar la imagen; el helper verifica su
+resolución y no emite otro comando de tráfico.
+
+Con `-ActivateRevision`, solo después de verificar revisión lista no vacía,
+digest exacto y huella de configuración, el helper puede ejecutar una vez
+`gcloud run services update-traffic --to-revisions=<revision-exacta>=100`.
+Captura el destino del resultado de su propia actualización; nunca usa
+`--to-latest`, `LATEST` ni elimina tags. Admite una sola asignación100%
+sin tags y rechaza splits/tags antes de cambiar la imagen. Si la nueva
+revisión ya recibe ese tráfico, no realiza activación adicional.
+
+Las relecturas comparan generación, imagen, huella, revisión creada/lista
+y tráfico de spec/status antes de actualizar, antes/después de activar y
+después de comprobar el contrato. Una divergencia observada aborta sin
+reintento ni restauración automática. Los checkpoints opcionales
+`.pre-activation.json` y `.activation.json` conservan la secuencia; el
+resultado distingue `ActivationAttempted` de `Verified`. No se acredita
+actualización completa con tráfico antiguo. Si un comando falla antes de
+una nueva lectura, `.after.json` conserva el último estado observado;
+`Stage` y `Verified=false` impiden tratarlo como confirmación posterior al fallo.
+El [plan previo de esta
+opción](plan-activacion-revision-cloud-run-2026-10-28.md) registra garantías,
+pruebas y límites. [CLI de tráfico](https://docs.cloud.google.com/sdk/gcloud/reference/run/services/update-traffic).
 
 La descripción JSON original puede contener valores privados: conservarla
 fuera de Git y no pegarla en logs. El hash global no certifica la seguridad
-de cada valor ni evita cambios remotos simultáneos; conserva configuración
-y señala divergencias. La aceptación funcional y el scrape siguen teniendo
+de cada valor ni elimina la ventana entre una lectura y una mutación.
+Conserva configuración y señala divergencias observadas; no constituye
+una transacción entre llamadas CLI ni prueba que hayan terminado las
+peticiones anteriores durante la propagación. La aceptación funcional y el scrape siguen teniendo
 sus pruebas propias. [CLI update](https://docs.cloud.google.com/sdk/gcloud/reference/run/services/update).
 
 ### Plantilla histórica: preparación offline exclusivamente

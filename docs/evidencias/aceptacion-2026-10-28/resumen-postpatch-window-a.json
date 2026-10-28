@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "scope": "POSTPATCH_WINDOW_A_AND_SUBSEQUENT_CLEANUP",
+  "objectiveComplete": false,
+  "applicationSourceCommit": "fa2a9955c7217c9e6bd00c8a9881ba20711b6a81",
+  "operatorCommit": "239d96f0281143c5c8f62665e2701a6c424c1c97",
+  "deployment": {
+    "revision": "grownupsvet-backend-00008-824",
+    "imageDigest": "sha256:f3456068f8fffb297f53ac7f67d75d20c1e7028150f77d403647272aad608f28",
+    "verifiedAtUtc": "2026-10-28T16:50:38.8366056+00:00",
+    "generation": 14,
+    "minimumAtActivation": 0,
+    "maximumAtActivation": 1,
+    "trafficPercent": 100,
+    "tagsRemaining": false,
+    "configurationPreserved": true,
+    "openApiVersion": "0.11.0",
+    "pathCount": 47,
+    "migrationVersion": 23,
+    "fullContractMatch": true
+  },
+  "deliveryVerification": {
+    "javaTests": 762,
+    "javaSuites": 65,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "httpResponseExamples": 51,
+    "deploymentHelperScenarios": 31,
+    "activationScenarios": 18,
+    "requiredCheck": "Backend verification",
+    "requiredCheckAppId": 15368,
+    "pr7": "https://github.com/Estebangmz666/grownupsvet-backend/pull/7",
+    "pr8": "https://github.com/Estebangmz666/grownupsvet-backend/pull/8",
+    "applicationMainCi": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40719636534",
+    "operatorMainCi": "https://github.com/Estebangmz666/grownupsvet-backend/actions/runs/40725016637"
+  },
+  "helperExecutionPreserved": {
+    "Verified": false,
+    "ActivationAttempted": false,
+    "ConfigurationPreserved": true,
+    "ImageVerified": true,
+    "RevisionReady": false,
+    "TrafficVerified": false,
+    "Stage": "ImageUpdate"
+  },
+  "activationProcedure": {
+    "type": "SEPARATELY_PLANNED_MANUAL_CONTINUATION",
+    "helperLimitation": "MINIMUM_ZERO_PINNED_TRAFFIC_RETIRED_REVISION",
+    "candidateTrafficPercentBeforeActivation": 0,
+    "candidateReadinessVerified": true,
+    "candidateMetricsRevisionVerified": true,
+    "fullContractVerifiedBeforeActivation": true,
+    "ownedTemporaryTagRemoved": true,
+    "imageUpdateRepeated": false
+  },
+  "windowA": {
+    "startedAtUtc": "2026-10-28T16:53:37.312644Z",
+    "completedAtUtc": "2026-10-28T16:56:31.744099Z",
+    "collectedAtUtc": "2026-10-28T16:59:18.263481Z",
+    "httpAttempts": 65,
+    "eligibleAttempts": 24,
+    "correlatedAttempts": 24,
+    "unverifiedAttempts": 0,
+    "unexpectedResponses": 0,
+    "uncertainTransportAttempts": 0,
+    "http5xxResponses": 0,
+    "http429Responses": 0,
+    "measurement": "CLOUD_RUN_REQUEST_LATENCY_NOT_EXCLUSIVE_JAVA_EXECUTION",
+    "percentileMethod": "NEAREST_RANK_CEILING_0_95_TIMES_N",
+    "strictThresholdMilliseconds": "500",
+    "operations": [
+      {
+        "metric": "M3",
+        "operation": "M3_pet_create_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "234.455866",
+        "p95ClientEndToEndMilliseconds": "446.833",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_appointment_create_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "379.345797",
+        "p95ClientEndToEndMilliseconds": "585.866",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_appointment_replay_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "234.966288",
+        "p95ClientEndToEndMilliseconds": "515.264",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_availability_A",
+        "n": 3,
+        "p95CloudRunMilliseconds": "274.924645",
+        "p95ClientEndToEndMilliseconds": "497.817",
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_confirmation_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "545.292614",
+        "p95ClientEndToEndMilliseconds": "738.333",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": false
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_publication_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "406.571461",
+        "p95ClientEndToEndMilliseconds": "616.05",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_detail_A",
+        "n": 3,
+        "p95CloudRunMilliseconds": "201.214696",
+        "p95ClientEndToEndMilliseconds": "849.937",
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_draft_create_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "615.718719",
+        "p95ClientEndToEndMilliseconds": "825.66",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_draft_replay_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "387.183394",
+        "p95ClientEndToEndMilliseconds": "590.927",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_text_replay_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "354.667103",
+        "p95ClientEndToEndMilliseconds": "571.297",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_text_save_A",
+        "n": 3,
+        "p95CloudRunMilliseconds": "546.875291",
+        "p95ClientEndToEndMilliseconds": "752.718",
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_read_A",
+        "n": 3,
+        "p95CloudRunMilliseconds": "595.488405",
+        "p95ClientEndToEndMilliseconds": "1036.92",
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_replay_A",
+        "n": 1,
+        "p95CloudRunMilliseconds": "455.759423",
+        "p95ClientEndToEndMilliseconds": "683.702",
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_save_A",
+        "n": 3,
+        "p95CloudRunMilliseconds": "693.694336",
+        "p95ClientEndToEndMilliseconds": "942.49",
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "below500MillisecondsInThisSample": false
+      }
+    ],
+    "operationsAtOrAboveThreshold": 5,
+    "functionalCounters": {
+      "M7_text_updates": {
+        "verifiedSuccesses": 3,
+        "eligibleIntents": 3,
+        "unverified": 0
+      },
+      "M7_treatment_updates": {
+        "verifiedSuccesses": 3,
+        "eligibleIntents": 3,
+        "unverified": 0
+      },
+      "M6_publication": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M1_pets": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M4": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M7_creation": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      }
+    },
+    "m8DistinctRecords": {
+      "eligibleRecords": 2,
+      "verifiedRecords": 2,
+      "unit": "distinct_clinical_encounters"
+    },
+    "confirmationObservation": {
+      "notificationType": "OWNER_CONFIRMED",
+      "status": "SENDING",
+      "attemptCount": 1,
+      "sentAt": null
+    },
+    "mailboxReceiptVerified": false,
+    "reminderObservation": null,
+    "assessment": "DECLARED_FUNCTIONAL_SAMPLE_ONLY_NOT_SLO"
+  },
+  "monitoringPointInTime": {
+    "checkedAtUtc": "2026-10-28T17:01:16.0475637+00:00",
+    "status": "PASSED",
+    "revision": "grownupsvet-backend-00008-824",
+    "freshMetricFamilies": 7,
+    "businessOperationSeries": 7,
+    "histogram500msSeries": 24,
+    "dashboardPanels": 10,
+    "promqlQueries": 9,
+    "p95PanelNonFiniteSeries": 16,
+    "p95SloEstablishedByDashboard": false
+  },
+  "subsequentCleanup": {
+    "status": "CLEANUP_VERIFIED",
+    "verifiedAtUtc": "2026-10-28T17:04:29.5005629Z",
+    "revision": "grownupsvet-backend-00008-824",
+    "trafficPercent": 100,
+    "tagsRemoved": true,
+    "minimum": 0,
+    "maximum": 1,
+    "configurationPreserved": true,
+    "configurationFingerprint": "f5c224e1d6e86b5d94b6870b17e54911d5a7f130865282ae6c45c111f209cd49",
+    "monitoringStopped": true,
+    "monitoringDataPreserved": true,
+    "generation": 16
+  },
+  "windowBPending": {
+    "notBeforeLocal": "2026-10-29T06:00:00-05:00",
+    "notBeforeUtc": "2026-10-29T11:00:00Z",
+    "timeZone": "America/Bogota",
+    "operations": [
+      "treatment_save",
+      "finalize",
+      "finalize_replay",
+      "published_detail",
+      "published_treatment",
+      "history",
+      "clinical_reminders"
+    ],
+    "completed": false
+  },
+  "limitations": [
+    "N=1 or N=3 per operation; no population or general SLO approval.",
+    "Window A is a different operation set from the historical prepatch sample; violation counts are not a comparable rate.",
+    "Client end-to-end and Cloud Run latencies are separate measures.",
+    "SENDING with one attempt does not establish SMTP acceptance or mailbox receipt.",
+    "Successful PromQL with NaN does not establish a finite P95.",
+    "Cleanup is a point-in-time observation; minimum zero does not guarantee immediate zero instances or zero total cost.",
+    "Historical finalized records and their mail outcomes do not prove finalization/reminders on the new revision."
+  ],
+  "historicalSummaryUnchangedSha256": "afecef673037921b278cc806c847bc590ee318c48ee7824d529055963abb8382",
+  "sourceHashes": [
+    {
+      "logicalFile": "performance-active-verification.json",
+      "sha256": "eb10b3cf3d23215e6204c2c88be6aa54932410a363f40b7e6d4b5bb8509105b9"
+    },
+    {
+      "logicalFile": "performance-deployment-manifest.json",
+      "sha256": "2e1c4ed6ca4a339a102e4581abd65b37d5f477dfd172a2bdbad0743b91595844"
+    },
+    {
+      "logicalFile": "performance-deployment-execution-2.json.result.json",
+      "sha256": "05060459044540c7f5f5ff265bd879842bea5445fa8f280ce81eb5c98b5d660f"
+    },
+    {
+      "logicalFile": "candidate-http-verification.json",
+      "sha256": "cb989a79b89181dd715f6032b028bf19c0c8b5ab199aff6d278ce1d7a9619189"
+    },
+    {
+      "logicalFile": "candidate-full-contract-verification.json",
+      "sha256": "d2a543f840d5cdce33c25ec3106d09a85136610fc8685285bdfb726b42f8d0b9"
+    },
+    {
+      "logicalFile": "monitoring-new-revision-verification.json",
+      "sha256": "36fd5bae45758feab346c54adc524bdb96968a333e12378fddb27a54d490e26a"
+    },
+    {
+      "logicalFile": "postpatch-measurement-window-a-source.json",
+      "sha256": "50a0c1c6f11ef87d908d9453b44dedb7ee10cdd9a47386369a66ae22e06eff9b"
+    },
+    {
+      "logicalFile": "cloud-run-latencies-postpatch-window-a.json",
+      "sha256": "4d3d84d8fefcf435c766f12acaed0f58a61e6f01dba968a163a35481fb9400a6"
+    },
+    {
+      "logicalFile": "performance-cleanup-verification.json",
+      "sha256": "da4be68d000623d5e0ca2a840a84382b932ebe31d5c956b2a53e55468aa68976"
+    }
+  ]
+}

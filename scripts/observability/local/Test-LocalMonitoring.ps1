@@ -42,7 +42,11 @@ try {
     $scrapeTimestamp = $targets[0].lastScrape
     $lastScrape = if ($scrapeTimestamp -is [DateTimeOffset]) { $scrapeTimestamp }
         elseif ($scrapeTimestamp -is [DateTime]) { [DateTimeOffset]::new($scrapeTimestamp) }
-        else { [DateTimeOffset]::Parse([string]$scrapeTimestamp, [Globalization.CultureInfo]::InvariantCulture) }
+        else {
+            # Go timestamps may contain nanoseconds; .NET represents 100-nanosecond ticks.
+            $isoTimestamp = [regex]::Replace([string]$scrapeTimestamp, '(\.\d{7})\d+(Z|[+-]\d{2}:\d{2})$', '$1$2')
+            [DateTimeOffset]::Parse($isoTimestamp, [Globalization.CultureInfo]::InvariantCulture)
+        }
     $freshScrape = $lastScrape.UtcTicks -gt [long]$prometheusRecord.startTimeUtcTicks -and $lastScrape -gt [DateTimeOffset]::UtcNow.AddSeconds(-90)
     $remoteVerified = $up -eq '1' -and $targets[0].health -eq 'up' -and $freshScrape
     if ($RequireRemoteUp -and -not $remoteVerified) { throw 'MONITORING_REMOTE_SCRAPE_NOT_UP' }

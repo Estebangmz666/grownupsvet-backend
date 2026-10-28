@@ -69,6 +69,10 @@ try {
         Invoke-MonitoringFixture "$culture UTC DateTime" $instant.UtcDateTime $true
         Invoke-MonitoringFixture "$culture local DateTime" $instant.LocalDateTime $true
         Invoke-MonitoringFixture "$culture offset DateTimeOffset" $instant.ToOffset([TimeSpan]::FromHours(-5)) $true
+        $nanosecondTimestamp = $instant.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff",[Globalization.CultureInfo]::InvariantCulture)+'89Z'
+        Invoke-MonitoringFixture "$culture UTC nanosecond timestamp" $nanosecondTimestamp $true
+        $offsetNanosecondTimestamp = $instant.ToOffset([TimeSpan]::FromHours(-5)).ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff",[Globalization.CultureInfo]::InvariantCulture)+'89-05:00'
+        Invoke-MonitoringFixture "$culture offset nanosecond timestamp" $offsetNanosecondTimestamp $true
     }
     Invoke-MonitoringFixture 'Invalid timestamp rejected' 'not-a-timestamp' $false
     Invoke-MonitoringFixture 'Stale scrape rejected' ([DateTimeOffset]::UtcNow.AddMinutes(-5)) $false

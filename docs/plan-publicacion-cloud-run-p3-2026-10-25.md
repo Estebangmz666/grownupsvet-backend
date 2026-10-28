@@ -24,6 +24,8 @@ Un respaldo completo de Render anterior a las migraciones P3 ya se obtuvo y se r
 4. Asignar el tráfico de forma coherente; no mezclar validadores de permisos viejos/nuevos. OWNER y VETERINARIAN deben iniciar sesión otra vez.
 5. Verificar P1–P3 con datos ficticios y destinatarios de prueba autorizados; registrar commit, build, digest, revisión y evidencias. No enviar correos a terceros no autorizados ni interpretar SENT como recepción confirmada.
 
+La comparación del contrato HTTP desplegado valida primero `servers`: debe contener únicamente la URL pública configurada en `BACKEND_BASE_URL`. El snapshot generado en pruebas usa `http://localhost:8080` y la descripción automática de springdoc. Una vez comprobada esa sustitución de transporte concreta, exigir igualdad semántica de todos los demás campos; no modificar el snapshot de CI ni ignorar diferencias de rutas, esquemas, ejemplos o permisos para aceptar el despliegue.
+
 ## Observabilidad del despliegue
 
 El usuario descartó la prueba de Grafana Cloud y reiteró presupuesto efectivo de US$0. La opción elegida es Grafana OSS y Prometheus en Windows, sin suscripción, sidecar, almacenamiento administrado ni permisos IAM nuevos. El perfil `monitoring` permite únicamente el scrape HTTPS autenticado por una clave máquina cuyo valor original queda en el equipo; Cloud Run recibe solo su SHA256. El [plan de seguridad](plan-monitoreo-local-2026-10-25.md) precede al código y el runtime local se prepara por separado.

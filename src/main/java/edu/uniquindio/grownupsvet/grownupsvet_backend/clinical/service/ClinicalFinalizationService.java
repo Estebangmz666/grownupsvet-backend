@@ -40,7 +40,7 @@ public class ClinicalFinalizationService {
         String fingerprint = ClinicalEncounterService.fingerprint(encounterId.toString(), request.expectedVersion().toString(),
                 request.expectedAppointmentVersion().toString());
         var context = encounters.lockForMutation(actorId, encounterId);
-        if (encounters.isMutationReplay(actorId, "FINALIZE", request.clientRequestId(), fingerprint, encounterId)) {
+        if (encounters.isMutationReplay(actorId, "FINALIZE", request.clientRequestId(), fingerprint, context)) {
             return context.encounter();
         }
         encounters.requireMutableDraft(context, request.expectedVersion());
@@ -58,9 +58,7 @@ public class ClinicalFinalizationService {
             throw new ClinicalOperationException(HttpStatus.BAD_REQUEST, "CLINICAL_REQUIRED_FIELDS_MISSING",
                     "Completa motivo, anamnesis, examen físico, diagnóstico y plan antes de finalizar.");
         }
-        jdbc.update("update clinical_encounters set status='FINALIZED',finalized_at=:now,updated_at=:now," +
-                        "veterinarian_id=:actor,version=version+1 where id=:id",
-                Map.of("now", Timestamp.from(now), "actor", actorId, "id", encounterId));
+        ClinicalEncounterResponseDTO finalizedEncounter = encounters.finalizeLockedEncounter(actorId, context, now);
         jdbc.update("update appointments set status='COMPLETED',version=version+1,updated_at=:now where id=:id",
                 Map.of("now", Timestamp.from(now), "id", appointment.id()));
         jdbc.update("insert into appointment_events(id,appointment_id,appointment_version,event_type,previous_status,new_status," +
@@ -74,7 +72,7 @@ public class ClinicalFinalizationService {
                 Map.of("appointment", appointment.id()));
         events.publishEvent(new ClinicalEncounterFinalizedEvent(encounterId));
         events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.CLINICAL_FINALIZE));
-        return encounters.readMutationResult(context);
+        return finalizedEncounter;
     }
 
     private static ClinicalOperationException conflict(String code, String detail) {

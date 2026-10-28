@@ -232,6 +232,45 @@ class ClinicalReminderIntegrationTests {
     }
 
     @Test
+    void anUnfinalizedEncounterWithNoChildrenStillFailsSchedulingBeforeCommit() {
+        assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                events.publishEvent(new ClinicalEncounterFinalizedEvent(encounterId)))).isInstanceOf(RuntimeException.class);
+        assertThat(jdbc.queryForObject("select status from clinical_encounters where id=?", String.class, encounterId)).isEqualTo("DRAFT");
+        assertThat(scheduleCount()).isZero();
+        assertThat(taskCount()).isZero();
+    }
+
+    @Test
+    void scheduleBatchPreservesExpiredOngoingAndExactControlWindowBoundaries() {
+        var expiredPrescription = prescription(TREATMENT_START.minusSeconds(3600), TREATMENT_START, 1);
+        var ongoingPrescription = prescription(TREATMENT_START.minusSeconds(3600), TREATMENT_START.plusSeconds(3600), 1);
+        var futurePrescription = prescription(TREATMENT_START.plusSeconds(3600), TREATMENT_START.plusSeconds(7200), 1);
+        var expiredControl = control(TREATMENT_START);
+        var exactTwentyFourHourControl = control(TREATMENT_START.plus(Duration.ofHours(24)));
+        var shortLeadControl = control(TREATMENT_START.plusNanos(1000));
+        finalizeTreatment(List.of(expiredPrescription, ongoingPrescription, futurePrescription),
+                List.of(expiredControl, exactTwentyFourHourControl, shortLeadControl));
+
+        var expired = jdbc.queryForMap("select status,next_due_at from clinical_reminder_schedules where encounter_id=? and prescription_id=?",
+                encounterId, expiredPrescription.id());
+        assertThat(expired.get("status")).isEqualTo("FINISHED");
+        assertThat(expired.get("next_due_at")).isNull();
+        assertThat(jdbc.queryForObject("select next_due_at from clinical_reminder_schedules where encounter_id=? and prescription_id=?",
+                Timestamp.class, encounterId, ongoingPrescription.id())).isEqualTo(Timestamp.from(TREATMENT_START.minusSeconds(3600)));
+        assertThat(jdbc.queryForObject("select next_due_at from clinical_reminder_schedules where encounter_id=? and prescription_id=?",
+                Timestamp.class, encounterId, futurePrescription.id())).isEqualTo(Timestamp.from(TREATMENT_START.plusSeconds(3600)));
+        assertThat(controlSchedule(expiredControl.id()).get("status")).isEqualTo("FINISHED");
+        assertThat(controlSchedule(expiredControl.id()).get("starts_at")).isEqualTo(Timestamp.from(TREATMENT_START.minus(Duration.ofHours(24))));
+        assertThat(controlSchedule(expiredControl.id()).get("next_due_at")).isNull();
+        for (var item : List.of(exactTwentyFourHourControl, shortLeadControl)) {
+            assertThat(controlSchedule(item.id()).get("starts_at")).isEqualTo(Timestamp.from(TREATMENT_START));
+            assertThat(controlSchedule(item.id()).get("next_due_at")).isEqualTo(Timestamp.from(TREATMENT_START));
+        }
+        assertThat(scheduleCount()).isEqualTo(6);
+        assertThat(taskCount()).isZero();
+    }
+
+    @Test
     void exactDoseOccurrencesAreIdempotentAndStopAtTheExclusiveEnd() {
         Instant startsAt = TREATMENT_START.plusSeconds(3600);
         Instant endsAt = TREATMENT_START.plusSeconds(10800);

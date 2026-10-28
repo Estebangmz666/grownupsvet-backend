@@ -9,10 +9,10 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
-import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
@@ -43,33 +43,25 @@ public class ClinicalReminderSchedulingService {
                         "where e.id=:encounter and e.status='FINALIZED' and a.status='COMPLETED'",
                 Map.of("encounter", event.encounterId()), (resultSet, rowNumber) -> resultSet.getObject(1, UUID.class));
         if (encounter.isEmpty()) { throw new IllegalStateException("Clinical reminder scheduling requires a committed finalization intent."); }
-        jdbc.query("select id,starts_at,ends_at,interval_hours from clinical_prescriptions where encounter_id=:encounter order by position",
-                Map.of("encounter", event.encounterId()), resultSet -> {
-                    Instant startsAt = resultSet.getTimestamp("starts_at").toInstant();
-                    Instant endsAt = resultSet.getTimestamp("ends_at").toInstant();
-                    insert(event.encounterId(), "PRESCRIPTION", resultSet.getObject("id", UUID.class), startsAt, endsAt,
-                            resultSet.getInt("interval_hours"), now.isBefore(endsAt) ? startsAt : null, now);
-                });
-        jdbc.query("select id,scheduled_at from clinical_controls where encounter_id=:encounter order by position",
-                Map.of("encounter", event.encounterId()), resultSet -> {
-                    Instant endsAt = resultSet.getTimestamp("scheduled_at").toInstant();
-                    Instant startsAt = endsAt.minus(Duration.ofHours(24));
-                    if (now.isAfter(startsAt) && now.isBefore(endsAt)) { startsAt = now; }
-                    insert(event.encounterId(), "CONTROL", resultSet.getObject("id", UUID.class), startsAt, endsAt,
-                            null, now.isBefore(endsAt) ? startsAt : null, now);
-                });
-    }
-
-    private void insert(UUID encounterId, String sourceType, UUID sourceId, Instant startsAt, Instant endsAt,
-            Integer intervalHours, Instant nextDueAt, Instant now) {
-        jdbc.update("insert into clinical_reminder_schedules(id,encounter_id,source_type,prescription_id,control_id,starts_at,ends_at," +
-                        "interval_hours,next_due_at,next_occurrence_index,status,created_at) " +
-                        "values(:id,:encounter,:type,:prescription,:control,:start,:end,:interval,:next,0,:status,:now) on conflict do nothing",
-                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("encounter", encounterId).addValue("type", sourceType)
-                        .addValue("prescription", "PRESCRIPTION".equals(sourceType) ? sourceId : null)
-                        .addValue("control", "CONTROL".equals(sourceType) ? sourceId : null).addValue("start", Timestamp.from(startsAt))
-                        .addValue("end", Timestamp.from(endsAt)).addValue("interval", intervalHours)
-                        .addValue("next", nextDueAt == null ? null : Timestamp.from(nextDueAt))
-                        .addValue("status", nextDueAt == null ? "FINISHED" : "ACTIVE").addValue("now", Timestamp.from(now)));
+        jdbc.update("""
+                insert into clinical_reminder_schedules(id,encounter_id,source_type,prescription_id,control_id,
+                    starts_at,ends_at,interval_hours,next_due_at,next_occurrence_index,status,created_at)
+                select gen_random_uuid(),encounter_id,source_type,prescription_id,control_id,starts_at,ends_at,interval_hours,
+                    case when :now < ends_at then starts_at else null end,
+                    0,case when :now < ends_at then 'ACTIVE' else 'FINISHED' end,:now
+                from (
+                    select encounter_id,'PRESCRIPTION' as source_type,id as prescription_id,cast(null as uuid) as control_id,
+                        starts_at,ends_at,interval_hours
+                    from clinical_prescriptions where encounter_id=:encounter
+                    union all
+                    select encounter_id,'CONTROL',cast(null as uuid),id,
+                        case when :now > scheduled_at - interval '24 hours' and :now < scheduled_at
+                            then :now else scheduled_at - interval '24 hours' end,
+                        scheduled_at,cast(null as integer)
+                    from clinical_controls where encounter_id=:encounter
+                ) source_schedules
+                on conflict do nothing
+                """, new MapSqlParameterSource().addValue("encounter", event.encounterId())
+                .addValue("now", now.atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE));
     }
 }

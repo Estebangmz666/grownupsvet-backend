@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
@@ -26,9 +28,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.UUID;
 
 @Service
@@ -63,58 +67,85 @@ public class ClinicalTreatmentService {
         List<ClinicalControlResponseDTO> controls = normalizeControls(request.controls());
         String requestFingerprint = fingerprint(encounterId, request.expectedVersion(), prescriptions, controls);
         var context = encounters.lockForMutation(actorId, encounterId);
-        if (encounters.isMutationReplay(actorId, "TREATMENT", request.clientRequestId(), requestFingerprint, encounterId)) {
+        if (encounters.isMutationReplay(actorId, "TREATMENT", request.clientRequestId(), requestFingerprint, context)) {
             return readTreatment(encounterId, context.encounter().version());
         }
         encounters.requireMutableDraft(context, request.expectedVersion());
 
         jdbc.update("delete from clinical_prescriptions where encounter_id=:encounter", Map.of("encounter", encounterId));
         jdbc.update("delete from clinical_controls where encounter_id=:encounter", Map.of("encounter", encounterId));
-        insertPrescriptions(encounterId, prescriptions);
-        insertControls(encounterId, controls);
+        List<ClinicalPrescriptionResponseDTO> storedPrescriptions = insertPrescriptions(encounterId, prescriptions);
+        List<ClinicalControlResponseDTO> storedControls = insertControls(encounterId, controls);
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         encounters.advanceDraftVersion(actorId, context, now);
         encounters.recordMutationAudit(actorId, context, "TREATMENT_UPDATED", "TREATMENT", request.clientRequestId(), requestFingerprint, now);
         events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.CLINICAL_TREATMENT_SAVE));
-        return readTreatment(encounterId, context.encounter().version() + 1);
+        return new ClinicalTreatmentResponseDTO(encounterId, context.encounter().version() + 1, storedPrescriptions, storedControls);
     }
 
     private ClinicalTreatmentResponseDTO readTreatment(UUID encounterId, long version) {
         List<ClinicalPrescriptionResponseDTO> prescriptions = jdbc.query("select id,medication_name,dose,dose_unit,administration_route," +
                         "interval_hours,starts_at,ends_at,instructions from clinical_prescriptions where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> new ClinicalPrescriptionResponseDTO(
-                        resultSet.getObject("id", UUID.class), resultSet.getString("medication_name"), resultSet.getBigDecimal("dose"),
-                        resultSet.getString("dose_unit"), resultSet.getString("administration_route"), resultSet.getInt("interval_hours"),
-                        resultSet.getTimestamp("starts_at").toInstant(), resultSet.getTimestamp("ends_at").toInstant(),
-                        resultSet.getString("instructions")));
+                Map.of("encounter", encounterId), (resultSet, rowNumber) -> prescription(resultSet));
         List<ClinicalControlResponseDTO> controls = jdbc.query("select id,scheduled_at,reason from clinical_controls " +
                         "where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> new ClinicalControlResponseDTO(
-                        resultSet.getObject("id", UUID.class), resultSet.getTimestamp("scheduled_at").toInstant(), resultSet.getString("reason")));
+                Map.of("encounter", encounterId), (resultSet, rowNumber) -> control(resultSet));
         return new ClinicalTreatmentResponseDTO(encounterId, version, List.copyOf(prescriptions), List.copyOf(controls));
     }
 
-    private void insertPrescriptions(UUID encounterId, List<ClinicalPrescriptionResponseDTO> prescriptions) {
+    private List<ClinicalPrescriptionResponseDTO> insertPrescriptions(UUID encounterId, List<ClinicalPrescriptionResponseDTO> prescriptions) {
+        if (prescriptions.isEmpty()) { return List.of(); }
+        StringJoiner values = new StringJoiner(",");
+        MapSqlParameterSource parameters = new MapSqlParameterSource().addValue("encounter", encounterId);
         for (int position = 0; position < prescriptions.size(); position++) {
             ClinicalPrescriptionResponseDTO prescription = prescriptions.get(position);
-            jdbc.update("insert into clinical_prescriptions(encounter_id,id,position,medication_name,dose,dose_unit,administration_route," +
-                            "interval_hours,starts_at,ends_at,instructions) values(:encounter,:id,:position,:medication,:dose,:unit,:route,:interval,:start,:end,:instructions)",
-                    new MapSqlParameterSource().addValue("encounter", encounterId).addValue("id", prescription.id()).addValue("position", position)
-                            .addValue("medication", prescription.medicationName()).addValue("dose", prescription.dose()).addValue("unit", prescription.doseUnit())
-                            .addValue("route", prescription.administrationRoute()).addValue("interval", prescription.intervalHours())
-                            .addValue("start", Timestamp.from(prescription.startsAt())).addValue("end", Timestamp.from(prescription.endsAt()))
-                            .addValue("instructions", prescription.instructions()));
+            String suffix = Integer.toString(position);
+            values.add("(:encounter,:id" + suffix + ",:position" + suffix + ",:medication" + suffix + ",:dose" + suffix +
+                    ",:unit" + suffix + ",:route" + suffix + ",:interval" + suffix + ",:start" + suffix + ",:end" + suffix + ",:instructions" + suffix + ")");
+            parameters.addValue("id" + suffix, prescription.id()).addValue("position" + suffix, position)
+                    .addValue("medication" + suffix, prescription.medicationName()).addValue("dose" + suffix, prescription.dose())
+                    .addValue("unit" + suffix, prescription.doseUnit()).addValue("route" + suffix, prescription.administrationRoute())
+                    .addValue("interval" + suffix, prescription.intervalHours()).addValue("start" + suffix, Timestamp.from(prescription.startsAt()))
+                    .addValue("end" + suffix, Timestamp.from(prescription.endsAt())).addValue("instructions" + suffix, prescription.instructions());
         }
+        return jdbc.query("insert into clinical_prescriptions(encounter_id,id,position,medication_name,dose,dose_unit,administration_route," +
+                        "interval_hours,starts_at,ends_at,instructions) values " + values +
+                        " returning id,position,medication_name,dose,dose_unit,administration_route,interval_hours,starts_at,ends_at,instructions",
+                parameters, (resultSet, rowNumber) -> new PositionedPrescription(resultSet.getInt("position"), prescription(resultSet)))
+                .stream().sorted(Comparator.comparingInt(PositionedPrescription::position)).map(PositionedPrescription::value).toList();
     }
 
-    private void insertControls(UUID encounterId, List<ClinicalControlResponseDTO> controls) {
+    private List<ClinicalControlResponseDTO> insertControls(UUID encounterId, List<ClinicalControlResponseDTO> controls) {
+        if (controls.isEmpty()) { return List.of(); }
+        StringJoiner values = new StringJoiner(",");
+        MapSqlParameterSource parameters = new MapSqlParameterSource().addValue("encounter", encounterId);
         for (int position = 0; position < controls.size(); position++) {
             ClinicalControlResponseDTO control = controls.get(position);
-            jdbc.update("insert into clinical_controls(encounter_id,id,position,scheduled_at,reason) values(:encounter,:id,:position,:scheduled,:reason)",
-                    Map.of("encounter", encounterId, "id", control.id(), "position", position,
-                            "scheduled", Timestamp.from(control.scheduledAt()), "reason", control.reason()));
+            String suffix = Integer.toString(position);
+            values.add("(:encounter,:id" + suffix + ",:position" + suffix + ",:scheduled" + suffix + ",:reason" + suffix + ")");
+            parameters.addValue("id" + suffix, control.id()).addValue("position" + suffix, position)
+                    .addValue("scheduled" + suffix, Timestamp.from(control.scheduledAt())).addValue("reason" + suffix, control.reason());
         }
+        return jdbc.query("insert into clinical_controls(encounter_id,id,position,scheduled_at,reason) values " + values +
+                        " returning id,position,scheduled_at,reason", parameters,
+                (resultSet, rowNumber) -> new PositionedControl(resultSet.getInt("position"), control(resultSet)))
+                .stream().sorted(Comparator.comparingInt(PositionedControl::position)).map(PositionedControl::value).toList();
     }
+
+    private static ClinicalPrescriptionResponseDTO prescription(ResultSet resultSet) throws SQLException {
+        return new ClinicalPrescriptionResponseDTO(resultSet.getObject("id", UUID.class), resultSet.getString("medication_name"),
+                resultSet.getBigDecimal("dose"), resultSet.getString("dose_unit"), resultSet.getString("administration_route"),
+                resultSet.getInt("interval_hours"), resultSet.getTimestamp("starts_at").toInstant(),
+                resultSet.getTimestamp("ends_at").toInstant(), resultSet.getString("instructions"));
+    }
+
+    private static ClinicalControlResponseDTO control(ResultSet resultSet) throws SQLException {
+        return new ClinicalControlResponseDTO(resultSet.getObject("id", UUID.class), resultSet.getTimestamp("scheduled_at").toInstant(),
+                resultSet.getString("reason"));
+    }
+
+    private record PositionedPrescription(int position, ClinicalPrescriptionResponseDTO value) { }
+    private record PositionedControl(int position, ClinicalControlResponseDTO value) { }
 
     private static List<ClinicalPrescriptionResponseDTO> normalizePrescriptions(List<ClinicalPrescriptionRequestDTO> requests) {
         List<ClinicalPrescriptionResponseDTO> prescriptions = new ArrayList<>();

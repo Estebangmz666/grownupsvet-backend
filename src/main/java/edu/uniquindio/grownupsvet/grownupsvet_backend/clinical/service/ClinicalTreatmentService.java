@@ -84,12 +84,26 @@ public class ClinicalTreatmentService {
     }
 
     private ClinicalTreatmentResponseDTO readTreatment(UUID encounterId, long version) {
-        List<ClinicalPrescriptionResponseDTO> prescriptions = jdbc.query("select id,medication_name,dose,dose_unit,administration_route," +
-                        "interval_hours,starts_at,ends_at,instructions from clinical_prescriptions where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> prescription(resultSet));
-        List<ClinicalControlResponseDTO> controls = jdbc.query("select id,scheduled_at,reason from clinical_controls " +
-                        "where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> control(resultSet));
+        List<ClinicalPrescriptionResponseDTO> prescriptions = new ArrayList<>();
+        List<ClinicalControlResponseDTO> controls = new ArrayList<>();
+        // Independent branches preserve empty/asymmetric lists without a prescription-control product.
+        jdbc.query("""
+                select 1 child_type,position,id,medication_name,dose,dose_unit,administration_route,
+                    interval_hours,starts_at,ends_at,instructions,cast(null as timestamptz) scheduled_at,cast(null as varchar) reason
+                from clinical_prescriptions where encounter_id=:encounter
+                union all
+                select 2 child_type,position,id,cast(null as varchar) medication_name,cast(null as numeric(18,6)) dose,
+                    cast(null as varchar) dose_unit,cast(null as varchar) administration_route,cast(null as integer) interval_hours,
+                    cast(null as timestamptz) starts_at,cast(null as timestamptz) ends_at,cast(null as varchar) instructions,scheduled_at,reason
+                from clinical_controls where encounter_id=:encounter
+                order by child_type,position
+                """, Map.of("encounter", encounterId), resultSet -> {
+            if (resultSet.getInt("child_type") == 1) {
+                prescriptions.add(prescription(resultSet));
+            } else {
+                controls.add(control(resultSet));
+            }
+        });
         return new ClinicalTreatmentResponseDTO(encounterId, version, List.copyOf(prescriptions), List.copyOf(controls));
     }
 

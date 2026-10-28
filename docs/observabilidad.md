@@ -2,6 +2,8 @@
 
 Preparación I7 del 25/10/2026. La opción elegida por el usuario es **Prometheus y Grafana OSS locales, sin suscripción ni vencimiento**, para consultar el backend de Cloud Run. El perfil, runtime y despliegue tienen planes y verificaciones separados; no se declara el scrape desplegado hasta comprobarlo. Las alternativas administradas descritas más adelante se conservan como referencia y no se activan.
 
+**Verificación del 28/10:** la [cadena desplegada y los diez paneles](verificacion-monitoreo-desplegado-2026-10-28.md) se comprobaron contra la revisión real, con scrape fresco y nueve consultas PromQL satisfactorias. La [aceptación P1–P3](aceptacion-backend-desplegado-2026-10-28.md) conserva los indicadores M1–M9 y los incumplimientos medidos de latencia. Después de la prueba se aplicó el [estado de ahorro](verificacion-ahorro-post-pruebas-2026-10-28.md): monitoreo local apagado, mínimo cero y máximo uno en Cloud Run. El panel requiere encender los procesos locales; los controles y ese estado no garantizan disponibilidad de recordatorios con cero instancias.
+
 ## Opción elegida: servidor desplegado y panel local
 
 El perfil `monitoring` conserva las probes `/actuator/health/liveness` y `/actuator/health/readiness` en el puerto API y permite exclusivamente `GET /actuator/prometheus` con un token máquina aleatorio de 256 bits. No acepta sesiones de propietarios, veterinarios o administradores. El token no concede acceso a recursos de la API.

@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "preparedAtUtc": "2026-10-28T15:03:02.951869+00:00",
+  "identity": {
+    "baselineCommit": "70b772a962f4036f0e6bc79e8cdfd0067154e493",
+    "deployedApplicationSourceCommit": "960c8898acbb22a227eac9424260a12936556227",
+    "revision": "grownupsvet-backend-admission-960c8898",
+    "imageDigest": "sha256:23e561476bfed1bba13bb34dc87644444b294700dae55b159f9cf53ab93d275d",
+    "openApiVersion": "0.11.0",
+    "openApiPaths": 47,
+    "successfulMigrations": 23
+  },
+  "functional": {
+    "checksPassed": 50,
+    "checksTotal": 50,
+    "httpAttempts": 156,
+    "unexpectedResponsesOrTimeouts": 0,
+    "rates": {
+      "M1_users": {
+        "verifiedSuccesses": 2,
+        "eligibleIntents": 2,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M1_pets": {
+        "verifiedSuccesses": 3,
+        "eligibleIntents": 3,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M2": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M4": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M5": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M7_creation": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M7_treatment": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      },
+      "M7_finalization": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0,
+        "percentage": 100.0
+      }
+    },
+    "m8DistinctRecords": {
+      "verifiedRecords": 2,
+      "eligibleRecords": 2,
+      "percentage": 100.0,
+      "snapshotObservations": 3,
+      "verifiedSnapshotObservations": 3
+    }
+  },
+  "latency": {
+    "measurement": "Cloud Run request latency; not exclusive Java execution time",
+    "collectedAtUtc": "2026-10-28T14:30:43.627670Z",
+    "measuredSourceRequestCount": 138,
+    "finalHttpRequestCount": 156,
+    "eligibleAttempts": 28,
+    "correlatedAttempts": 28,
+    "unverifiedAttempts": 0,
+    "eligiblePopulationUnchanged": true,
+    "eligiblePopulationSha256": "754c711e453daaf1e485eeca5cf12ebf701932402e33520801a26acca028a17e",
+    "operations": [
+      {
+        "metric": "M3",
+        "operation": "M3_pet_create",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "platformP95Milliseconds": "315.115406",
+        "clientP95MillisecondsEndToEnd": "604.018",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M3",
+        "operation": "M3_pet_read",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "platformP95Milliseconds": "266.716495",
+        "clientP95MillisecondsEndToEnd": "582.276",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M3",
+        "operation": "M3_user_signup",
+        "eligibleAttempts": 2,
+        "correlatedAttempts": 2,
+        "platformP95Milliseconds": "490.701248",
+        "clientP95MillisecondsEndToEnd": "1110.339",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_administrative_confirm",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "749.171162",
+        "clientP95MillisecondsEndToEnd": "1037.572",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_appointment_create",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "549.604222",
+        "clientP95MillisecondsEndToEnd": "826.282",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_availability",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "366.702492",
+        "clientP95MillisecondsEndToEnd": "870.104",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_availability_publish",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "450.070766",
+        "clientP95MillisecondsEndToEnd": "670.045",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_detail",
+        "eligibleAttempts": 5,
+        "correlatedAttempts": 5,
+        "platformP95Milliseconds": "349.855919",
+        "clientP95MillisecondsEndToEnd": "605.995",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_draft_create",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "583.704644",
+        "clientP95MillisecondsEndToEnd": "998.944",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_finalize",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "881.63757",
+        "clientP95MillisecondsEndToEnd": "1122.994",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_finalize_replay",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "464.91732",
+        "clientP95MillisecondsEndToEnd": "703.612",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_history",
+        "eligibleAttempts": 2,
+        "correlatedAttempts": 2,
+        "platformP95Milliseconds": "396.146724",
+        "clientP95MillisecondsEndToEnd": "619.091",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_published_detail",
+        "eligibleAttempts": 2,
+        "correlatedAttempts": 2,
+        "platformP95Milliseconds": "235.312874",
+        "clientP95MillisecondsEndToEnd": "771.203",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_published_treatment",
+        "eligibleAttempts": 2,
+        "correlatedAttempts": 2,
+        "platformP95Milliseconds": "470.605942",
+        "clientP95MillisecondsEndToEnd": "915.072",
+        "platformBelow500Milliseconds": true,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_text_save",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "608.833454",
+        "clientP95MillisecondsEndToEnd": "913.447",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_save",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "platformP95Milliseconds": "793.140491",
+        "clientP95MillisecondsEndToEnd": "1008.042",
+        "platformBelow500Milliseconds": false,
+        "clientErrorsOrTimeouts": 0,
+        "serverErrorResponses": 0
+      }
+    ],
+    "operationsNotBelow500Milliseconds": [
+      "M6_administrative_confirm",
+      "M6_appointment_create",
+      "M9_draft_create",
+      "M9_finalize",
+      "M9_text_save",
+      "M9_treatment_save"
+    ]
+  },
+  "mail": {
+    "plannedNoticeCount": 3,
+    "smtpAcceptedNoticeCount": 3,
+    "attemptsPerNotice": 1,
+    "receiptCount": 3,
+    "receiptVerification": "USER_REPORTED",
+    "userReportedEncodingIssue": true,
+    "encodingCause": "Corrupted Unicode in private28 fixture literals before JSON; future fixture literals corrected without changing saved intentions",
+    "mimeAssessment": "PENDING_SEPARATE_OFFLINE_EVIDENCE",
+    "encodingPassDeclared": false
+  },
+  "afterPrescriptionEnd": {
+    "observed": true,
+    "oneScheduleAndOneTaskPerClinicalSource": true,
+    "clinicalScheduleStates": [
+      "FINISHED",
+      "FINISHED"
+    ],
+    "clinicalTaskStates": [
+      "SENT",
+      "SENT"
+    ],
+    "newOccurrencesAfterEndObserved": 0
+  },
+  "savings": {
+    "monitoring": "OFF",
+    "serviceMin": 0,
+    "serviceMax": 1,
+    "sameImageRevisionTraffic": true
+  },
+  "sourceHashes": {
+    "finalReport": {
+      "file": "report-sanitized.json",
+      "sha256": "7f984684ac7b21b3ed5510c6233c8e47cdce79a11d2a55e055779db17cebe179"
+    },
+    "finalAfterEndCut": {
+      "file": "final-after-prescription-end-cut.json",
+      "sha256": "bd6863e27ad597f6c227d3af0529afeb8e109e552a2476f8554ef3471a1eb76e"
+    },
+    "latencyCollector": {
+      "file": "cloud-run-latencies-after-finalization.json",
+      "sha256": "e1ac1f8a6d058c1fa8c569bf6827cf8fe9af3814770dd35056e59a3302c27c88"
+    },
+    "measuredSourceReport": {
+      "file": "measurement-source-after-finalize.json",
+      "sha256": "dd7c15c627ffc75e20cf846986e5d241860e7e32c05577f13c88432874cdfb78"
+    },
+    "savingsVerification": {
+      "file": "cloud-savings-r4-verification.json",
+      "sha256": "757ed46d64ad958c58673a7c75d5eb0cc6a20c61711f7a3c344ce81dafbf09ad"
+    }
+  },
+  "historical25": {
+    "checkpointSha256": "d869710a6fc3f697e1075182f4a9ac30839c474d5809263bcc7e70f6d70ca49b",
+    "clientPreflightIncident": "406 preserved in original run",
+    "includedInCurrentDenominators": false
+  },
+  "assessment": "FUNCTIONAL_DECLARED_SAMPLE_WITH_M6_M9_LATENCY_TARGET_FAILURES; NOT_GLOBAL_SLO_OR_TOTAL_CLOSURE"
+}

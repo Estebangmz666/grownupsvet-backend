@@ -12,8 +12,8 @@ function Assert-DeploymentTest([bool]$Condition, [string]$Message) {
 }
 function New-ServiceFixture {
     return @{
-        metadata = @{ name = 'fixture-api'; annotations = @{ 'run.googleapis.com/maxScale' = '1' } }
-        spec = @{ template = @{
+        metadata = @{ name = 'fixture-api'; generation = 1; annotations = @{ 'run.googleapis.com/maxScale' = '1'; 'run.googleapis.com/minScale' = '0' } }
+        spec = @{ traffic = @(@{ latestRevision = $true; percent = 100 }); template = @{
             metadata = @{ annotations = @{ 'run.googleapis.com/cpu-throttling' = 'false'; 'autoscaling.knative.dev/maxScale' = '20' } }
             spec = @{ serviceAccountName = 'runtime@audit-fixture-123.iam.gserviceaccount.com'; containerConcurrency = 8;
                 timeoutSeconds = 300; containers = @(@{
@@ -39,21 +39,46 @@ function New-ServiceFixture {
             }
         } }
         status = @{ url = 'https://fixture-api-abc-uc.a.run.app'; latestReadyRevisionName = 'fixture-api-00001';
-            latestCreatedRevisionName = 'fixture-api-00001'; traffic = @(@{ revisionName = 'fixture-api-00001'; percent = 100 }) }
+            latestCreatedRevisionName = 'fixture-api-00001'; traffic = @(@{ revisionName = 'fixture-api-00001'; latestRevision = $true; percent = 100 }) }
     }
 }
 
 # Functional boundary doubles: all command/HTTP operations remain in this process, without cloud or credentials.
 function gcloud {
     $global:DeploymentFixture.Calls.Add(@($args))
+    if ($args[2] -eq 'describe') {
+        $global:DeploymentFixture.DescribeCount++
+        $change = $global:DeploymentFixture.DescribeChanges[$global:DeploymentFixture.DescribeCount]
+        if ($change) { & $change }
+    }
     if ($args[2] -eq 'update') {
+        $global:DeploymentFixture.Service.metadata.generation++
         $global:DeploymentFixture.Service.spec.template.spec.containers[0].image = $args[([Array]::IndexOf($args, '--image') + 1)]
         $global:DeploymentFixture.Service.status.latestCreatedRevisionName = 'fixture-api-00002'
         $global:DeploymentFixture.Service.status.latestReadyRevisionName = 'fixture-api-00002'
-        $global:DeploymentFixture.Service.status.traffic = @(@{ revisionName = 'fixture-api-00002'; percent = 100 })
+        if ($global:DeploymentFixture.Service.spec.traffic[0]['latestRevision']) {
+            $global:DeploymentFixture.Service.status.traffic = @(@{ revisionName = 'fixture-api-00002'; latestRevision = $true; percent = 100 })
+        }
+        if ($global:DeploymentFixture.ReadyIncomplete) { $global:DeploymentFixture.Service.status.latestReadyRevisionName = 'fixture-api-00001' }
+        if ($global:DeploymentFixture.EmptyRevision) {
+            $global:DeploymentFixture.Service.status.latestReadyRevisionName = ''
+            $global:DeploymentFixture.Service.status.latestCreatedRevisionName = ''
+        }
+        if ($global:DeploymentFixture.WrongImage) {
+            $global:DeploymentFixture.Service.spec.template.spec.containers[0].image = 'us-central1-docker.pkg.dev/audit-fixture-123/images/api@sha256:' + ('d' * 64)
+        }
         $global:DeploymentFixture.Version = '0.11.0'
         if ($global:DeploymentFixture.Drift) {
             $global:DeploymentFixture.Service.spec.template.spec.containers[0].resources.limits.memory = '4Gi'
+        }
+    }
+    if ($args[2] -eq 'update-traffic') {
+        $destination = $args[([Array]::IndexOf($args, '--to-revisions') + 1)]
+        if ($destination -ne 'fixture-api-00002=100') { throw 'Unexpected traffic destination in double.' }
+        if (-not $global:DeploymentFixture.IgnoreActivation) {
+            $global:DeploymentFixture.Service.metadata.generation++
+            $global:DeploymentFixture.Service.spec.traffic = @(@{ revisionName = 'fixture-api-00002'; percent = 100 })
+            $global:DeploymentFixture.Service.status.traffic = @(@{ revisionName = 'fixture-api-00002'; percent = 100 })
         }
     }
     $global:LASTEXITCODE = 0
@@ -68,7 +93,12 @@ function Invoke-RestMethod {
 }
 function Reset-DeploymentFixture {
     $global:DeploymentFixture = @{ Service = New-ServiceFixture; Calls = [Collections.Generic.List[object]]::new();
-        HttpCalls = 0; Version = '0.10.0'; Drift = $false; ContractFailure = $false }
+        HttpCalls = 0; Version = '0.10.0'; Drift = $false; ContractFailure = $false;
+        DescribeCount = 0; DescribeChanges = @{}; ReadyIncomplete = $false; EmptyRevision = $false; WrongImage = $false; IgnoreActivation = $false }
+}
+function Set-PinnedFixtureTraffic {
+    $global:DeploymentFixture.Service.spec.traffic = @(@{ revisionName = 'fixture-api-00001'; percent = 100 })
+    $global:DeploymentFixture.Service.status.traffic = @(@{ revisionName = 'fixture-api-00001'; percent = 100 })
 }
 function Assert-RejectedBeforeUpdate([hashtable]$Parameters) {
     $failed = $false
@@ -76,6 +106,17 @@ function Assert-RejectedBeforeUpdate([hashtable]$Parameters) {
     catch { $failed = $true }
     Assert-DeploymentTest $failed 'Se esperaba rechazo de la operación.'
     Assert-DeploymentTest (@($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update' }).Count -eq 0) 'Un rechazo de preparación no debe actualizar el servicio.'
+    Assert-DeploymentTest (@($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update-traffic' }).Count -eq 0) 'Un rechazo de preparación no debe activar tráfico.'
+}
+function Assert-FailedDeployment([hashtable]$Parameters, [int]$ImageUpdates, [int]$Activations) {
+    $failed = $false
+    try { $null = & $deploymentScript @Parameters }
+    catch { $failed = $true }
+    Assert-DeploymentTest $failed 'La discrepancia debe impedir acreditar el despliegue.'
+    Assert-DeploymentTest (@($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update' }).Count -eq $ImageUpdates) 'Número inesperado de actualizaciones de imagen.'
+    Assert-DeploymentTest (@($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update-traffic' }).Count -eq $Activations) 'No puede activarse ni restaurarse tráfico adicional.'
+    $result = Get-Content -LiteralPath ($Parameters.OutputPlanPath + '.result.json') -Raw | ConvertFrom-Json -AsHashtable
+    Assert-DeploymentTest (-not $result.Verified -and $result.ActivationAttempted -eq ($Activations -gt 0)) 'La evidencia debe conservar fallo e intento real de activación.'
 }
 
 try {
@@ -94,7 +135,7 @@ try {
     $execution = $parameters + @{ Execute = $true; ExpectedContractVersion = '0.11.0'; OutputPlanPath = (Join-Path $testRoot 'success.json') }
     $result = & $deploymentScript @execution
     Assert-DeploymentTest $result.Verified 'La actualización de imagen debe superar las comprobaciones.'
-    Assert-DeploymentTest ($global:DeploymentFixture.Calls.Count -eq 3 -and $global:DeploymentFixture.HttpCalls -eq 2) 'Se requieren descripción antes/después, actualización y dos contratos.'
+    Assert-DeploymentTest ($global:DeploymentFixture.Calls.Count -eq 5 -and $global:DeploymentFixture.HttpCalls -eq 2) 'Se requieren las relecturas de estado y dos contratos.'
     $before = Get-Content -LiteralPath ($execution.OutputPlanPath + '.before.json') -Raw | ConvertFrom-Json -AsHashtable
     $after = Get-Content -LiteralPath ($execution.OutputPlanPath + '.after.json') -Raw | ConvertFrom-Json -AsHashtable
     Assert-DeploymentTest ($before.Service.ConfigurationFingerprint -eq $after.ConfigurationFingerprint) 'Deben conservarse perfiles, secretos, probes y recursos.'
@@ -140,6 +181,91 @@ try {
     $mismatch = Get-Content -LiteralPath ($contractPath + '.result.json') -Raw | ConvertFrom-Json
     Assert-DeploymentTest ($failed -and -not $mismatch.Verified -and $mismatch.ConfigurationPreserved) 'Un contrato distinto del esperado debe fallar aunque la imagen y configuración coincidan.'
 
+    $activationScenarios = 0
+    Reset-DeploymentFixture
+    $offline = & $deploymentScript @parameters -ActivateRevision -ValidateOnly
+    Assert-DeploymentTest ($offline.ActivateRevision -and -not $offline.CloudActionsExecuted -and $global:DeploymentFixture.Calls.Count -eq 0) 'Planificar activación sigue siendo offline.'
+    $activationScenarios++
+
+    Reset-DeploymentFixture
+    Assert-RejectedBeforeUpdate ($parameters + @{ DeploymentMode = 'ConfigurationTemplate'; ActivateRevision = $true; ValidateOnly = $true })
+    $activationScenarios++
+
+    Reset-DeploymentFixture
+    Set-PinnedFixtureTraffic
+    Assert-FailedDeployment ($parameters + @{ Execute = $true; ExpectedContractVersion = '0.11.0'; OutputPlanPath = (Join-Path $testRoot 'pinned-default.json') }) 1 0
+    $activationScenarios++
+
+    Reset-DeploymentFixture
+    Set-PinnedFixtureTraffic
+    $activate = $parameters + @{ Execute = $true; ActivateRevision = $true; ExpectedContractVersion = '0.11.0'; OutputPlanPath = (Join-Path $testRoot 'pinned-opt-in.json') }
+    $activated = & $deploymentScript @activate
+    Assert-DeploymentTest ($activated.Verified -and $activated.ActivationAttempted -and $activated.Revision -eq 'fixture-api-00002') 'La activación debe confirmar la revisión exacta capturada.'
+    $activationCalls = @($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update-traffic' })
+    Assert-DeploymentTest ($activationCalls.Count -eq 1 -and $global:DeploymentFixture.Calls.Count -eq 8) 'Se exige una activación y sus relecturas acotadas.'
+    $expectedActivation = @('run', 'services', 'update-traffic', 'fixture-api', '--project', 'audit-fixture-123', '--region', 'us-central1',
+        '--to-revisions', 'fixture-api-00002=100', '--quiet', '--format=json')
+    Assert-DeploymentTest (($activationCalls[0] -join '|') -ceq ($expectedActivation -join '|')) 'La mutación solo puede fijar una revisión exacta, sin latest ni flags adicionales.'
+    $activatedBefore = Get-Content -LiteralPath ($activate.OutputPlanPath + '.before.json') -Raw | ConvertFrom-Json -AsHashtable
+    $activatedAfter = Get-Content -LiteralPath ($activate.OutputPlanPath + '.after.json') -Raw | ConvertFrom-Json -AsHashtable
+    Assert-DeploymentTest ($activatedBefore.Service.ConfigurationFingerprint -eq $activatedAfter.ConfigurationFingerprint -and
+        $global:DeploymentFixture.Service.metadata.annotations['run.googleapis.com/minScale'] -eq '0') 'Activar conserva configuración y mínimo0/máximo1.'
+    Assert-DeploymentTest ($activatedAfter.Traffic.Count -eq 1 -and $activatedAfter.Traffic[0].revisionName -eq 'fixture-api-00002' -and
+        $activatedAfter.DesiredTraffic[0].revisionName -eq 'fixture-api-00002') 'Spec y status deben fijar la revisión nueva.'
+    $activationScenarios++
+
+    Reset-DeploymentFixture
+    $alreadyActive = & $deploymentScript @parameters -Execute -ActivateRevision -ExpectedContractVersion '0.11.0' -OutputPlanPath (Join-Path $testRoot 'latest-active.json')
+    Assert-DeploymentTest ($alreadyActive.Verified -and -not $alreadyActive.ActivationAttempted -and
+        @($global:DeploymentFixture.Calls | Where-Object { $_[2] -eq 'update-traffic' }).Count -eq 0) 'Latest ya activo no debe provocar otro cambio de tráfico.'
+    $activationScenarios++
+
+    foreach ($variant in @('ReadyIncomplete', 'EmptyRevision', 'WrongImage', 'Drift')) {
+        Reset-DeploymentFixture
+        Set-PinnedFixtureTraffic
+        $global:DeploymentFixture[$variant] = $true
+        Assert-FailedDeployment ($parameters + @{ Execute = $true; ActivateRevision = $true; ExpectedContractVersion = '0.11.0';
+            OutputPlanPath = (Join-Path $testRoot ('activation-' + $variant + '.json')) }) 1 0
+        $activationScenarios++
+    }
+
+    foreach ($variant in @('tag', 'split')) {
+        Reset-DeploymentFixture
+        if ($variant -eq 'tag') { $global:DeploymentFixture.Service.status.traffic[0].tag = 'foreign' }
+        else { $global:DeploymentFixture.Service.spec.traffic = @(@{ revisionName = 'fixture-api-00001'; percent = 50 }, @{ latestRevision = $true; percent = 50 }) }
+        Assert-RejectedBeforeUpdate ($parameters + @{ Execute = $true; ActivateRevision = $true; ExpectedContractVersion = '0.11.0';
+            OutputPlanPath = (Join-Path $testRoot ('traffic-' + $variant + '.json')) })
+        $activationScenarios++
+    }
+
+    foreach ($phase in @('BeforeImage', 'AfterImage', 'BeforeActivation', 'GenerationOnly', 'AfterActivation', 'AfterContract')) {
+        Reset-DeploymentFixture
+        Set-PinnedFixtureTraffic
+        $describeIndex = switch ($phase) { BeforeImage { 2 } AfterImage { 3 } BeforeActivation { 4 } GenerationOnly { 4 } AfterActivation { 5 } AfterContract { 6 } }
+        $global:DeploymentFixture.DescribeChanges[$describeIndex] = switch ($phase) {
+            BeforeImage { { $global:DeploymentFixture.Service.spec.template.spec.containers[0].resources.limits.memory = '4Gi' } }
+            AfterImage { { $global:DeploymentFixture.Service.status.latestCreatedRevisionName = 'fixture-api-foreign'; $global:DeploymentFixture.Service.status.latestReadyRevisionName = 'fixture-api-foreign' } }
+            GenerationOnly { { $global:DeploymentFixture.Service.metadata.generation++ } }
+            AfterActivation { { $global:DeploymentFixture.Service.spec.template.spec.containers[0].resources.limits.memory = '4Gi' } }
+            default { { $global:DeploymentFixture.Service.spec.traffic = @(@{ revisionName = 'fixture-api-foreign'; percent = 100 }); $global:DeploymentFixture.Service.status.traffic = @(@{ revisionName = 'fixture-api-foreign'; percent = 100 }) } }
+        }
+        $imageUpdates = if ($phase -eq 'BeforeImage') { 0 } else { 1 }
+        $activations = if ($phase -in @('AfterActivation', 'AfterContract')) { 1 } else { 0 }
+        Assert-FailedDeployment ($parameters + @{ Execute = $true; ActivateRevision = $true; ExpectedContractVersion = '0.11.0';
+            OutputPlanPath = (Join-Path $testRoot ('foreign-' + $phase + '.json')) }) $imageUpdates $activations
+        $activationScenarios++
+    }
+
+    Reset-DeploymentFixture
+    Set-PinnedFixtureTraffic
+    $global:DeploymentFixture.IgnoreActivation = $true
+    Assert-FailedDeployment ($parameters + @{ Execute = $true; ActivateRevision = $true; ExpectedContractVersion = '0.11.0';
+        OutputPlanPath = (Join-Path $testRoot 'activation-not-applied.json') }) 1 1
+    $activationScenarios++
+
+    $allEvidence = (Get-ChildItem -LiteralPath $testRoot -File | Get-Content -Raw) -join ''
+    Assert-DeploymentTest (-not $allEvidence.Contains('value-that-must-never-appear-in-evidence') -and -not $allEvidence.Contains(('c' * 64))) 'Los checkpoints nuevos tampoco revelan valores privados.'
+
     Reset-DeploymentFixture
     $bindings = @{ DB_PASSWORD = 'database:1'; MAIL_USERNAME = 'mail-user:1'; MAIL_PASSWORD = 'mail-password:1';
         JWT_KEYSTORE_PASSWORD = 'jwt-password:1'; '/var/secrets/jwt/jwt-signing.p12' = 'jwt-store:1';
@@ -149,7 +275,7 @@ try {
         -DatabaseName grownupsvet -DatabaseUsername fixture -MailFrom 'fixture@gmail.com' -MailProvider Gmail `
         -ApprovedMonthlyBudgetUsd 1 -DisablePasswordRecovery -EnableMonitoring -EnableLoginRateLimit -SecretBindings $bindings
     Assert-DeploymentTest ($template.Profiles -eq 'prod,external-postgres,monitoring' -and $template.LoginRateLimitEnabled -and $global:DeploymentFixture.Calls.Count -eq 0) 'La plantilla offline debe representar monitoring/admisión con referencias y sin nube.'
-    [pscustomobject]@{ Status = 'PASS'; FunctionalScenarios = 13; CloudActionsExecuted = $false }
+    [pscustomobject]@{ Status = 'PASS'; FunctionalScenarios = (13 + $activationScenarios); ActivationScenarios = $activationScenarios; CloudActionsExecuted = $false }
 } finally {
     Remove-Item Function:\gcloud -ErrorAction SilentlyContinue
     Remove-Item Function:\Invoke-RestMethod -ErrorAction SilentlyContinue

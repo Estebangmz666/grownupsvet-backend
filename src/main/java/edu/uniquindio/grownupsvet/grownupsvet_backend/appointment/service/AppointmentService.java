@@ -173,18 +173,26 @@ public class AppointmentService {
         }
         String reason = target == AppointmentStatus.CONFIRMED ? optionalReason(request.reason()) : requiredReason(request.reason());
         AppointmentRow snapshot = appointmentSnapshot(appointmentId);
+        Account owner = null;
+        Pet pet = null;
         if (target == AppointmentStatus.CONFIRMED) {
-            lockAccount(snapshot.ownerId());
-            lockPet(snapshot.petId());
+            owner = lockAccount(snapshot.ownerId());
+            pet = lockPet(snapshot.petId());
         }
-        lockAccount(snapshot.veterinarianId());
+        Account veterinarian = lockAccount(snapshot.veterinarianId());
         // Appointment precedes slot, including the KEY SHARE locks acquired by event foreign keys.
         // Cutoff and rejection must not invert this order while confirmation waits for the same row.
         AppointmentRow appointment = lockAppointment(appointmentId);
         if (!snapshot.slotId().equals(appointment.slotId())) {
             throw conflict("CONCURRENT_UPDATE","Los datos cambiaron. Actualiza la cita e inténtalo de nuevo.");
         }
-        lockSlot(appointment.slotId());
+        Slot slot = lockSlot(appointment.slotId());
+        // The unlocked snapshot only chooses the locks; it cannot authorize different participants.
+        if (target == AppointmentStatus.CONFIRMED && (!owner.id().equals(appointment.ownerId())
+                || !pet.id().equals(appointment.petId()) || !veterinarian.id().equals(appointment.veterinarianId())
+                || !slot.id().equals(appointment.slotId()) || !slot.veterinarianId().equals(veterinarian.id()))) {
+            throw conflict("CONCURRENT_UPDATE", "Los datos cambiaron. Actualiza la cita e inténtalo de nuevo.");
+        }
         Instant now = clock.instant();
         if (request.expectedVersion() != null && request.expectedVersion() < Long.MAX_VALUE
                 && appointment.version() == request.expectedVersion()+1 && appointment.status() == target
@@ -205,10 +213,8 @@ public class AppointmentService {
             if (!now.isBefore(appointment.cutoffAt()) || !appointment.startsAt().isAfter(now)) {
                 throw conflict("APPOINTMENT_CONFIRMATION_CUTOFF_PASSED", "La solicitud ya llegó a su hora de corte o el turno comenzó.");
             }
-            boolean eligible = jdbc.queryForObject("select (u.status='ACTIVE' and u.role='OWNER' and p.active and v.status='ACTIVE' and s.status='PUBLISHED') " +
-                    "from appointments a join users u on u.id=a.owner_id join pets p on p.id=a.pet_id " +
-                    "join veterinarian_availability_slots s on s.id=a.current_slot_id join users v on v.id=s.veterinarian_id where a.id=:id",
-                    Map.of("id", appointmentId), Boolean.class);
+            boolean eligible = owner.active() && owner.role() == UserRole.OWNER && pet.active()
+                    && veterinarian.active() && "PUBLISHED".equals(slot.status());
             if (!eligible) { throw conflict("APPOINTMENT_PARTICIPANT_INACTIVE", "El propietario, la mascota o el veterinario ya no están activos."); }
             AppointmentStatusWriteResult confirmed = writeConfirmedAppointment(appointment, actorId, reason, now);
             notifications.recordEvent(appointmentId, confirmed.version(), "CONFIRMED", now);

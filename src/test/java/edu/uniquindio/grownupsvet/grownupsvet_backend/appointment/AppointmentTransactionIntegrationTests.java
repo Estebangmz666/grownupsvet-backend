@@ -218,7 +218,7 @@ class AppointmentTransactionIntegrationTests {
         UUID id = appointments.create(owner.getId(), request(target)).appointment().id();
         var request = new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, null);
         var confirmed = measureStatements(service -> service.updateStatus(administrator.getId(), id, request));
-        assertThat(confirmed.statements()).isBetween(1, hoursUntilStart == 24 ? 15 : 14);
+        assertThat(confirmed.statements()).isBetween(1, 11);
         assertThat(confirmed.value().status()).isEqualTo(AppointmentStatus.CONFIRMED);
         assertThat(confirmed.value().version()).isEqualTo(1);
         assertThat(confirmed.value()).isEqualTo(appointments.get(administrator.getId(), id));
@@ -261,7 +261,7 @@ class AppointmentTransactionIntegrationTests {
         assertThat(created.value().appointment()).isEqualTo(appointments.get(owner.getId(), id));
         var confirmed = measureStatements(service -> service.updateStatus(administrator.getId(), id,
                 new UpdateAppointmentStatusRequestDTO(AppointmentStatus.CONFIRMED, 0L, "Confirmación acordada.")));
-        assertThat(confirmed.statements()).isBetween(1, 12);
+        assertThat(confirmed.statements()).isBetween(1, 11);
         assertThat(confirmed.value()).isEqualTo(appointments.get(owner.getId(), id));
         assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=? and " +
                 "appointment_version=1 and event_type='CONFIRMED' and previous_status='REQUESTED' and new_status='CONFIRMED' " +
@@ -378,6 +378,58 @@ class AppointmentTransactionIntegrationTests {
             assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, id)).isEqualTo(2);
             return null;
         });
+    }
+
+    @Test
+    void confirmationRejectsAVeterinarianChangedOnTheSameSlotWhileWaitingForTheOwner() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<String> confirmation;
+            try (Connection blocker = dataSource.getConnection()) {
+                blocker.setAutoCommit(false);
+                try {
+                    lockRow(blocker, "users", owner.getId());
+                    int backendId = backendId(blocker);
+                    confirmation = executor.submit(() -> transitionResult(administrator.getId(), id, AppointmentStatus.CONFIRMED, null));
+                    awaitBlockedRequests(backendId, 1);
+                    // Slot identity and appointment version stay equal; a slotId-only guard misses this race.
+                    try (var update = blocker.prepareStatement("update veterinarian_availability_slots set veterinarian_id=? where id=?")) {
+                        update.setObject(1, replacement.getId()); update.setObject(2, slot.getId());
+                        assertThat(update.executeUpdate()).isEqualTo(1);
+                    }
+                    blocker.commit();
+                } finally { blocker.rollback(); }
+            }
+            assertThat(confirmation.get(20, TimeUnit.SECONDS)).isEqualTo("CONCURRENT_UPDATE");
+        }
+        assertThat(jdbc.queryForObject("select veterinarian_id from veterinarian_availability_slots where id=?",
+                UUID.class, slot.getId())).isEqualTo(replacement.getId());
+        assertRequestedAppointmentWithoutAdditionalEffects(id);
+    }
+
+    @Test
+    void confirmationUsesTheInactivePetReturnedAfterWaitingForItsLock() throws Exception {
+        UUID id = appointments.create(owner.getId(), request(slot)).appointment().id();
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<String> confirmation;
+            try (Connection blocker = dataSource.getConnection()) {
+                blocker.setAutoCommit(false);
+                try {
+                    lockRow(blocker, "pets", pet.getId());
+                    int backendId = backendId(blocker);
+                    confirmation = executor.submit(() -> transitionResult(administrator.getId(), id, AppointmentStatus.CONFIRMED, null));
+                    awaitBlockedRequests(backendId, 1);
+                    try (var update = blocker.prepareStatement("update pets set active=false where id=?")) {
+                        update.setObject(1, pet.getId());
+                        assertThat(update.executeUpdate()).isEqualTo(1);
+                    }
+                    blocker.commit();
+                } finally { blocker.rollback(); }
+            }
+            assertThat(confirmation.get(20, TimeUnit.SECONDS)).isEqualTo("APPOINTMENT_PARTICIPANT_INACTIVE");
+        }
+        assertThat(jdbc.queryForObject("select active from pets where id=?", Boolean.class, pet.getId())).isFalse();
+        assertRequestedAppointmentWithoutAdditionalEffects(id);
     }
 
     @Test
@@ -809,6 +861,16 @@ class AppointmentTransactionIntegrationTests {
         return raceWithLockedRow("users", accountId, firstOperation, secondOperation);
     }
 
+    private void assertRequestedAppointmentWithoutAdditionalEffects(UUID appointmentId) {
+        assertThat(jdbc.queryForObject("select status from appointments where id=?", String.class, appointmentId)).isEqualTo("REQUESTED");
+        assertThat(jdbc.queryForObject("select version from appointments where id=?", Long.class, appointmentId)).isZero();
+        assertThat(jdbc.queryForObject("select current_slot_id from appointments where id=?", UUID.class, appointmentId)).isEqualTo(slot.getId());
+        assertThat(jdbc.queryForObject("select count(*) from appointment_events where appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_assignments where appointment_id=?", Integer.class, appointmentId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from appointment_operation_idempotency where appointment_id=?", Integer.class, appointmentId)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from appointment_email_tasks where appointment_id=?", Integer.class, appointmentId)).isZero();
+    }
+
     private <T> List<T> raceWithLockedRow(String table, UUID rowId, Callable<T> firstOperation, Callable<T> secondOperation) throws Exception {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<T> first;
@@ -829,7 +891,7 @@ class AppointmentTransactionIntegrationTests {
     }
 
     private void lockRow(Connection connection, String table, UUID id) throws Exception {
-        if (!List.of("users", "appointments", "veterinarian_availability_slots").contains(table)) {
+        if (!List.of("users", "pets", "appointments", "veterinarian_availability_slots").contains(table)) {
             throw new IllegalArgumentException("Unexpected table");
         }
         try (var statement = connection.prepareStatement("select id from " + table + " where id=? for update")) {

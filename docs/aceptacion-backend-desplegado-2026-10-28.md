@@ -1,5 +1,7 @@
 # Aceptación del backend desplegado — 28/10/2026
 
+**Corte histórico previo al refactor.** La [verificación posterior de publicación y Window A](verificacion-despliegue-rendimiento-2026-10-28.md) registra otra revisión, imagen y población; no reemplaza las medidas, avisos o hashes de este documento.
+
 El recorrido funcional desplegado completó **50/50 comprobaciones y 156 intentos HTTP con respuestas esperadas**, sin timeout, 429 ni respuesta inesperada. La muestra conserva **seis operaciones que incumplen P95 <500 ms en Cloud Run**, dos de M6 y cuatro de M9. Este corte acredita los casos definidos y sus oráculos; **no cierra el objetivo completo ni certifica un SLO global**.
 
 Se siguieron el [plan de reanudación](plan-reanudacion-cierre-2026-10-28.md), el [plan de aceptación reanudada](plan-aceptacion-reanudada-2026-10-28.md) y el [plan de latencias](plan-latencias-despliegue-2026-10-28.md). Los datos del ensayo son ficticios. El [resumen sanitizado](evidencias/aceptacion-2026-10-28/resumen-sanitizado.json) conserva cantidades, medidas exactas y hashes sin identidades, direcciones, datos clínicos o configuración privada.
@@ -107,3 +109,11 @@ El resumen público tiene SHA256 `afecef673037921b278cc806c847bc590ee318c48ee782
 | cloud-savings-r4-verification.json | `757ed46d64ad958c58673a7c75d5eb0cc6a20c61711f7a3c344ce81dafbf09ad` |
 
 El SHA del reporte medido coincide con `sourceReportSha256` del colector. El resumen también guarda la huella canónica de la población elegible de 28 intentos y el SHA histórico del 25, para verificar continuidad sin mezclar poblaciones.
+
+## Corte posterior: revisión nueva y Window A
+
+La [evidencia nueva](verificacion-despliegue-rendimiento-2026-10-28.md) enlaza aplicación `fa2a9955`, operaciones `239d96f`, imagen `sha256:f3456068f8fffb297f53ac7f67d75d20c1e7028150f77d403647272aad608f28` y revisión `grownupsvet-backend-00008-824`, activa al 100% sin tags. El helper conservó su resultado no verificado ante min0/pinned/Retired; la activación posterior fue una continuación manual planificada, tras calentar el candidato al 0% y comprobar su contrato completo. No se transforma el fallo del helper en éxito automático.
+
+Window A conserva **65 HTTP esperados, 24/24 intentos elegibles correlacionados y cero resultados inciertos o inesperados**. Con N=1 o 3 por operación, cinco P95 de muestra superan 500 ms: confirmación **545.292614**, creación de borrador **615.718719**, textos **546.875291**, lectura de tratamiento **595.488405** y guardado de tratamiento **693.694336 ms**. Se publican las 14 operaciones completas en el documento nuevo; ese conjunto no es comparable como tasa con los seis incumplimientos anteriores ni acredita un SLO general.
+
+La confirmación nueva estaba SENDING/1 intento, sin sentAt ni recepción acreditada en ese checkpoint. Finalización, historia y recordatorios nuevos esperan Window B, después del inicio real del **29/10/2026 a las 06:00 de America/Bogota (11:00 UTC)**. La limpieza posterior de 17:04:29Z verificó generación 16, revisión 008/100% sin tags, mínimo 0/máximo 1, configuración conservada, monitoreo apagado y datos retenidos. El [resumen nuevo independiente](evidencias/aceptacion-2026-10-28/resumen-postpatch-window-a.json) conserva esos cortes y hashes; `resumen-sanitizado.json` mantiene su SHA256 histórico sin cambios.

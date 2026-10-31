@@ -2,6 +2,8 @@
 
 API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.11.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [expediente de auditoría](docs/expediente-auditoria-2026-10-26.md) distingue pruebas, publicación y estado del despliegue.
 
+**Cierre funcional backend del 31/10/2026:** [estado de entrega y matriz I0–I8](docs/estado-cierre-backend-2026-10-31.md), [aceptación de la revisión009](docs/aceptacion-backend-r7-desplegado-2026-10-31.md) y [diagnóstico de latencia con plan futuro sin implementar](docs/diagnostico-latencia-y-plan-futuro-2026-10-31.md). Se conservan los incumplimientos medidos; no se declara un SLO general cumplido. La auditoría parcial anterior mantiene su propio corte y alcance.
+
 **Auditoría parcial con corte al 26 de octubre de 2026, America/Bogota:** P1/P2 web y P3 API en las versiones y límites documentados. La auditoría del proyecto completo debe esperar su finalización y entrega final. Consultar el [manual por roles](docs/manual-usuario-auditoria-2026-10-26.md), la [arquitectura del corte](docs/arquitectura-auditoria-2026-10-26.md) y el [kit de BD con datos ficticios](docs/auditoria-base-datos.md).
 
 ## Alcance funcional
@@ -10,7 +12,7 @@ API REST para la gestión de usuarios, mascotas, citas y atención clínica vete
 |---|---|
 | **P1 · Registro y gestión de usuarios y mascotas** | Registro de propietarios, login y cierre de sesión, recuperación de contraseña, perfil y foto propios, mascotas, administración de personal e invitaciones, perfiles profesionales, títulos y diplomas. |
 | **P2 · Gestión de citas veterinarias** | Disponibilidad, solicitud y consulta de citas, confirmación/rechazo, cancelación, reprogramación, reasignación, inasistencia, corte diario, historial y avisos durables con recordatorio de 24 horas. |
-| **P3 · Atención veterinaria y gestión clínica** | Borradores por cita confirmada, fórmula y controles estructurados, finalización atómica con cita COMPLETED e historia publicada autorizada. Recordatorios clínicos durables por correo, con inicio/fin y omisión de ocurrencias vencidas; implementación local verificada por pruebas, aún sin evidencia del nuevo despliegue. Adendas fuera del alcance aprobado. |
+| **P3 · Atención veterinaria y gestión clínica** | Borradores por cita confirmada, fórmula y controles estructurados, finalización atómica con cita COMPLETED e historia publicada autorizada. Recordatorios clínicos durables por correo, con inicio/fin y omisión de ocurrencias vencidas; regresión y aceptación desplegada verificadas en los casos del31/10. Adendas fuera del alcance aprobado. |
 
 La implementación de una operación no significa que esté habilitada en todos los entornos. Recuperación, invitaciones y correo dependen de su configuración; la integración y evaluación de los frontends se verifican por separado.
 
@@ -161,7 +163,7 @@ Arrancar el backend desde esa misma terminal. Cargar esta configuración no actu
 .\mvnw.cmd spring-boot:run
 ```
 
-El perfil predeterminado `dev` conecta a `grownupsvet_dev`. Flyway aplica las migraciones pendientes V1–V18 y Hibernate valida el esquema; las migraciones ya aplicadas se conservan sin editar. Comprobar el arranque y readiness antes de utilizar Swagger.
+El perfil predeterminado `dev` conecta a `grownupsvet_dev`. Flyway aplica las migraciones pendientes V1–V23 y Hibernate valida el esquema; las migraciones ya aplicadas se conservan sin editar. Comprobar el arranque y readiness antes de utilizar Swagger.
 
 Una sobrescritura `SPRING_DATASOURCE_URL` puede cambiar el destino del perfil; revisarla antes de arrancar o probar. La variable antigua `DB_URL` no se utiliza.
 

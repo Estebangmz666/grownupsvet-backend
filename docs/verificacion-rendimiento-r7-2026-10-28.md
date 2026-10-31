@@ -1,5 +1,7 @@
 # Verificación local de R7
 
+**Corte local del28/10.** La integración, publicación y aceptación desplegada posteriores están registradas en el [cierre funcional del31/10](estado-cierre-backend-2026-10-31.md). Se conservan aquí los resultados y límites de la ejecución local original.
+
 28/10/2026. El [plan previo R7](plan-rendimiento-r7-2026-10-28.md) quedó implementado y la regresión completa terminó con **769 pruebas, 65 suites y cero fallos, errores u omisiones**. `clean verify` duró 4 min 10 s y terminó a las 13:56:58 de Bogotá (18:56:58 UTC). R7 todavía no está desplegado; no se acredita una reducción de latencia con estos resultados locales.
 
 La confirmación reutiliza las filas ya bloqueadas y valida sus identidades antes del replay; mantiene el predicado de elegibilidad y los avisos. Las pruebas fijan un máximo de 11 sentencias de servicio y verifican dos carreras PostgreSQL: cambio del veterinario del mismo turno y archivo de mascota mientras la confirmación espera un lock. Ambas rechazan sin efectos adicionales.

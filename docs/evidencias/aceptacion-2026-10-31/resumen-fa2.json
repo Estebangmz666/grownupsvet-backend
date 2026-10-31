@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-31T22:08:47.927007+00:00",
+  "assessment": "DECLARED_FUNCTIONAL_FA2_SAMPLE_VERIFIED_WITH_LIMITS_NOT_SLO",
+  "identity": {
+    "sourceCommit": "fa2a9955c7217c9e6bd00c8a9881ba20711b6a81",
+    "imageDigest": "sha256:f3456068f8fffb297f53ac7f67d75d20c1e7028150f77d403647272aad608f28",
+    "revision": "grownupsvet-backend-00008-824",
+    "openApiVersion": "0.11.0",
+    "migrationVersion": 23,
+    "trafficPercent": 100,
+    "ready": true,
+    "contractSha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d"
+  },
+  "identityScope": "Captured fa2 acceptance identity; this document performs no live control-plane verification and makes no R7 deployment or acceptance claim.",
+  "windows": {
+    "A": "2026-10-28",
+    "B": "2026-10-31",
+    "prescriptionStartsAtUtc": "2026-10-31T21:44:41.159305Z",
+    "prescriptionEndsAtUtc": "2026-10-31T21:54:41.159305Z",
+    "finalReminderObservationUtc": "2026-10-31T21:55:34.028555+00:00"
+  },
+  "recordedHttp": {
+    "attempts": 138,
+    "allStatusesExpected": true,
+    "failedChecks": 0,
+    "failureHistoryEntries": 0,
+    "transportUncertain": 0,
+    "responses5xx": 0,
+    "responses429": 0,
+    "globalZeroErrorClaimMade": false
+  },
+  "externalPreflightInterruption": {
+    "status": "READONLY_PREFLIGHT_INTERRUPTED",
+    "incompleteGetReads": 1,
+    "newClinicalIntentions": 0,
+    "includedIn138RecordedAttempts": false,
+    "diagnosticContractGetStatuses": {
+      "native": 200,
+      "python": 200
+    },
+    "verifiedAtUtc": "2026-10-31T21:34:05.9357130Z",
+    "scope": "An external read-only preflight stopped before completing its GET; later diagnostic GETs returned 200. It is preserved separately and is not rewritten as a successful original request."
+  },
+  "functional": {
+    "sourceStage": "REMINDERS_VERIFIED_SMTP_ONLY",
+    "completedPhases": [
+      "SampleDraft",
+      "Sample",
+      "Finalize"
+    ],
+    "rates": {
+      "M7_text_updates": {
+        "verifiedSuccesses": 3,
+        "eligibleIntents": 3,
+        "unverified": 0
+      },
+      "M7_treatment_updates": {
+        "verifiedSuccesses": 4,
+        "eligibleIntents": 4,
+        "unverified": 0
+      },
+      "M6_publication": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M1_pets": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M4": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M7_creation": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      },
+      "M7_finalization": {
+        "verifiedSuccesses": 1,
+        "eligibleIntents": 1,
+        "unverified": 0
+      }
+    },
+    "unitNotes": [
+      "Rates are separate operation populations; do not combine users, pets, appointments, clinical records, saves or replays into one success percentage.",
+      "Window B performed one effective treatment update and one effective finalization of a previously existing draft. The finalization replay created no extra version, audit, task or write.",
+      "The draft created in Window A is a different record from the preexisting draft finalized in Window B. No clinical creation is attributed to B.",
+      "M7 treatment updates comprise three in A and one in B; the cumulative 4/4 is not four new B updates."
+    ],
+    "windowBEffectiveWrites": {
+      "treatmentUpdates": 1,
+      "finalizations": 1,
+      "clinicalCreations": 0,
+      "finalizationReplayAddsWrites": false
+    },
+    "finalizedAggregate": {
+      "clinicalStatus": "FINALIZED",
+      "appointmentStatus": "COMPLETED",
+      "atomicityVerified": true,
+      "replayWithoutAdditionalEffectsVerified": true
+    },
+    "integrity": {
+      "eligibleRecords": 2,
+      "verifiedRecords": 2,
+      "unit": "distinct_clinical_encounters"
+    },
+    "notRecomputedInThisCut": [
+      "M1 owner signup population",
+      "M2 invalid-input rejection population",
+      "M5 known-conflict prevention population"
+    ]
+  },
+  "reminders": {
+    "verifiedAtUtc": "2026-10-31T21:55:34.028555+00:00",
+    "sourceSchedules": 2,
+    "finishedSchedules": 2,
+    "originsMatch": true,
+    "tasks": [
+      {
+        "source": "CONTROL",
+        "status": "SENT",
+        "scheduledAt": "2026-10-31T21:34:45.747256+00:00",
+        "sentAt": "2026-10-31T21:34:48.349434+00:00",
+        "attempts": 1
+      },
+      {
+        "source": "PRESCRIPTION",
+        "status": "SENT",
+        "scheduledAt": "2026-10-31T21:44:41.159305+00:00",
+        "sentAt": "2026-10-31T21:44:50.99879+00:00",
+        "attempts": 1
+      }
+    ],
+    "additionalPostEndTaskObserved": false,
+    "terminalObservationOnlyNotIndefiniteMonitoring": true,
+    "automatedMailboxReceiptVerified": false,
+    "humanReceipt": {
+      "observedOn": "2026-10-31",
+      "source": "USER_REPORTED",
+      "scope": "FA2_WINDOW_B_CONTROL_AND_PRESCRIPTION",
+      "messagesExpected": 2,
+      "messagesReceived": 2,
+      "encodingReportedCorrect": true,
+      "automatedMailboxInspection": false,
+      "recipientPublished": false,
+      "doesNotClaimR7MailboxReceipt": true
+    },
+    "appointmentConfirmationHistorical": {
+      "notificationType": "OWNER_CONFIRMED",
+      "status": "SENT",
+      "attemptCount": 1,
+      "sentAt": "2026-10-28T16:56:18.417041Z"
+    },
+    "confirmationHumanReceiptClaimed": false
+  },
+  "latency": {
+    "assessment": "SIX_OPERATION_SAMPLES_DO_NOT_MEET_STRICT_500MS_TARGET",
+    "measurement": "Cloud Run platform request latency; client end-to-end duration remains separate.",
+    "sampleP95Method": "nearest rank ceil(0.95*N)",
+    "targetMillisecondsExclusive": 500,
+    "frozenHttpCount": 114,
+    "finalRecordedHttpCount": 138,
+    "frozenAndFinalEligiblePopulationIdentical": true,
+    "eligibleAttempts": 36,
+    "correlatedAttempts": 36,
+    "unverifiedAttempts": 0,
+    "operationCount": 20,
+    "missedOperations": [
+      "M6_confirmation_A",
+      "M9_draft_create_A",
+      "M9_text_save_A",
+      "M9_treatment_read_A",
+      "M9_treatment_save_A",
+      "M9_treatment_save_B"
+    ],
+    "operations": [
+      {
+        "metric": "M3",
+        "operation": "M3_pet_create_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "234.455866",
+        "clientP95MillisecondsEndToEnd": "446.833",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_appointment_create_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "379.345797",
+        "clientP95MillisecondsEndToEnd": "585.866",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_appointment_replay_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "234.966288",
+        "clientP95MillisecondsEndToEnd": "515.264",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_availability_A",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "274.924645",
+        "clientP95MillisecondsEndToEnd": "497.817",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_confirmation_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "545.292614",
+        "clientP95MillisecondsEndToEnd": "738.333",
+        "below500MillisecondsInDeclaredSample": false
+      },
+      {
+        "metric": "M6",
+        "operation": "M6_publication_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "406.571461",
+        "clientP95MillisecondsEndToEnd": "616.05",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_detail_A",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "201.214696",
+        "clientP95MillisecondsEndToEnd": "849.937",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_draft_create_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "615.718719",
+        "clientP95MillisecondsEndToEnd": "825.66",
+        "below500MillisecondsInDeclaredSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_draft_replay_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "387.183394",
+        "clientP95MillisecondsEndToEnd": "590.927",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_finalize_B",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "478.072082",
+        "clientP95MillisecondsEndToEnd": "776.695",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_finalize_replay_B",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "263.37191",
+        "clientP95MillisecondsEndToEnd": "557.988",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_history_B",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "255.594505",
+        "clientP95MillisecondsEndToEnd": "684.459",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_published_detail_B",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "140.529599",
+        "clientP95MillisecondsEndToEnd": "583.739",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_published_treatment_B",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "242.244234",
+        "clientP95MillisecondsEndToEnd": "582.384",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_text_replay_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "354.667103",
+        "clientP95MillisecondsEndToEnd": "571.297",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_text_save_A",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "546.875291",
+        "clientP95MillisecondsEndToEnd": "752.718",
+        "below500MillisecondsInDeclaredSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_read_A",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "595.488405",
+        "clientP95MillisecondsEndToEnd": "1036.92",
+        "below500MillisecondsInDeclaredSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_replay_A",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "455.759423",
+        "clientP95MillisecondsEndToEnd": "683.702",
+        "below500MillisecondsInDeclaredSample": true
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_save_A",
+        "eligibleAttempts": 3,
+        "correlatedAttempts": 3,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "693.694336",
+        "clientP95MillisecondsEndToEnd": "942.49",
+        "below500MillisecondsInDeclaredSample": false
+      },
+      {
+        "metric": "M9",
+        "operation": "M9_treatment_save_B",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "p95Milliseconds": "619.959843",
+        "clientP95MillisecondsEndToEnd": "946.893",
+        "below500MillisecondsInDeclaredSample": false
+      }
+    ],
+    "productionSloPassed": false,
+    "r6OrR7LatencyImprovementClaimed": false
+  },
+  "monitoring": {
+    "checkedAtUtc": "2026-10-31T21:39:47.693307+00:00",
+    "revision": "grownupsvet-backend-00008-824",
+    "status": "PASSED",
+    "freshFamilies": 7,
+    "dashboardQueriesSuccessful": 9,
+    "businessOperationSeries": 7,
+    "histogram500msSeries": 14,
+    "p95Approximate": {
+      "seriesCount": 8,
+      "finiteSeriesCount": 1,
+      "nanSeriesCount": 7,
+      "infiniteSeriesCount": 0
+    },
+    "provesSustainedSlo": false,
+    "cleanupStateNotVerifiedByThisCut": true
+  },
+  "evidenceHashes": [
+    {
+      "name": "fa2-final-report-source.json",
+      "sha256": "4676d13abed7f92f4fc552a7853e0f31fb2d32300f811d05b1da07ab1344dcd6"
+    },
+    {
+      "name": "fa2-final-checkpoint-private.json",
+      "sha256": "45480d4b7b447f56b5f37793d6d7a9d260921509c2f57281d2445d6c75f6008d"
+    },
+    {
+      "name": "fa2-window-ab-latencies.json",
+      "sha256": "d213409e2119dec7019d0008bc29ddb990cb85fd79b21b8ecd9ee0f472353d92"
+    },
+    {
+      "name": "fa2-window-ab-source-initial.json",
+      "sha256": "4a7b00e09a626fe428ae5a62c74f8eca1692dd2b41cc652bd1a549d1fab3488b"
+    },
+    {
+      "name": "fa2-human-mail-receipt.json",
+      "sha256": "4f6d878e3f3d59ec4368450290e445557e37e7b32ceee719af17b88971c82d0f"
+    },
+    {
+      "name": "window-b-read-interruption.json",
+      "sha256": "1253bd2ada9a76f1a7eb1ba2bbfa49cc8fad4676efabc4c9ef0df8814b7dd541"
+    },
+    {
+      "name": "monitoring-fa2-window-b-verification.json",
+      "sha256": "38bd7f614dc7f98d1ed3ad72a9094bf5ef4af502d4cfce3d633f0cf492509b98"
+    }
+  ],
+  "limits": [
+    "The 138 recorded expected HTTP outcomes and zero recorded failed checks exclude the separate unfinished external preflight read; no globally error-free journey is claimed.",
+    "This is a sequential functional sample, not sustained load or population success-rate certification. Each latency operation has N=1 or N=3.",
+    "Window A and B occurred on different days. No time, finalized record or historical result was changed to manufacture a favorable sample.",
+    "SMTP SENT means transport acceptance, not mailbox receipt. The two clinical receipts and correct encoding are user-reported; the source stage and automated mailbox flag remain unchanged.",
+    "The historical appointment confirmation SENT timestamp is not a new clinical receipt or a human-verified confirmation receipt.",
+    "Six measured operation/profile groups (five A and one B) still miss the latency target; treatment save appears in both profiles. The accepted delivery deviation does not change that target; diagnosis and a future optional plan are documented without further implementation.",
+    "This document does not certify R7 deployment, R7 production acceptance, Cloud Run scaling, final monitoring cleanup or indefinite absence of future tasks.",
+    "Only aggregated counts, dates, operation names, technical release identity and hashes are public. No request traces, run IDs, business IDs, recipients, clinical content, credentials or raw private rows are included."
+  ]
+}

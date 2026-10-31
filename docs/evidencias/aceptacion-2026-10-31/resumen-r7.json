@@ -1,0 +1,500 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-31",
+  "assessment": "FUNCTIONAL_SAMPLE_VERIFIED_WITH_RECORDED_LATENCY_DEVIATIONS",
+  "identity": {
+    "project": "project-4f1c67ce-5621-40e0-96c",
+    "region": "us-central1",
+    "service": "grownupsvet-backend",
+    "revision": "grownupsvet-backend-00009-vmd",
+    "sourceCommit": "222131c5704652aa85cf79f2548d8c225f590e54",
+    "imageDigest": "sha256:3f1ed36f60bdaa245d529cc1fb56e59d29255f9d3c94446d1c46a88f7e06ca11",
+    "openApiVersion": "0.11.0",
+    "migrationVersion": 23,
+    "contractSha256": "3a1087a222dd1556a889149e1a09a64a244f7418babd020b89d6151d00ceb70d"
+  },
+  "openApiPathCount": 47,
+  "scope": {
+    "resourceCreationInThisRevision": 0,
+    "effectiveClinicalWrites": 3,
+    "verifiedReplays": 3,
+    "newClinicalRecords": 0,
+    "inheritedDistinctClinicalRecords": 1,
+    "sameResourceAsPriorFa2Sample": true,
+    "doNotSumWithPriorFa2DistinctRecordDenominator": true
+  },
+  "lineage": {
+    "revision": "grownupsvet-backend-00008-824",
+    "checkpointSha256": "45480d4b7b447f56b5f37793d6d7a9d260921509c2f57281d2445d6c75f6008d",
+    "reportSha256": "4676d13abed7f92f4fc552a7853e0f31fb2d32300f811d05b1da07ab1344dcd6",
+    "scenario": "newScenario",
+    "resourceInherited": true,
+    "baselineEncounterVersion": 0,
+    "baselineAppointmentVersion": 1
+  },
+  "http": {
+    "recordedAttempts": 120,
+    "statusCounts": {
+      "200": 72,
+      "401": 20,
+      "404": 16,
+      "403": 12
+    },
+    "attemptKinds": {
+      "INITIAL": 114,
+      "RECONCILIATION": 3,
+      "REPLAY": 3
+    },
+    "unexpectedStatuses": 0,
+    "transportUncertain": 0,
+    "rateLimitedResponses": 0,
+    "firstStartedAtUtc": "2026-10-31T22:03:14.339121Z",
+    "lastCompletedAtUtc": "2026-10-31T22:25:07.669325Z",
+    "registeredChecks": 42,
+    "failedChecks": 0,
+    "recordedFailures": 0
+  },
+  "persistence": {
+    "clinicalStatus": "FINALIZED",
+    "clinicalVersion": 3,
+    "appointmentStatus": "COMPLETED",
+    "appointmentVersion": 2,
+    "clinicalEvents": 4,
+    "clinicalOperations": 4,
+    "newTextSaves": 1,
+    "newTreatmentSaves": 1,
+    "newFinalizations": 1,
+    "atomicSnapshotVerified": true,
+    "creatorAndResponsibleVerified": true,
+    "exactRelationsAndClinicalContentVerified": true
+  },
+  "rates": {
+    "M7_creation": {
+      "verifiedSuccesses": 0,
+      "eligibleIntents": 0,
+      "unverified": 0
+    },
+    "M7_text_updates": {
+      "verifiedSuccesses": 1,
+      "eligibleIntents": 1,
+      "unverified": 0
+    },
+    "M7_treatment_updates": {
+      "verifiedSuccesses": 1,
+      "eligibleIntents": 1,
+      "unverified": 0
+    },
+    "M7_finalization": {
+      "verifiedSuccesses": 1,
+      "eligibleIntents": 1,
+      "unverified": 0
+    }
+  },
+  "m8": {
+    "eligibleRecords": 1,
+    "verifiedRecords": 1,
+    "unit": "distinct_clinical_encounters"
+  },
+  "latency": {
+    "measurement": "Cloud Run request latency; not exclusive Java execution time",
+    "sourceMeasurementHttpAttempts": 96,
+    "finalFunctionalHttpAttempts": 120,
+    "eligibleAttempts": 18,
+    "correlatedAttempts": 18,
+    "unverifiedAttempts": 0,
+    "eligibleAttemptKinds": {
+      "INITIAL": 12,
+      "RECONCILIATION": 3,
+      "REPLAY": 3
+    },
+    "entireEligiblePopulationIdenticalBetweenInitialAndFinal": true,
+    "eligiblePopulationCanonicalSha256": "8315701f5371655c66b7bcf66ddc8828aede12d236016abc66b8b717c87e6053",
+    "canonicalPopulationEncoding": "UTF-8 JSON; sorted object keys; compact separators; original eligible sample order",
+    "collectorSourceReportSha256": "488ab0bd218e18fdd3660fe949f93c6ac22ed6352b925352b10eef9d79ce75b7",
+    "collectedAtUtc": "2026-10-31T22:08:53.866815Z",
+    "quantileMethod": "nearest rank ceil(0.95*N), no rounding before ordering",
+    "operations": [
+      {
+        "operation": "M9_detail_draft_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "180.695574",
+        "clientP95MillisecondsEndToEnd": "481.755",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_detail_draft_R7_reconciliation",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "204.033384",
+        "clientP95MillisecondsEndToEnd": "431.014",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_detail_published_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "204.271513",
+        "clientP95MillisecondsEndToEnd": "532.102",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_discovery_draft_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "191.027109",
+        "clientP95MillisecondsEndToEnd": "473.511",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_discovery_draft_R7_reconciliation",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "172.663439",
+        "clientP95MillisecondsEndToEnd": "384.787",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_discovery_published_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "168.111671",
+        "clientP95MillisecondsEndToEnd": "444.963",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_finalize_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "630.391351",
+        "clientP95MillisecondsEndToEnd": "1017.874",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": false
+      },
+      {
+        "operation": "M9_finalize_replay_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "399.529748",
+        "clientP95MillisecondsEndToEnd": "602.501",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_history_owner_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "323.421003",
+        "clientP95MillisecondsEndToEnd": "650.829",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_history_responsible_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "327.496468",
+        "clientP95MillisecondsEndToEnd": "555.149",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_text_replay_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "486.429977",
+        "clientP95MillisecondsEndToEnd": "742.109",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_text_save_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "479.21848",
+        "clientP95MillisecondsEndToEnd": "687.464",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_draft_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "176.966756",
+        "clientP95MillisecondsEndToEnd": "530.209",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_empty_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "220.239234",
+        "clientP95MillisecondsEndToEnd": "546.642",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_empty_R7_reconciliation",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "200.220715",
+        "clientP95MillisecondsEndToEnd": "424.274",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_published_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "168.180881",
+        "clientP95MillisecondsEndToEnd": "543.632",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_replay_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "413.255035",
+        "clientP95MillisecondsEndToEnd": "688.887",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": true
+      },
+      {
+        "operation": "M9_treatment_save_R7",
+        "eligibleAttempts": 1,
+        "correlatedAttempts": 1,
+        "unverifiedAttempts": 0,
+        "correlationComplete": true,
+        "p95Milliseconds": "722.465284",
+        "clientP95MillisecondsEndToEnd": "1030.839",
+        "clientErrorsOrTimeouts": 0,
+        "clientTimeouts": 0,
+        "serverErrorResponses": 0,
+        "strict500msMetInSample": false
+      }
+    ],
+    "violatingGroups": [
+      "M9_finalize_R7",
+      "M9_treatment_save_R7"
+    ],
+    "latencyDeviationRetained": true,
+    "sustainedSloVerified": false
+  },
+  "reminders": {
+    "postEndObservedAtUtc": "2026-10-31T22:25:05.949375+00:00",
+    "doseStartsAtUtc": "2026-10-31T22:14:40.848738Z",
+    "doseEndsAtUtc": "2026-10-31T22:24:40.848738Z",
+    "controlClinicalTimeUtc": "2026-10-31T22:49:40.848738Z",
+    "schedules": 2,
+    "finishedSchedules": 2,
+    "sourceMatches": true,
+    "tasks": [
+      {
+        "source": "CONTROL",
+        "status": "SENT",
+        "scheduledAt": "2026-10-31T22:04:49.868174+00:00",
+        "expiresAt": "2026-10-31T22:49:40.848738+00:00",
+        "sentAt": "2026-10-31T22:04:53.903179+00:00",
+        "attempts": 1,
+        "errorCode": null,
+        "recipient": true
+      },
+      {
+        "source": "PRESCRIPTION",
+        "status": "SENT",
+        "scheduledAt": "2026-10-31T22:14:40.848738+00:00",
+        "expiresAt": "2026-10-31T22:19:40.848738+00:00",
+        "sentAt": "2026-10-31T22:14:49.736325+00:00",
+        "attempts": 1,
+        "errorCode": null,
+        "recipient": true
+      }
+    ],
+    "postEndExtraDoseTasksObserved": 0,
+    "observationIsFiniteNotContinuous": true,
+    "exactlyOnceSmtpGuaranteed": false
+  },
+  "existingAppointmentConfirmation": {
+    "notificationType": "OWNER_CONFIRMED",
+    "status": "SENT",
+    "attemptCount": 1,
+    "sentAt": "2026-10-28T16:56:18.417041Z"
+  },
+  "mailReceipt": {
+    "automaticHarnessMailboxReceiptVerified": false,
+    "separateHumanEvidence": {
+      "observedOn": "2026-10-31",
+      "source": "USER_REPORTED",
+      "revision": "grownupsvet-backend-00009-vmd",
+      "messagesExpected": 2,
+      "messagesReceived": 2,
+      "encodingReportedCorrect": true,
+      "automatedMailboxInspection": false,
+      "recipientPublished": false
+    }
+  },
+  "monitoring": {
+    "status": "PASSED",
+    "checkedAtUtc": "2026-10-31T22:11:07.174135+00:00",
+    "revision": "grownupsvet-backend-00009-vmd",
+    "families": [
+      {
+        "name": "process_uptime_seconds",
+        "series": 1,
+        "fresh": true
+      },
+      {
+        "name": "jvm_memory_used_bytes",
+        "series": 8,
+        "fresh": true
+      },
+      {
+        "name": "hikaricp_connections_active",
+        "series": 1,
+        "fresh": true
+      },
+      {
+        "name": "http_server_requests_seconds_count",
+        "series": 18,
+        "fresh": true
+      },
+      {
+        "name": "http_server_requests_seconds_sum",
+        "series": 18,
+        "fresh": true
+      },
+      {
+        "name": "http_server_requests_seconds_bucket",
+        "series": 1350,
+        "fresh": true
+      },
+      {
+        "name": "grownupsvet_business_commits_total",
+        "series": 7,
+        "fresh": true
+      }
+    ],
+    "businessOperationSeries": 7,
+    "recentClinicalCommitValues": {
+      "clinical_draft_save": "1",
+      "clinical_treatment_save": "1",
+      "clinical_finalize": "1"
+    },
+    "histogram500msSeries": 18,
+    "panelCount": 10,
+    "successfulQueries": 9,
+    "p95PanelFiniteSeries": 2,
+    "p95PanelNanSeries": 8,
+    "countersAreProcessLifecycleValuesNotAcceptancePercentages": true
+  },
+  "operationalCleanup": {
+    "status": "FINAL_OPERATIONAL_CLEANUP_VERIFIED",
+    "verifiedAtUtc": "2026-10-31T22:27:07.9736732Z",
+    "revision": "grownupsvet-backend-00009-vmd",
+    "generation": 21,
+    "trafficPercent": 100,
+    "tagsRemoved": true,
+    "minimum": 0,
+    "maximum": 1,
+    "configurationPreserved": true,
+    "monitoringStopped": true,
+    "localPortsClosed": true,
+    "monitoringDataPreserved": true,
+    "publicHttpRequestsAfterStop": 0,
+    "doesNotGuaranteeImmediateZeroInstancesOrZeroTotalCost": true
+  },
+  "sourceArtifactsSha256": {
+    "r7-final-report-source.json": "dcf0f0d9387e9f9560f92a98aba4583cabbc65ce7ad89616213c8b9c841f1f92",
+    "r7-final-checkpoint-private.json": "67a0ee63c4f875cb56a1ad749f7ad7bc08b93b8c57304b2c9c5ed53ec5a7bc90",
+    "r7-measurement-source-initial.json": "488ab0bd218e18fdd3660fe949f93c6ac22ed6352b925352b10eef9d79ce75b7",
+    "r7-cloud-run-latencies.json": "eb7eda1c9eea33bb5bf361d9a293f7c83c02566808c3e232eb1d32e718fb82c3",
+    "r7-human-mail-receipt.json": "8f3f760db1129acddd4372757029e4176463593b3a5e46f2b0b9381d20e2daa4",
+    "monitoring-r7-verification.json": "ab3c6dbd02f291a6250de0cfd5d30fa07bba3ed7579ec704221efea499513d35",
+    "final-operational-cleanup-verification.json": "749a59fa182f9bce917246d0f7b1bdb19700b2d048ea0e15f0218b23b87fb029"
+  },
+  "limitations": [
+    "Small declared functional sample, not a population-level 99 percent or sustained SLO claim.",
+    "Creation was inherited from fa2; no new R7 creation is credited.",
+    "Cloud Run request latency is not exclusive Java execution time; client E2E is reported separately.",
+    "Recorded expected responses do not erase errors or interruptions from historical cuts.",
+    "SENT is SMTP acceptance; receipt and encoding are separate USER_REPORTED evidence.",
+    "Post-end checks are finite observations, not an indefinite exactly-once guarantee.",
+    "Minimum zero permits cold starts and does not ensure continuous reminder processing without an instance."
+  ]
+}

@@ -8,6 +8,7 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.clinical.model.ClinicalEnc
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperation;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperationCommittedEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -91,8 +92,8 @@ public class ClinicalEncounterService {
                 new MapSqlParameterSource().addValue("id", encounterId).addValue("appointment", appointment.id())
                         .addValue("pet", appointment.petId()).addValue("owner", appointment.ownerId())
                         .addValue("veterinarian", actorId).addValue("now", Timestamp.from(now)), ENCOUNTER_ROW);
-        insertEvent(encounterId, 0, "CREATED", actorId, null, now);
-        insertOperation(encounterId, actorId, "CREATE", request.clientRequestId(), requestFingerprint, 0, now);
+        insertEventAndOperation(encounterId, 0, "CREATED", actorId, null, "CREATE",
+                request.clientRequestId(), requestFingerprint, now);
         events.publishEvent(new BusinessOperationCommittedEvent(BusinessOperation.CLINICAL_DRAFT_CREATE));
         return new CreationResult(created, true);
     }
@@ -133,7 +134,7 @@ public class ClinicalEncounterService {
         return "(e.status='FINALIZED' and (e.veterinarian_id=:actor or " + confirmedPetAssignmentPredicate("e.pet_id") + "))";
     }
 
-    private String encounterReadPredicate(ClinicalReaderContext reader) {
+    String encounterReadPredicate(ClinicalReaderContext reader) {
         String published = publishedReadPredicate(reader);
         if (reader.owner()) { return published; }
         return "(" + published + " or (e.status='DRAFT' and exists " +
@@ -240,8 +241,8 @@ public class ClinicalEncounterService {
     void recordMutationAudit(UUID actorId, ClinicalMutationContext context, String eventType, String operationType,
             UUID clientRequestId, String requestFingerprint, Instant now) {
         long nextVersion = context.encounter().version() + 1;
-        insertEvent(context.encounter().id(), nextVersion, eventType, actorId, context.encounter().veterinarianId(), now);
-        insertOperation(context.encounter().id(), actorId, operationType, clientRequestId, requestFingerprint, nextVersion, now);
+        insertEventAndOperation(context.encounter().id(), nextVersion, eventType, actorId,
+                context.encounter().veterinarianId(), operationType, clientRequestId, requestFingerprint, now);
     }
 
     private void requireVeterinarian(UUID actorId, boolean lock) {
@@ -251,10 +252,15 @@ public class ClinicalEncounterService {
         }
     }
 
-    private ClinicalReaderContext requireClinicalReader(UUID actorId) {
+    ClinicalReaderContext requireClinicalReader(UUID actorId) {
         ClinicalAccount account = account(actorId, false);
         if (!"OWNER".equals(account.role()) && !"VETERINARIAN".equals(account.role())) { throw accessDenied(); }
         return new ClinicalReaderContext(actorId, "OWNER".equals(account.role()));
+    }
+
+    void requireUnchangedClinicalReader(ClinicalReaderContext reader, String role, String status) {
+        String expectedRole = reader.owner() ? "OWNER" : "VETERINARIAN";
+        if (!"ACTIVE".equals(status) || !expectedRole.equals(role)) { throw accessDenied(); }
     }
 
     private ClinicalAccount account(UUID actorId, boolean lock) {
@@ -326,21 +332,33 @@ public class ClinicalEncounterService {
                 .stream().findFirst().orElse(null);
     }
 
-    private void insertOperation(UUID encounterId, UUID actorId, String operationType, UUID clientRequestId,
-            String requestFingerprint, long resultingVersion, Instant now) {
-        jdbc.update("insert into clinical_encounter_operations(id,encounter_id,actor_id,operation_type,client_request_id," +
-                        "request_fingerprint,resulting_version,created_at) values(:id,:encounter,:actor,:type,:request,:fingerprint,:version,:now)",
-                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("encounter", encounterId)
-                        .addValue("actor", actorId).addValue("type", operationType).addValue("request", clientRequestId)
-                        .addValue("fingerprint", requestFingerprint).addValue("version", resultingVersion).addValue("now", Timestamp.from(now)));
-    }
-
-    private void insertEvent(UUID encounterId, long version, String eventType, UUID actorId, UUID previousVeterinarianId, Instant now) {
-        jdbc.update("insert into clinical_encounter_events(id,encounter_id,encounter_version,event_type,actor_id," +
-                        "previous_veterinarian_id,veterinarian_id,occurred_at) values(:id,:encounter,:version,:type,:actor,:previous,:actor,:now)",
-                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("encounter", encounterId)
-                        .addValue("version", version).addValue("type", eventType).addValue("actor", actorId)
-                        .addValue("previous", previousVeterinarianId).addValue("now", Timestamp.from(now)));
+    private void insertEventAndOperation(UUID encounterId, long version, String eventType, UUID actorId,
+            UUID previousVeterinarianId, String operationType, UUID clientRequestId, String requestFingerprint, Instant now) {
+        // The parent has already been persisted. The operation consumes the exact event row;
+        // neither an omitted event nor an omitted operation may commit the business mutation.
+        String statement = """
+                with inserted_event as (
+                    insert into clinical_encounter_events(id,encounter_id,encounter_version,event_type,actor_id,
+                        previous_veterinarian_id,veterinarian_id,occurred_at)
+                    values(:eventId,:encounter,:version,:eventType,:actor,:previous,:actor,:now)
+                    returning encounter_id,encounter_version,actor_id,occurred_at
+                ), inserted_operation as (
+                    insert into clinical_encounter_operations(id,encounter_id,actor_id,operation_type,client_request_id,
+                        request_fingerprint,resulting_version,created_at)
+                    select :operationId,e.encounter_id,e.actor_id,:operationType,:request,:fingerprint,e.encounter_version,e.occurred_at
+                    from inserted_event e returning id
+                )
+                select (select count(*) from inserted_event)=1 and (select count(*) from inserted_operation)=1
+                """;
+        Boolean complete = jdbc.queryForObject(statement,
+                new MapSqlParameterSource().addValue("eventId", UUID.randomUUID()).addValue("operationId", UUID.randomUUID())
+                        .addValue("encounter", encounterId).addValue("version", version).addValue("eventType", eventType)
+                        .addValue("actor", actorId).addValue("previous", previousVeterinarianId).addValue("now", Timestamp.from(now))
+                        .addValue("operationType", operationType).addValue("request", clientRequestId).addValue("fingerprint", requestFingerprint),
+                Boolean.class);
+        if (!Boolean.TRUE.equals(complete)) {
+            throw new DataIntegrityViolationException("Clinical mutations require exactly one audit event and one operation.");
+        }
     }
 
     private static String normalize(String value) {
@@ -380,7 +398,7 @@ public class ClinicalEncounterService {
         return conflict("CLINICAL_IDEMPOTENCY_CONFLICT", "La clave de la solicitud ya se utilizó con otros datos.");
     }
 
-    private static ClinicalOperationException notFound() {
+    static ClinicalOperationException notFound() {
         return new ClinicalOperationException(HttpStatus.NOT_FOUND, "CLINICAL_ENCOUNTER_NOT_FOUND", "La atención no existe o no está disponible para tu cuenta.");
     }
 

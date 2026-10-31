@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -37,6 +36,16 @@ import java.util.UUID;
 
 @Service
 public class ClinicalTreatmentService {
+    private static final String TREATMENT_CHILDREN_SELECT = """
+            select encounter_id,1 child_type,position,id,medication_name,dose,dose_unit,administration_route,
+                interval_hours,starts_at,ends_at,instructions,cast(null as timestamptz) scheduled_at,cast(null as varchar) reason
+            from clinical_prescriptions where encounter_id=:encounter
+            union all
+            select encounter_id,2 child_type,position,id,cast(null as varchar) medication_name,cast(null as numeric(18,6)) dose,
+                cast(null as varchar) dose_unit,cast(null as varchar) administration_route,cast(null as integer) interval_hours,
+                cast(null as timestamptz) starts_at,cast(null as timestamptz) ends_at,cast(null as varchar) instructions,scheduled_at,reason
+            from clinical_controls where encounter_id=:encounter
+            """;
     private final NamedParameterJdbcTemplate jdbc;
     private final ClinicalEncounterService encounters;
     private final Clock clock;
@@ -49,11 +58,44 @@ public class ClinicalTreatmentService {
         this.events = events;
     }
 
-    // The parent version and both lists must come from one PostgreSQL snapshot.
-    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    // Access, parent version and both lists share this statement's PostgreSQL snapshot.
+    @Transactional(readOnly = true)
     public ClinicalTreatmentResponseDTO get(UUID actorId, UUID encounterId) {
-        var encounter = encounters.get(actorId, encounterId);
-        return readTreatment(encounterId, encounter.version());
+        var reader = encounters.requireClinicalReader(actorId);
+        String statement = """
+                with current_reader as (
+                    select role,status from users where id=:actor
+                ), authorized_encounter as (
+                    select e.id,e.version from clinical_encounters e cross join current_reader r
+                    where e.id=:encounter and r.status='ACTIVE' and r.role=:readerRole and (
+                """ + encounters.encounterReadPredicate(reader) + ")" + """
+                ), treatment_rows as (
+                    select children.* from (
+                """ + TREATMENT_CHILDREN_SELECT + """
+                    ) children join authorized_encounter e on e.id=children.encounter_id
+                )
+                select r.role reader_role,r.status reader_status,e.id encounter_id,e.version encounter_version,
+                    child.child_type,child.position,child.id,child.medication_name,child.dose,child.dose_unit,
+                    child.administration_route,child.interval_hours,child.starts_at,child.ends_at,child.instructions,
+                    child.scheduled_at,child.reason
+                from (select 1) anchor left join current_reader r on true
+                left join authorized_encounter e on true
+                left join treatment_rows child on child.encounter_id=e.id
+                order by child.child_type,child.position
+                """;
+        return jdbc.query(statement, Map.of("actor", actorId, "encounter", encounterId,
+                "readerRole", reader.owner() ? "OWNER" : "VETERINARIAN"), resultSet -> {
+            if (!resultSet.next()) { throw ClinicalEncounterService.notFound(); }
+            encounters.requireUnchangedClinicalReader(reader, resultSet.getString("reader_role"), resultSet.getString("reader_status"));
+            if (resultSet.getObject("encounter_id", UUID.class) == null) { throw ClinicalEncounterService.notFound(); }
+            long version = resultSet.getLong("encounter_version");
+            List<ClinicalPrescriptionResponseDTO> prescriptions = new ArrayList<>();
+            List<ClinicalControlResponseDTO> controls = new ArrayList<>();
+            do {
+                if (resultSet.getObject("child_type") != null) { appendTreatmentChild(resultSet, prescriptions, controls); }
+            } while (resultSet.next());
+            return new ClinicalTreatmentResponseDTO(encounterId, version, List.copyOf(prescriptions), List.copyOf(controls));
+        });
     }
 
     @Transactional
@@ -84,13 +126,20 @@ public class ClinicalTreatmentService {
     }
 
     private ClinicalTreatmentResponseDTO readTreatment(UUID encounterId, long version) {
-        List<ClinicalPrescriptionResponseDTO> prescriptions = jdbc.query("select id,medication_name,dose,dose_unit,administration_route," +
-                        "interval_hours,starts_at,ends_at,instructions from clinical_prescriptions where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> prescription(resultSet));
-        List<ClinicalControlResponseDTO> controls = jdbc.query("select id,scheduled_at,reason from clinical_controls " +
-                        "where encounter_id=:encounter order by position",
-                Map.of("encounter", encounterId), (resultSet, rowNumber) -> control(resultSet));
+        List<ClinicalPrescriptionResponseDTO> prescriptions = new ArrayList<>();
+        List<ClinicalControlResponseDTO> controls = new ArrayList<>();
+        jdbc.query(TREATMENT_CHILDREN_SELECT + " order by child_type,position", Map.of("encounter", encounterId),
+                resultSet -> { appendTreatmentChild(resultSet, prescriptions, controls); });
         return new ClinicalTreatmentResponseDTO(encounterId, version, List.copyOf(prescriptions), List.copyOf(controls));
+    }
+
+    private static void appendTreatmentChild(ResultSet resultSet, List<ClinicalPrescriptionResponseDTO> prescriptions,
+            List<ClinicalControlResponseDTO> controls) throws SQLException {
+        if (resultSet.getInt("child_type") == 1) {
+            prescriptions.add(prescription(resultSet));
+        } else {
+            controls.add(control(resultSet));
+        }
     }
 
     private List<ClinicalPrescriptionResponseDTO> insertPrescriptions(UUID encounterId, List<ClinicalPrescriptionResponseDTO> prescriptions) {

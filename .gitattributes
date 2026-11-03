@@ -1,2 +1,4 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+/00-manual-de-usuario.pdf binary

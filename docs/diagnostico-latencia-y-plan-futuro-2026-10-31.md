@@ -89,3 +89,8 @@ No se propone ahora cambiar infraestructura, instalar agentes, habilitar sondeos
 - Fuentes inspeccionadas: `ClinicalEncounterService`, `ClinicalTreatmentService`, migraciones V19–V23 y planes R6/R7. No se modificaron estas fuentes ni se ejecutaron sus sentencias.
 
 Revisado por el agente principal el 31/10. Las observaciones históricas de Window A se mantienen separadas de Window B/fa2 y de la aceptación R7 del 31/10; cada una conserva identidad y evidencia propias.
+
+
+## Experimento complementario del 3 de noviembre de 2026
+
+El [informe técnico del experimento](evidencias/latencia-2026-11-03/informe-latencia-grownupsvet.pdf) compara dos rutas desde Colombia al listar citas y mide el intercambio Cloud Run–PostgreSQL mediante una sonda de solo lectura. En la ventana observada, el P95 extremo a extremo fue de 733,85 ms vía Cloudflare y 455,31 ms por la ruta directa. En la sonda de Iowa a Ohio, la mediana de una consulta mínima fue de 20,11 ms. Estas mediciones tienen un alcance diferente al de los ensayos de escritura del 28 y 31 de octubre.

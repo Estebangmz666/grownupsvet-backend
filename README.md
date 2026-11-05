@@ -2,6 +2,8 @@
 
 **Guía de uso:** [Manual de usuario de GrownupsVet (PDF)](00-manual-de-usuario.pdf).
 
+**Pruebas de calidad:** [Diseño, implementación y ejecución de pruebas de calidad del software (20 RNF)](01-diseno-implementacion-ejecucion-pruebas-calidad.md).
+
 API REST para la gestión de usuarios, mascotas, citas y atención clínica veterinaria. Utiliza **Java 25, Spring Boot 4.1.1, PostgreSQL, Maven Wrapper y springdoc 3.1.0**. El contrato de estas fuentes es **0.11.0**; la versión del artefacto Maven continúa en `0.0.1-SNAPSHOT`. El [expediente de auditoría](docs/expediente-auditoria-2026-10-26.md) distingue pruebas, publicación y estado del despliegue.
 
 **Cierre funcional backend del 31/10/2026:** [estado de entrega y matriz I0–I8](docs/estado-cierre-backend-2026-10-31.md), [aceptación de la revisión009](docs/aceptacion-backend-r7-desplegado-2026-10-31.md) y [diagnóstico de latencia con plan futuro sin implementar](docs/diagnostico-latencia-y-plan-futuro-2026-10-31.md). Se conservan los incumplimientos medidos; no se declara un SLO general cumplido. La auditoría parcial anterior mantiene su propio corte y alcance.

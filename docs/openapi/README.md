@@ -12,6 +12,12 @@ El **16/10/2026** se habilitó Gmail SMTP en el entorno local y Cloud Run. La re
 
 Con el backend ejecutándose, consultar `/v3/api-docs` o `/swagger-ui/index.html`. El servidor de desarrollo del snapshot es `http://localhost:8080`; configurar la URL correspondiente al generar o utilizar un cliente para otro entorno.
 
+## Autorización en el registro de propietarios
+
+El formulario que presenta el aviso `2026-11-07` envía `privacyNoticeVersion` tras la autorización expresa. La migración V24 conserva la versión y la fecha UTC del servidor junto con el perfil en la misma transacción. Los perfiles anteriores quedan con ambos campos vacíos.
+
+Publicar primero el backend con V24 y comprobar que acepta la versión. Publicar después el portal con la casilla. Cuando el portal actualizado esté disponible, activar `REGISTRATION_PRIVACY_AUTHORIZATION_REQUIRED=true` y comprobar que la API devuelve 400 al omitir la autorización y permite crear una cuenta de demostración al incluirla. El modo de transición admite clientes anteriores mientras el portal se actualiza.
+
 ## Regenerar y comprobar
 
 Desde `grownupsvet-backend`, con Java 25, `JAVA_HOME`, PostgreSQL local, la base `grownupsvet_test` y las variables `DB_USERNAME` / `DB_PASSWORD` disponibles.

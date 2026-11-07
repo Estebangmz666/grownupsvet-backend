@@ -10,6 +10,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -36,15 +37,28 @@ public class OwnerProfile {
     @Column(name = "phone_number", nullable = false, length = 16)
     private String phoneNumber;
 
+    @Column(name = "privacy_notice_version", updatable = false, length = 10)
+    private String privacyNoticeVersion;
+
+    @Column(name = "privacy_authorized_at", updatable = false)
+    private Instant privacyAuthorizedAt;
+
     protected OwnerProfile() {
         // Required by JPA.
     }
 
     public OwnerProfile(User user, String fullName, LocalDate dateOfBirth, String phoneNumber) {
+        this(user, fullName, dateOfBirth, phoneNumber, null, null);
+    }
+
+    public OwnerProfile(User user, String fullName, LocalDate dateOfBirth, String phoneNumber,
+                        String privacyNoticeVersion, Instant privacyAuthorizedAt) {
         this.user = Objects.requireNonNull(user, "user must not be null");
         this.fullName = Objects.requireNonNull(fullName, "fullName must not be null").strip();
         this.dateOfBirth = Objects.requireNonNull(dateOfBirth, "dateOfBirth must not be null");
         this.phoneNumber = Objects.requireNonNull(phoneNumber, "phoneNumber must not be null");
+        this.privacyNoticeVersion = privacyNoticeVersion;
+        this.privacyAuthorizedAt = privacyAuthorizedAt;
     }
 
     public UUID getUserId() { return userId; }

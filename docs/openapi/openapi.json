@@ -7985,6 +7985,13 @@
             "maxLength" : 128,
             "minLength" : 15,
             "writeOnly" : true
+          },
+          "privacyNoticeVersion" : {
+            "type" : "string",
+            "description" : "Versión del aviso que el propietario autorizó expresamente. Obligatoria cuando el despliegue exige autorización.",
+            "enum" : [ "2026-11-07" ],
+            "pattern" : "2026-11-07",
+            "writeOnly" : true
           }
         },
         "required" : [ "dateOfBirth", "email", "fullName", "password", "phoneNumber" ]

@@ -101,5 +101,6 @@ jobs:
           path: |
             target/ci-reports/*.xml
             target/generated-openapi/openapi.json
+            target/site/jacoco/
           if-no-files-found: warn
           retention-days: 30

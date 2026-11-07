@@ -49,6 +49,8 @@ management:
           include: readinessState,db
 
 grownupsvet:
+  registration:
+    privacy-authorization-required: ${REGISTRATION_PRIVACY_AUTHORIZATION_REQUIRED:false}
   frontend:
     base-url: ${FRONTEND_BASE_URL:}
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}

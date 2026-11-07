@@ -12,11 +12,16 @@ import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.Busin
 import edu.uniquindio.grownupsvet.grownupsvet_backend.shared.observability.BusinessOperationCommittedEvent;
 import org.hibernate.exception.ConstraintViolationException;
 import org.postgresql.util.PSQLException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Clock;
 
 @Service
 public class UserSignupService {
@@ -24,18 +29,28 @@ public class UserSignupService {
     private final OwnerProfileRepository ownerProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher events;
+    private final Clock clock;
+    private final boolean privacyAuthorizationRequired;
 
     public UserSignupService(UserRepository userRepository, OwnerProfileRepository ownerProfileRepository,
-                             PasswordEncoder passwordEncoder, ApplicationEventPublisher events) {
+                             PasswordEncoder passwordEncoder, ApplicationEventPublisher events, Clock clock,
+                             @Value("${grownupsvet.registration.privacy-authorization-required:false}")
+                             boolean privacyAuthorizationRequired) {
         this.userRepository = userRepository;
         this.ownerProfileRepository = ownerProfileRepository;
         this.passwordEncoder = passwordEncoder;
         this.events = events;
+        this.clock = clock;
+        this.privacyAuthorizationRequired = privacyAuthorizationRequired;
     }
 
     /** Saves the account and owner profile atomically, without granting a session. */
     @Transactional
     public UserSignupResponseDTO signup(UserSignupRequestDTO request) {
+        String privacyNoticeVersion = request.privacyNoticeVersion();
+        if (privacyAuthorizationRequired && privacyNoticeVersion == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se requiere autorizar el tratamiento de datos.");
+        }
         String normalizedEmail = User.normalizeEmail(request.email());
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new EmailAlreadyRegisteredException();
@@ -45,7 +60,8 @@ public class UserSignupService {
         try {
             userRepository.saveAndFlush(user);
             ownerProfileRepository.saveAndFlush(new OwnerProfile(user, request.fullName(),
-                    request.dateOfBirth(), request.phoneNumber()));
+                    request.dateOfBirth(), request.phoneNumber(), privacyNoticeVersion,
+                    privacyNoticeVersion == null ? null : clock.instant()));
         } catch (DataIntegrityViolationException exception) {
             if (isEmailUniqueConstraintViolation(exception)) {
                 // Handles the race after existsByEmail. The transaction will roll back.

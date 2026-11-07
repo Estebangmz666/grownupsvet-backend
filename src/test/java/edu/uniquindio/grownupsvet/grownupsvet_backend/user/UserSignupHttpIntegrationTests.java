@@ -1,6 +1,7 @@
 package edu.uniquindio.grownupsvet.grownupsvet_backend.user;
 
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.controller.UserSignupController;
+import edu.uniquindio.grownupsvet.grownupsvet_backend.user.dto.UserSignupRequestDTO;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.model.OwnerProfile;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.user.repository.OwnerProfileRepository;
 import edu.uniquindio.grownupsvet.grownupsvet_backend.support.TestJwtKeyConfiguration;
@@ -107,7 +108,27 @@ class UserSignupHttpIntegrationTests {
         assertThat(profile.get("full_name")).isEqualTo("María O’Connor");
         assertThat(profile.get("date_of_birth").toString()).isEqualTo("1955-05-20");
         assertThat(profile.get("phone_number")).isEqualTo("+573001234567");
+        assertThat(profile.get("privacy_notice_version")).isNull();
+        assertThat(profile.get("privacy_authorized_at")).isNull();
         saveResponseExample("signup-success.json", result);
+    }
+
+    @Test
+    void recordsTheExplicitAuthorizationWithTheNewOwnerProfile() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("privacyNoticeVersion", "1900-01-01");
+        register(request, 400);
+        assertAccountCounts(0);
+
+        request.put("privacyNoticeVersion", UserSignupRequestDTO.PRIVACY_NOTICE_VERSION);
+        MvcResult result = register(request, 201);
+        JsonNode response = jsonMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(response.properties()).hasSize(2);
+        UUID userId = UUID.fromString(response.path("id").asText());
+        Map<String, Object> profile = jdbcTemplate.queryForMap(
+                "SELECT privacy_notice_version, privacy_authorized_at FROM owner_profiles WHERE user_id = ?", userId);
+        assertThat(profile.get("privacy_notice_version")).isEqualTo(UserSignupRequestDTO.PRIVACY_NOTICE_VERSION);
+        assertThat(profile.get("privacy_authorized_at")).isNotNull();
     }
 
     @Test

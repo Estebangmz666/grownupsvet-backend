@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -46,8 +47,20 @@ public record UserSignupRequestDTO(
         @Schema(type = "string", format = "password", minLength = 15, maxLength = 128,
                 accessMode = Schema.AccessMode.WRITE_ONLY, requiredMode = Schema.RequiredMode.REQUIRED,
                 description = "15–128 puntos de código Unicode. Admite espacios, sin composición obligatoria. No se transforma ni se devuelve. Se rechazan contraseñas comunes.")
-        String password
+        String password,
+
+        @Pattern(regexp = PRIVACY_NOTICE_VERSION)
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+        @Schema(type = "string", allowableValues = PRIVACY_NOTICE_VERSION, accessMode = Schema.AccessMode.WRITE_ONLY,
+                description = "Versión del aviso que el propietario autorizó expresamente. Obligatoria cuando el despliegue exige autorización.")
+        String privacyNoticeVersion
 ) {
+    public static final String PRIVACY_NOTICE_VERSION = "2026-11-07";
+
+    public UserSignupRequestDTO(String email, String fullName, LocalDate dateOfBirth, String phoneNumber, String password) {
+        this(email, fullName, dateOfBirth, phoneNumber, password, null);
+    }
+
     @Override
     public String toString() { return "UserSignupRequestDTO[personalData=[REDACTED], password=[REDACTED]]"; }
 }
